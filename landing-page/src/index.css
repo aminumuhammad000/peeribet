@@ -1,0 +1,197 @@
+:root {
+  /* Fonts */
+  --font-header: 'Outfit', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+
+  /* Colors */
+  --bg-main: #070d19;
+  --bg-sidebar: #0b152d;
+  --bg-card: #0a1122;
+  --bg-hero: linear-gradient(135deg, #1c2e55 0%, #11203d 100%);
+  --bg-hero-accent: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+  --bg-chalkboard: #0e3b2b;
+  
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
+  --accent-blue-glow: rgba(59, 130, 246, 0.3);
+  --accent-green: #10b981;
+  --accent-green-glow: rgba(16, 185, 129, 0.2);
+  --accent-red: #ef4444;
+  --accent-red-glow: rgba(239, 68, 68, 0.4);
+  
+  --text-primary: #ffffff;
+  --text-secondary: #8da2c4;
+  --text-muted: #4e6387;
+  --text-accent: #06b6d4;
+
+  --border-color: rgba(255, 255, 255, 0.06);
+  --border-color-active: rgba(59, 130, 246, 0.4);
+  
+  /* Layout Options */
+  --sidebar-width: 80px;
+  --right-panel-width: 320px;
+  --header-height: 70px;
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --border-radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Base Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-header);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Animations */
+@keyframes pulse-red {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes move-chalk-ball {
+  0% { cx: 160px; cy: 110px; }
+  25% { cx: 200px; cy: 150px; }
+  50% { cx: 230px; cy: 120px; }
+  75% { cx: 120px; cy: 80px; }
+  100% { cx: 160px; cy: 110px; }
+}
+
+@keyframes move-player-a {
+  0%, 100% { transform: translate(0px, 0px); }
+  50% { transform: translate(15px, -20px); }
+}
+
+@keyframes move-player-b {
+  0%, 100% { transform: translate(0px, 0px); }
+  50% { transform: translate(-20px, 15px); }
+}
+
+/* Utility Classes */
+.animate-pulse-red {
+  animation: pulse-red 2s infinite;
+}
+
+.text-gradient-cyan-green {
+  background: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glassmorphic {
+  background: rgba(10, 17, 34, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+}
+
+.glow-btn {
+  transition: var(--transition-smooth);
+}
+
+.glow-btn:hover {
+  box-shadow: 0 0 16px var(--accent-blue-glow);
+  transform: translateY(-1px);
+}
+
+.active-bar-indicator {
+  position: relative;
+}
+
+.active-bar-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--accent-blue);
+  border-radius: 4px;
+  box-shadow: 0 0 10px var(--accent-blue-glow);
+}
+
+/* App Container Layout */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-main);
+  position: relative;
+}
+
+.sidebar-spacer {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+}
+
+.main-content {
+  flex-grow: 1;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: calc(100% - var(--sidebar-width) - var(--right-panel-width));
+}
+
+@media (max-width: 1200px) {
+  .main-content {
+    max-width: calc(100% - var(--sidebar-width));
+  }
+  .right-panel-spacer {
+    display: none;
+  }
+}

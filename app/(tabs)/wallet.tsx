@@ -1,0 +1,384 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Wallet, Copy, ArrowUpRight, ArrowDownLeft, Check } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors } from '../../constants/Colors';
+
+export default function WalletScreen() {
+  const router = useRouter();
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const transactions = [
+    {
+      id: '1',
+      type: 'Deposit Approved',
+      amount: '+₦15,000',
+      date: 'May 17, 14:32',
+      bank: 'Virtual Transfer Recv',
+      isCredit: true,
+    },
+    {
+      id: '2',
+      type: 'Withdrawal Pending',
+      amount: '-₦8,000',
+      date: 'May 16, 09:15',
+      bank: 'Access Bank Account',
+      isCredit: false,
+    },
+    {
+      id: '3',
+      type: 'Match Escrow Refunded',
+      amount: '+₦5,000',
+      date: 'May 15, 21:40',
+      bank: 'Chelsea Match Cancel',
+      isCredit: true,
+    },
+  ];
+
+  return (
+    <LinearGradient
+      colors={[Colors.dark.backgroundGradStart, Colors.dark.backgroundGradEnd]}
+      style={styles.background}
+    >
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>My Escrow Wallet</Text>
+          <Wallet size={22} color={Colors.dark.primary} />
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {/* Balance Card display */}
+          <LinearGradient
+            colors={['#00D285', '#009F65']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.balanceCard}
+          >
+            <Text style={styles.balanceLabel}>Total Value Portfolio</Text>
+            <Text style={styles.balanceNum}>₦24,500.00</Text>
+
+            <View style={styles.balanceSplitRow}>
+              <View>
+                <Text style={styles.splitLabel}>Available Funds</Text>
+                <Text style={styles.splitNum}>₦18,050.00</Text>
+              </View>
+              <View style={styles.dividerVertical} />
+              <View>
+                <Text style={styles.splitLabel}>P2P Escrow Locked</Text>
+                <Text style={styles.splitNum}>₦6,450.00</Text>
+              </View>
+            </View>
+          </LinearGradient>
+
+          {/* Action Row */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              onPress={() => {}}
+              activeOpacity={0.8}
+              style={[styles.actionButton, { marginRight: 12 }]}
+            >
+              <ArrowDownLeft size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.actionButtonText}>Quick Deposit</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/withdraw')}
+              activeOpacity={0.8}
+              style={[styles.actionButton, { backgroundColor: '#131C32', borderWidth: 1, borderColor: '#1E293B' }]}
+            >
+              <ArrowUpRight size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.actionButtonText}>Withdraw</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Bank transfer payment detail boxes */}
+          <Text style={styles.sectionTitle}>Escrow Fund Deposit</Text>
+          <View style={styles.virtualAccountCard}>
+            <View style={styles.vaHeader}>
+              <Text style={styles.vaTitle}>Virtual Funding Details</Text>
+              <Text style={styles.vaSubtitle}>Transfer to instant credit your trading escrow wallet</Text>
+            </View>
+
+            <View style={styles.vaDetails}>
+              <View style={styles.vaRow}>
+                <Text style={styles.vaLabel}>Bank Name :</Text>
+                <Text style={styles.vaValBold}>Providus Bank</Text>
+              </View>
+
+              <View style={styles.vaRow}>
+                <Text style={styles.vaLabel}>Account Name :</Text>
+                <Text style={styles.vaVal}>PEERITRADE / Hafeez Makama</Text>
+              </View>
+
+              <View style={[styles.vaRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.vaLabel}>Account Number :</Text>
+                  <Text style={styles.vaAccountNum}>9023 458 291</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={copyToClipboard}
+                  activeOpacity={0.7}
+                  style={styles.copyButton}
+                >
+                  {copied ? (
+                    <Check size={16} color={Colors.dark.primary} />
+                  ) : (
+                    <Copy size={16} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {/* History Transactions lists */}
+          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Recent Ledger Entries</Text>
+          {transactions.map((tx) => (
+            <View key={tx.id} style={styles.txCard}>
+              <View style={[styles.txIconBox, tx.isCredit ? styles.txIconBoxCredit : styles.txIconBoxDebit]}>
+                {tx.isCredit ? (
+                  <ArrowDownLeft size={16} color={Colors.dark.primary} />
+                ) : (
+                  <ArrowUpRight size={16} color={Colors.dark.red} />
+                )}
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.txType}>{tx.type}</Text>
+                <Text style={styles.txMeta}>{tx.bank} • {tx.date}</Text>
+              </View>
+              <Text style={[styles.txAmount, tx.isCredit ? styles.txAmountCredit : styles.txAmountDebit]}>
+                {tx.amount}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  balanceCard: {
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  balanceLabel: {
+    fontSize: 12,
+    color: '#E0F2FE',
+    fontWeight: '600',
+    fontFamily: 'Inter',
+  },
+  balanceNum: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  balanceSplitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.15)',
+    paddingTop: 16,
+  },
+  splitLabel: {
+    fontSize: 10,
+    color: '#E0F2FE',
+    fontWeight: '500',
+    fontFamily: 'Inter',
+  },
+  splitNum: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginTop: 2,
+  },
+  dividerVertical: {
+    width: 1,
+    height: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginHorizontal: 20,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    marginVertical: 18,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: Colors.dark.primary,
+    height: 48,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: 'bold',
+    fontFamily: 'Inter',
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginBottom: 10,
+  },
+  virtualAccountCard: {
+    backgroundColor: '#131C32',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    padding: 16,
+  },
+  vaHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+    paddingBottom: 12,
+    marginBottom: 12,
+  },
+  vaTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  vaSubtitle: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+    fontFamily: 'Inter',
+  },
+  vaDetails: {
+    width: '100%',
+  },
+  vaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0A1124',
+  },
+  vaLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: 'bold',
+    fontFamily: 'Inter',
+  },
+  vaValBold: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  vaVal: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  vaAccountNum: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: Colors.dark.primary,
+    fontFamily: 'Inter',
+    marginTop: 4,
+  },
+  copyButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  txCard: {
+    backgroundColor: '#131C32',
+    borderRadius: 16,
+    padding: 14,
+    marginVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  txIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  txIconBoxCredit: {
+    backgroundColor: 'rgba(0, 210, 133, 0.1)',
+  },
+  txIconBoxDebit: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  txType: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  txMeta: {
+    fontSize: 10,
+    color: '#64748B',
+    fontFamily: 'Inter',
+    marginTop: 2,
+  },
+  txAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    fontFamily: 'Inter',
+  },
+  txAmountCredit: {
+    color: Colors.dark.primary,
+  },
+  txAmountDebit: {
+    color: Colors.dark.red,
+  },
+});
