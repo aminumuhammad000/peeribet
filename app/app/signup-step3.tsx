@@ -1,34 +1,33 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Square, CheckSquare } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { DEMO_USER } from '../constants/DemoData';
+import { authService } from '../services/apiService';
 
-export default function SignInScreen() {
+export default function SignUpStep3Screen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const params = useLocalSearchParams();
+  const { firstName, lastName, email, phone } = params;
+
   const [password, setPassword] = useState('');
-  const [emailError, setEmailError] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  
   const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [termsError, setTermsError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSignIn = () => {
+  const handleSignUp = async () => {
     let isValid = true;
-    setEmailError('');
     setPasswordError('');
-
-    if (!email) {
-      setEmailError('Email address is required');
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      setEmailError('Please enter a valid email address');
-      isValid = false;
-    }
+    setConfirmPasswordError('');
+    setTermsError('');
 
     if (!password) {
       setPasswordError('Password is required');
@@ -38,13 +37,40 @@ export default function SignInScreen() {
       isValid = false;
     }
 
+    if (!confirmPassword) {
+      setConfirmPasswordError('Please confirm your password');
+      isValid = false;
+    } else if (password !== confirmPassword) {
+      setConfirmPasswordError('Passwords do not match');
+      isValid = false;
+    }
+
+    if (!agreeTerms) {
+      setTermsError('You must agree to the Terms & Conditions');
+      isValid = false;
+    }
+
     if (isValid) {
       setLoading(true);
-      // Simulate validation / server latency
-      setTimeout(() => {
+      try {
+        await authService.register({
+          firstName,
+          lastName,
+          email,
+          phone,
+          password
+        });
+        
         setLoading(false);
-        router.replace({ pathname: '/welcome-user', params: { type: 'login' } });
-      }, 1500);
+        router.push({
+          pathname: '/verify-otp',
+          params: { email, phone },
+        });
+      } catch (error: any) {
+        setLoading(false);
+        const errorMsg = error.response?.data?.message || 'Something went wrong. Please try again.';
+        Alert.alert('Registration Failed', errorMsg);
+      }
     }
   };
 
@@ -59,7 +85,7 @@ export default function SignInScreen() {
           style={styles.keyboardView}
         >
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* White round back button matching mockup */}
+            {/* Round Back button matching mockups */}
             <TouchableOpacity
               onPress={() => router.back()}
               style={styles.backButton}
@@ -68,43 +94,16 @@ export default function SignInScreen() {
               <ArrowLeft size={22} color="#0A1124" />
             </TouchableOpacity>
 
-            {/* Typography headers */}
+            {/* Typography Headers */}
             <View style={styles.headerContainer}>
-              <Text style={styles.title}>Sign In</Text>
-              <Text style={styles.subtitle}>Hi, Welcome back. You 've been missed</Text>
-            </View>
-
-            {/* Quick Autofill Banner */}
-            <TouchableOpacity
-              onPress={() => {
-                setEmail(DEMO_USER.email);
-                setPassword(DEMO_USER.password);
-                setEmailError('');
-                setPasswordError('');
-              }}
-              activeOpacity={0.8}
-              style={styles.demoBanner}
-            >
-              <View style={styles.demoHeaderRow}>
-                <Text style={styles.demoBannerTitle}>⚡ Demo Autofill Profile</Text>
-                <Text style={styles.demoBannerTap}>Tap to Auto-fill</Text>
-              </View>
-              <Text style={styles.demoBannerSub}>
-                Email: {DEMO_USER.email}  •  Pass: {DEMO_USER.password}
+              <Text style={styles.title}>Create Account</Text>
+              <Text style={styles.subtitle}>
+                Setup a strong password to protect your escrow outcomes trading account
               </Text>
-            </TouchableOpacity>
+            </View>
 
             {/* Input Forms */}
             <View style={styles.formContainer}>
-              <CustomInput
-                label="Email address :"
-                placeholder="Example@gmail.com"
-                value={email}
-                onChangeText={setEmail}
-                error={emailError}
-                keyboardType="email-address"
-              />
-
               <CustomInput
                 label="Password :"
                 placeholder="********"
@@ -114,30 +113,48 @@ export default function SignInScreen() {
                 secureTextEntry={true}
               />
 
-              {/* Forgot Password Link */}
-              <TouchableOpacity
-                onPress={() => router.push('/forgot-password')}
-                activeOpacity={0.7}
-                style={styles.forgotPasswordContainer}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-              </TouchableOpacity>
+              <CustomInput
+                label="Confirm Password :"
+                placeholder="********"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                error={confirmPasswordError}
+                secureTextEntry={true}
+              />
 
-              {/* Submit Control */}
+              {/* Custom terms & condition selection row */}
+              <TouchableOpacity
+                onPress={() => setAgreeTerms(!agreeTerms)}
+                activeOpacity={0.7}
+                style={styles.checkboxContainer}
+              >
+                {agreeTerms ? (
+                  <CheckSquare size={22} color={Colors.dark.primary} />
+                ) : (
+                  <Square size={22} color="#64748B" />
+                )}
+                <Text style={styles.checkboxText}>
+                  Agree with <Text style={styles.termsText}>Terms & Condition</Text>
+                </Text>
+              </TouchableOpacity>
+              
+              {termsError && <Text style={styles.termsErrorText}>{termsError}</Text>}
+
+              {/* SignUp Trigger */}
               <CustomButton
-                title="Sign In"
+                title="Sign Up"
                 variant="primary"
-                onPress={handleSignIn}
+                onPress={handleSignUp}
                 loading={loading}
                 style={styles.submitButton}
               />
             </View>
 
-            {/* Footer redirection link */}
+            {/* Footer redirect */}
             <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/signup-step1')} activeOpacity={0.7}>
-                <Text style={styles.footerLink}>Sign Up</Text>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/signin')} activeOpacity={0.7}>
+                <Text style={styles.footerLink}>Sign In</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -218,23 +235,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
     fontFamily: 'Inter',
+    lineHeight: 20,
   },
   formContainer: {
     width: '100%',
   },
-  forgotPasswordContainer: {
-    alignSelf: 'flex-end',
-    marginVertical: 4,
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
     paddingVertical: 4,
   },
-  forgotPasswordText: {
+  checkboxText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginLeft: 10,
+    fontWeight: '500',
+    fontFamily: 'Inter',
+  },
+  termsText: {
     color: '#3B82F6',
-    fontSize: 13,
     fontWeight: '700',
+  },
+  termsErrorText: {
+    color: Colors.dark.red,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+    marginLeft: 4,
     fontFamily: 'Inter',
   },
   submitButton: {
-    marginTop: 20,
+    marginTop: 16,
   },
   footerContainer: {
     flexDirection: 'row',

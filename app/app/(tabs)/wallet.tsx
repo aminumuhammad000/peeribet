@@ -1,46 +1,46 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Wallet, Copy, ArrowUpRight, ArrowDownLeft, Check } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
+import { authService, transactionService } from '../../services/apiService';
 
 export default function WalletScreen() {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      const [userData, txHistory] = await Promise.all([
+        authService.getMe(),
+        transactionService.getHistory()
+      ]);
+      setUser(userData);
+      setTransactions(txHistory);
+    } catch (error) {
+      console.error('Error fetching wallet data:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
 
   const copyToClipboard = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  const transactions = [
-    {
-      id: '1',
-      type: 'Deposit Approved',
-      amount: '+₦15,000',
-      date: 'May 17, 14:32',
-      bank: 'Virtual Transfer Recv',
-      isCredit: true,
-    },
-    {
-      id: '2',
-      type: 'Withdrawal Pending',
-      amount: '-₦8,000',
-      date: 'May 16, 09:15',
-      bank: 'Access Bank Account',
-      isCredit: false,
-    },
-    {
-      id: '3',
-      type: 'Match Escrow Refunded',
-      amount: '+₦5,000',
-      date: 'May 15, 21:40',
-      bank: 'Chelsea Match Cancel',
-      isCredit: true,
-    },
-  ];
 
   return (
     <LinearGradient
@@ -54,7 +54,13 @@ export default function WalletScreen() {
           <Wallet size={22} color={Colors.dark.primary} />
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
+          }
+        >
           {/* Balance Card display */}
           <LinearGradient
             colors={['#00D285', '#009F65']}
@@ -63,17 +69,17 @@ export default function WalletScreen() {
             style={styles.balanceCard}
           >
             <Text style={styles.balanceLabel}>Total Value Portfolio</Text>
-            <Text style={styles.balanceNum}>₦24,500.00</Text>
+            <Text style={styles.balanceNum}>₦{(user?.balance || 0).toLocaleString()}</Text>
 
             <View style={styles.balanceSplitRow}>
               <View>
                 <Text style={styles.splitLabel}>Available Funds</Text>
-                <Text style={styles.splitNum}>₦18,050.00</Text>
+                <Text style={styles.splitNum}>₦{(user?.balance || 0).toLocaleString()}</Text>
               </View>
               <View style={styles.dividerVertical} />
               <View>
                 <Text style={styles.splitLabel}>P2P Escrow Locked</Text>
-                <Text style={styles.splitNum}>₦6,450.00</Text>
+                <Text style={styles.splitNum}>₦0.00</Text>
               </View>
             </View>
           </LinearGradient>
@@ -115,7 +121,7 @@ export default function WalletScreen() {
 
               <View style={styles.vaRow}>
                 <Text style={styles.vaLabel}>Account Name :</Text>
-                <Text style={styles.vaVal}>PEERITRADE / Hafeez Makama</Text>
+                <Text style={styles.vaVal}>PEERITRADE / {user?.firstName} {user?.lastName}</Text>
               </View>
 
               <View style={[styles.vaRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
@@ -141,20 +147,20 @@ export default function WalletScreen() {
           {/* History Transactions lists */}
           <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Recent Ledger Entries</Text>
           {transactions.map((tx) => (
-            <View key={tx.id} style={styles.txCard}>
-              <View style={[styles.txIconBox, tx.isCredit ? styles.txIconBoxCredit : styles.txIconBoxDebit]}>
-                {tx.isCredit ? (
+            <View key={tx._id} style={styles.txCard}>
+              <View style={[styles.txIconBox, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txIconBoxCredit : styles.txIconBoxDebit]}>
+                {tx.type === 'deposit' || tx.type === 'bet_won' ? (
                   <ArrowDownLeft size={16} color={Colors.dark.primary} />
                 ) : (
                   <ArrowUpRight size={16} color={Colors.dark.red} />
                 )}
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.txType}>{tx.type}</Text>
-                <Text style={styles.txMeta}>{tx.bank} • {tx.date}</Text>
+                <Text style={styles.txType}>{tx.type.replace('_', ' ').toUpperCase()}</Text>
+                <Text style={styles.txMeta}>{tx.status} • {new Date(tx.createdAt).toLocaleDateString()}</Text>
               </View>
-              <Text style={[styles.txAmount, tx.isCredit ? styles.txAmountCredit : styles.txAmountDebit]}>
-                {tx.amount}
+              <Text style={[styles.txAmount, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txAmountCredit : styles.txAmountDebit]}>
+                {tx.type === 'deposit' || tx.type === 'bet_won' ? '+' : '-'}₦{tx.amount.toLocaleString()}
               </Text>
             </View>
           ))}

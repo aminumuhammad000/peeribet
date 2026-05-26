@@ -1,25 +1,50 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, ShieldCheck, Key, Settings, HelpCircle, FileText, LogOut, ChevronRight, Edit2, Check, X, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
 import { useKyc } from '../../constants/KycStore';
+import { authService } from '../../services/apiService';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { status } = useKyc();
 
   // Editable Profile States
-  const [profileName, setProfileName] = useState('Hafeez Makama');
-  const [profileUsername, setProfileUsername] = useState('hafeez_makama');
+  const [profileName, setProfileName] = useState('User');
+  const [profileUsername, setProfileUsername] = useState('user');
   const [isEditing, setIsEditing] = useState(false);
-  const [tempName, setTempName] = useState('Hafeez Makama');
-  const [tempUsername, setTempUsername] = useState('hafeez_makama');
+  const [tempName, setTempName] = useState('');
+  const [tempUsername, setTempUsername] = useState('');
+  
+  const [user, setUser] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const profileEmail = 'hafeez.makama@gmail.com';
-  const profilePhone = '+234 902 345 8291';
+  const fetchUser = async () => {
+    try {
+      const userData = await authService.getMe();
+      setUser(userData);
+      setProfileName(`${userData.firstName} ${userData.lastName}`);
+      setProfileUsername(userData.email.split('@')[0]); // Placeholder for username
+    } catch (error) {
+      console.error('Error fetching user for profile:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchUser();
+    setRefreshing(false);
+  };
+
+  const profileEmail = user?.email || '...';
+  const profilePhone = user?.phone || '...';
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
@@ -47,8 +72,22 @@ export default function ProfileScreen() {
     setIsEditing(false);
   };
 
-  const handleLogout = () => {
-    router.replace('/welcome');
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: async () => {
+            await authService.logout();
+            router.replace('/welcome');
+          }
+        },
+      ]
+    );
   };
 
   const getKycBadge = () => {
@@ -121,7 +160,13 @@ export default function ProfileScreen() {
           <User size={22} color={Colors.dark.primary} />
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
+          }
+        >
           {/* Avatar and Meta Information */}
           <View style={[styles.avatarCard, { position: 'relative' }]}>
             {!isEditing ? (
@@ -210,7 +255,7 @@ export default function ProfileScreen() {
           <View style={styles.balanceBanner}>
             <View>
               <Text style={styles.bbLabel}>Available Balance</Text>
-              <Text style={styles.bbNum}>₦18,050.00</Text>
+              <Text style={styles.bbNum}>₦{(user?.balance || 0).toLocaleString()}</Text>
             </View>
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/wallet')}

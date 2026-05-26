@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
@@ -7,35 +7,48 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { DEMO_USER } from '../constants/DemoData';
+import { authService } from '../services/apiService';
 
-export default function SignUpStep1Screen() {
+export default function SignInScreen() {
   const router = useRouter();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [firstNameError, setFirstNameError] = useState('');
-  const [lastNameError, setLastNameError] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleNext = () => {
+  const handleSignIn = async () => {
     let isValid = true;
-    setFirstNameError('');
-    setLastNameError('');
+    setEmailError('');
+    setPasswordError('');
 
-    if (!firstName.trim()) {
-      setFirstNameError('First name is required');
+    if (!email) {
+      setEmailError('Email address is required');
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      setEmailError('Please enter a valid email address');
       isValid = false;
     }
 
-    if (!lastName.trim()) {
-      setLastNameError('Last name is required');
+    if (!password) {
+      setPasswordError('Password is required');
+      isValid = false;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
       isValid = false;
     }
 
     if (isValid) {
-      router.push({
-        pathname: '/signup-step2',
-        params: { firstName, lastName },
-      });
+      setLoading(true);
+      try {
+        await authService.login({ email, password });
+        setLoading(false);
+        router.replace({ pathname: '/welcome-user', params: { type: 'login' } });
+      } catch (err: any) {
+        setLoading(false);
+        const errorMsg = err.response?.data?.message || 'Invalid email or password';
+        Alert.alert('Login Failed', errorMsg);
+      }
     }
   };
 
@@ -50,7 +63,7 @@ export default function SignUpStep1Screen() {
           style={styles.keyboardView}
         >
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* Round Back button matching mockups */}
+            {/* White round back button matching mockup */}
             <TouchableOpacity
               onPress={() => router.back()}
               style={styles.backButton}
@@ -59,66 +72,56 @@ export default function SignUpStep1Screen() {
               <ArrowLeft size={22} color="#0A1124" />
             </TouchableOpacity>
 
-            {/* Header branding titles */}
+            {/* Typography headers */}
             <View style={styles.headerContainer}>
-              <Text style={styles.title}>Create Account</Text>
-              <Text style={styles.subtitle}>
-                Fill your information below or register with your social account
-              </Text>
+              <Text style={styles.title}>Sign In</Text>
+              <Text style={styles.subtitle}>Hi, Welcome back. You 've been missed</Text>
             </View>
 
-            {/* Quick Autofill Banner */}
-            <TouchableOpacity
-              onPress={() => {
-                setFirstName(DEMO_USER.firstName);
-                setLastName(DEMO_USER.lastName);
-                setFirstNameError('');
-                setLastNameError('');
-              }}
-              activeOpacity={0.8}
-              style={styles.demoBanner}
-            >
-              <View style={styles.demoHeaderRow}>
-                <Text style={styles.demoBannerTitle}>⚡ Demo Autofill Profile</Text>
-                <Text style={styles.demoBannerTap}>Tap to Auto-fill</Text>
-              </View>
-              <Text style={styles.demoBannerSub}>
-                First Name: {DEMO_USER.firstName}  •  Last Name: {DEMO_USER.lastName}
-              </Text>
-            </TouchableOpacity>
-
-            {/* User Input Forms */}
+            {/* Input Forms */}
             <View style={styles.formContainer}>
               <CustomInput
-                label="First Name :"
-                placeholder="Ex. Hafeez"
-                value={firstName}
-                onChangeText={setFirstName}
-                error={firstNameError}
+                label="Email address :"
+                placeholder="Example@gmail.com"
+                value={email}
+                onChangeText={setEmail}
+                error={emailError}
+                keyboardType="email-address"
               />
 
               <CustomInput
-                label="Last Name :"
-                placeholder="Ex. Makama"
-                value={lastName}
-                onChangeText={setLastName}
-                error={lastNameError}
+                label="Password :"
+                placeholder="********"
+                value={password}
+                onChangeText={setPassword}
+                error={passwordError}
+                secureTextEntry={true}
               />
 
-              {/* Action Trigger */}
+              {/* Forgot Password Link */}
+              <TouchableOpacity
+                onPress={() => router.push('/forgot-password')}
+                activeOpacity={0.7}
+                style={styles.forgotPasswordContainer}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+
+              {/* Submit Control */}
               <CustomButton
-                title="Next"
+                title="Sign In"
                 variant="primary"
-                onPress={handleNext}
+                onPress={handleSignIn}
+                loading={loading}
                 style={styles.submitButton}
               />
             </View>
 
-            {/* Footer redirect */}
+            {/* Footer redirection link */}
             <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/signin')} activeOpacity={0.7}>
-                <Text style={styles.footerLink}>Sign In</Text>
+              <Text style={styles.footerText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/signup-step1')} activeOpacity={0.7}>
+                <Text style={styles.footerLink}>Sign Up</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -199,10 +202,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
     fontFamily: 'Inter',
-    lineHeight: 20,
   },
   formContainer: {
     width: '100%',
+  },
+  forgotPasswordContainer: {
+    alignSelf: 'flex-end',
+    marginVertical: 4,
+    paddingVertical: 4,
+  },
+  forgotPasswordText: {
+    color: '#3B82F6',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'Inter',
   },
   submitButton: {
     marginTop: 20,

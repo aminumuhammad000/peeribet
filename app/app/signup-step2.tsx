@@ -2,64 +2,48 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Square, CheckSquare } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { DEMO_USER } from '../constants/DemoData';
 
-export default function SignUpStep3Screen() {
+export default function SignUpStep2Screen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { firstName, lastName, email, phone } = params;
+  const { firstName, lastName } = params;
 
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [agreeTerms, setAgreeTerms] = useState(false);
-  
-  const [passwordError, setPasswordError] = useState('');
-  const [confirmPasswordError, setConfirmPasswordError] = useState('');
-  const [termsError, setTermsError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
-  const handleSignUp = () => {
+  const handleNext = () => {
     let isValid = true;
-    setPasswordError('');
-    setConfirmPasswordError('');
-    setTermsError('');
+    setEmailError('');
+    setPhoneError('');
 
-    if (!password) {
-      setPasswordError('Password is required');
+    if (!email) {
+      setEmailError('Email address is required');
       isValid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      setEmailError('Please enter a valid email address');
       isValid = false;
     }
 
-    if (!confirmPassword) {
-      setConfirmPasswordError('Please confirm your password');
+    if (!phone) {
+      setPhoneError('Phone number is required');
       isValid = false;
-    } else if (password !== confirmPassword) {
-      setConfirmPasswordError('Passwords do not match');
-      isValid = false;
-    }
-
-    if (!agreeTerms) {
-      setTermsError('You must agree to the Terms & Conditions');
+    } else if (phone.length < 8) {
+      setPhoneError('Please enter a valid phone number');
       isValid = false;
     }
 
     if (isValid) {
-      setLoading(true);
-      // Simulate network / database validation
-      setTimeout(() => {
-        setLoading(false);
-        router.push({
-          pathname: '/verify-otp',
-          params: { firstName, lastName, email, phone },
-        });
-      }, 1200);
+      router.push({
+        pathname: '/signup-step3',
+        params: { firstName, lastName, email, phone },
+      });
     }
   };
 
@@ -87,76 +71,35 @@ export default function SignUpStep3Screen() {
             <View style={styles.headerContainer}>
               <Text style={styles.title}>Create Account</Text>
               <Text style={styles.subtitle}>
-                Setup a strong password to protect your escrow outcomes trading account
+                Fill your information below or register with your social account
               </Text>
             </View>
-
-            {/* Quick Autofill Banner */}
-            <TouchableOpacity
-              onPress={() => {
-                setPassword(DEMO_USER.password);
-                setConfirmPassword(DEMO_USER.password);
-                setAgreeTerms(true);
-                setPasswordError('');
-                setConfirmPasswordError('');
-                setTermsError('');
-              }}
-              activeOpacity={0.8}
-              style={styles.demoBanner}
-            >
-              <View style={styles.demoHeaderRow}>
-                <Text style={styles.demoBannerTitle}>⚡ Demo Autofill Profile</Text>
-                <Text style={styles.demoBannerTap}>Tap to Auto-fill</Text>
-              </View>
-              <Text style={styles.demoBannerSub}>
-                Pass: {DEMO_USER.password}  •  Terms: Accept
-              </Text>
-            </TouchableOpacity>
 
             {/* Input Forms */}
             <View style={styles.formContainer}>
               <CustomInput
-                label="Password :"
-                placeholder="********"
-                value={password}
-                onChangeText={setPassword}
-                error={passwordError}
-                secureTextEntry={true}
+                label="Email address :"
+                placeholder="Example@gmail.com"
+                value={email}
+                onChangeText={setEmail}
+                error={emailError}
+                keyboardType="email-address"
               />
 
               <CustomInput
-                label="Confirm Password :"
-                placeholder="********"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                error={confirmPasswordError}
-                secureTextEntry={true}
+                label="Phone Number :"
+                placeholder="+234"
+                value={phone}
+                onChangeText={setPhone}
+                error={phoneError}
+                keyboardType="phone-pad"
               />
 
-              {/* Custom terms & condition selection row */}
-              <TouchableOpacity
-                onPress={() => setAgreeTerms(!agreeTerms)}
-                activeOpacity={0.7}
-                style={styles.checkboxContainer}
-              >
-                {agreeTerms ? (
-                  <CheckSquare size={22} color={Colors.dark.primary} />
-                ) : (
-                  <Square size={22} color="#64748B" />
-                )}
-                <Text style={styles.checkboxText}>
-                  Agree with <Text style={styles.termsText}>Terms & Condition</Text>
-                </Text>
-              </TouchableOpacity>
-              
-              {termsError && <Text style={styles.termsErrorText}>{termsError}</Text>}
-
-              {/* SignUp Trigger */}
+              {/* Next Control */}
               <CustomButton
-                title="Sign Up"
+                title="Next"
                 variant="primary"
-                onPress={handleSignUp}
-                loading={loading}
+                onPress={handleNext}
                 style={styles.submitButton}
               />
             </View>
@@ -251,33 +194,8 @@ const styles = StyleSheet.create({
   formContainer: {
     width: '100%',
   },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 10,
-    paddingVertical: 4,
-  },
-  checkboxText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    marginLeft: 10,
-    fontWeight: '500',
-    fontFamily: 'Inter',
-  },
-  termsText: {
-    color: '#3B82F6',
-    fontWeight: '700',
-  },
-  termsErrorText: {
-    color: Colors.dark.red,
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
-    marginLeft: 4,
-    fontFamily: 'Inter',
-  },
   submitButton: {
-    marginTop: 16,
+    marginTop: 20,
   },
   footerContainer: {
     flexDirection: 'row',

@@ -1,17 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { DEMO_USER } from '../constants/DemoData';
+import { authService } from '../services/apiService';
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const email = params.email || 'user@example.com';
+  const email = (params.email as string) || 'user@example.com';
   const context = params.context as string | undefined;
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -47,7 +47,7 @@ export default function VerifyOtpScreen() {
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const code = otp.join('');
     if (code.length < 6) {
       setError('Please enter the 6-digit verification code');
@@ -55,15 +55,21 @@ export default function VerifyOtpScreen() {
     }
 
     setLoading(true);
-    // Simulate verification API delay
-    setTimeout(() => {
+    try {
+      await authService.verifyOtp({ email, otp: code });
       setLoading(false);
+      
       if (context === 'reset_password') {
         router.replace({ pathname: '/reset-password', params: { email } });
       } else {
         router.replace({ pathname: '/welcome-user', params: { type: 'signup' } });
       }
-    }, 1500);
+    } catch (err: any) {
+      setLoading(false);
+      const errorMsg = err.response?.data?.message || 'Invalid or expired OTP';
+      setError(errorMsg);
+      Alert.alert('Verification Failed', errorMsg);
+    }
   };
 
   const handleResend = () => {
@@ -103,24 +109,6 @@ export default function VerifyOtpScreen() {
                 <Text style={styles.emailHighlight}>{email}</Text>
               </Text>
             </View>
-
-            {/* Quick Autofill Banner */}
-            <TouchableOpacity
-              onPress={() => {
-                setOtp(DEMO_USER.otp.split(''));
-                setError('');
-              }}
-              activeOpacity={0.8}
-              style={styles.demoBanner}
-            >
-              <View style={styles.demoHeaderRow}>
-                <Text style={styles.demoBannerTitle}>⚡ Demo Autofill Profile</Text>
-                <Text style={styles.demoBannerTap}>Tap to Auto-fill</Text>
-              </View>
-              <Text style={styles.demoBannerSub}>
-                Verification Code: {DEMO_USER.otp}
-              </Text>
-            </TouchableOpacity>
 
             {/* OTP Input Boxes */}
             <View style={styles.otpOuterContainer}>
