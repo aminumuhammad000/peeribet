@@ -1,14 +1,36 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, Settings, Search } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
+import { authService } from '../../services/apiService';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState('24');
+  const [user, setUser] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchUser = async () => {
+    try {
+      const userData = await authService.getMe();
+      setUser(userData);
+    } catch (error) {
+      console.error('Error fetching user for home:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchUser();
+    setRefreshing(false);
+  };
 
   const dates = [
     { id: '21', day: 'Sun', num: '21' },
@@ -102,20 +124,26 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.headerRow}>
-          <Image source={{ uri: 'https://ui-avatars.com/api/?name=HM&background=fff&color=000&size=128&rounded=true' }} style={styles.avatar} />
+          <Image source={{ uri: `https://ui-avatars.com/api/?name=${user?.firstName || 'User'}&background=fff&color=000&size=128&rounded=true` }} style={styles.avatar} />
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerGreeting}>Hey User</Text>
+            <Text style={styles.headerGreeting}>Hey {user?.firstName || 'User'}</Text>
             <Text style={styles.headerSub}>Ready to trade?</Text>
           </View>
           <TouchableOpacity style={styles.iconButton}>
             <Bell size={22} color="#FFFFFF" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/security')}>
             <Settings size={22} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
+          }
+        >
           
           {/* Search Bar */}
           <View style={styles.searchContainer}>

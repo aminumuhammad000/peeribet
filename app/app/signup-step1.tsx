@@ -1,49 +1,39 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { DEMO_USER } from '../constants/DemoData';
 
-export default function SignUpStep2Screen() {
+export default function SignUpStep1Screen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const { firstName, lastName } = params;
-
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [phoneError, setPhoneError] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
 
   const handleNext = () => {
     let isValid = true;
-    setEmailError('');
-    setPhoneError('');
+    setFirstNameError('');
+    setLastNameError('');
 
-    if (!email) {
-      setEmailError('Email address is required');
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      setEmailError('Please enter a valid email address');
+    if (!firstName.trim()) {
+      setFirstNameError('First name is required');
       isValid = false;
     }
 
-    if (!phone) {
-      setPhoneError('Phone number is required');
-      isValid = false;
-    } else if (phone.length < 8) {
-      setPhoneError('Please enter a valid phone number');
+    if (!lastName.trim()) {
+      setLastNameError('Last name is required');
       isValid = false;
     }
 
     if (isValid) {
       router.push({
-        pathname: '/signup-step3',
-        params: { firstName, lastName, email, phone },
+        pathname: '/signup-step2',
+        params: { firstName, lastName },
       });
     }
   };
@@ -68,7 +58,7 @@ export default function SignUpStep2Screen() {
               <ArrowLeft size={22} color="#0A1124" />
             </TouchableOpacity>
 
-            {/* Typography Headers */}
+            {/* Header branding titles */}
             <View style={styles.headerContainer}>
               <Text style={styles.title}>Create Account</Text>
               <Text style={styles.subtitle}>
@@ -76,47 +66,25 @@ export default function SignUpStep2Screen() {
               </Text>
             </View>
 
-            {/* Quick Autofill Banner */}
-            <TouchableOpacity
-              onPress={() => {
-                setEmail(DEMO_USER.email);
-                setPhone(DEMO_USER.phone);
-                setEmailError('');
-                setPhoneError('');
-              }}
-              activeOpacity={0.8}
-              style={styles.demoBanner}
-            >
-              <View style={styles.demoHeaderRow}>
-                <Text style={styles.demoBannerTitle}>⚡ Demo Autofill Profile</Text>
-                <Text style={styles.demoBannerTap}>Tap to Auto-fill</Text>
-              </View>
-              <Text style={styles.demoBannerSub}>
-                Email: {DEMO_USER.email}  •  Phone: {DEMO_USER.phone}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Input Forms */}
+            {/* User Input Forms */}
             <View style={styles.formContainer}>
               <CustomInput
-                label="Email address :"
-                placeholder="Example@gmail.com"
-                value={email}
-                onChangeText={setEmail}
-                error={emailError}
-                keyboardType="email-address"
+                label="First Name :"
+                placeholder="Ex. Hafeez"
+                value={firstName}
+                onChangeText={setFirstName}
+                error={firstNameError}
               />
 
               <CustomInput
-                label="Phone Number :"
-                placeholder="+234"
-                value={phone}
-                onChangeText={setPhone}
-                error={phoneError}
-                keyboardType="phone-pad"
+                label="Last Name :"
+                placeholder="Ex. Makama"
+                value={lastName}
+                onChangeText={setLastName}
+                error={lastNameError}
               />
 
-              {/* Next Control */}
+              {/* Action Trigger */}
               <CustomButton
                 title="Next"
                 variant="primary"

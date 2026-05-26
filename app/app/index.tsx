@@ -5,6 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { PeeritradeLogo } from '../components/PeeritradeLogo';
 import { Colors } from '../constants/Colors';
 
+import { authService } from '../services/apiService';
+
 export default function SplashScreen() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -17,12 +19,20 @@ export default function SplashScreen() {
       useNativeDriver: true,
     }).start();
 
-    // Auto routing to welcome/onboarding screen
-    const timer = setTimeout(() => {
-      router.replace('/welcome');
-    }, 2400);
+    // Auto routing check
+    const checkStatus = async () => {
+      const isAuthenticated = await authService.isAuthenticated();
+      
+      setTimeout(() => {
+        if (isAuthenticated) {
+          router.replace('/(tabs)/home');
+        } else {
+          router.replace('/welcome');
+        }
+      }, 2000);
+    };
 
-    return () => clearTimeout(timer);
+    checkStatus();
   }, []);
 
   return (
