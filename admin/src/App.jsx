@@ -71,10 +71,10 @@ export default function App() {
 
   // Navigation tabs
   const [activeTab, setActiveTab] = useState('dashboard');
-  
+
   // Mobile sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+
   // Theme state
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
 
@@ -90,13 +90,13 @@ export default function App() {
   }, [isDarkMode]);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Filter status dropdown state
   const [statusFilter, setStatusFilter] = useState('ALL');
-  
+
   // Date filter state
   const [dateRange, setDateRange] = useState('Today');
 
@@ -162,7 +162,7 @@ export default function App() {
   const [txnStatusFilter, setTxnStatusFilter] = useState('ALL');
   const [txnSearchQuery, setTxnSearchQuery] = useState('');
   const [transactions, setTransactions] = useState([]);
-  
+
   // Dashboard stats from server
   const [dbStats, setDbStats] = useState({
     users: 0,
@@ -309,7 +309,7 @@ export default function App() {
       }));
       setTrades(mappedTrades);
     } catch (error) {
-       console.error('Error fetching trades:', error);
+      console.error('Error fetching trades:', error);
     }
   };
 
@@ -325,7 +325,7 @@ export default function App() {
         status: m.status
       })));
     } catch (error) {
-       console.error('Error fetching markets:', error);
+      console.error('Error fetching markets:', error);
     }
   };
 
@@ -335,12 +335,12 @@ export default function App() {
       setPlatformFee(data.platformFee);
       setSettlementMode(data.settlementMode);
       setComplianceThreshold(data.complianceThreshold);
-      
+
       setEditFee(data.platformFee);
       setEditMode(data.settlementMode);
       setEditThreshold(data.complianceThreshold);
     } catch (error) {
-       console.error('Error fetching settings:', error);
+      console.error('Error fetching settings:', error);
     }
   };
 
@@ -356,7 +356,7 @@ export default function App() {
         time: new Date(l.createdAt).toLocaleString()
       })));
     } catch (error) {
-       console.error('Error fetching security logs:', error);
+      console.error('Error fetching security logs:', error);
     }
   };
 
@@ -370,7 +370,7 @@ export default function App() {
         payoutBank: data.payoutBank
       });
     } catch (error) {
-       console.error('Error fetching vaults:', error);
+      console.error('Error fetching vaults:', error);
     }
   };
 
@@ -388,7 +388,7 @@ export default function App() {
         t.time,
         t.status
       ]);
-      
+
       const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -399,7 +399,7 @@ export default function App() {
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-       showToast('Failed to generate export.', 'error');
+      showToast('Failed to generate export.', 'error');
     }
   };
 
@@ -426,7 +426,7 @@ export default function App() {
       setAdminName(data.firstName + ' ' + data.lastName);
       setAdminEmail(data.email);
       setAdminPhone(data.phone);
-      
+
       // Handle "Remember Me"
       if (rememberMe) {
         localStorage.setItem('rememberedEmail', emailInput);
@@ -435,9 +435,9 @@ export default function App() {
       }
 
       setLoginSuccess('Authentication successful. Redirecting to terminal...');
-      
+
       logSecurityEvent('success', `Administrative login authorized for ${emailInput}`, 'IP Detected', 'login');
-      
+
       // Delay transition for visual feedback
       setTimeout(() => {
         setIsLoggedIn(true);
@@ -516,11 +516,11 @@ export default function App() {
       showToast(`Trade status updated to ${nextStatus}`, 'success');
       fetchTrades();
       setActiveMenuId(null);
-      
+
       logSecurityEvent(
-        nextStatus === 'SETTLED' ? 'success' : 'warning', 
-        `Trade record ${id} status modified to ${nextStatus} via manual override`, 
-        `Operator Authorization: ${adminName}`, 
+        nextStatus === 'SETTLED' ? 'success' : 'warning',
+        `Trade record ${id} status modified to ${nextStatus} via manual override`,
+        `Operator Authorization: ${adminName}`,
         nextStatus === 'SETTLED' ? 'shield' : 'alert-triangle'
       );
     } catch (error) {
@@ -545,7 +545,7 @@ export default function App() {
       showToast('New passwords do not match sequential signature.', 'error');
       return;
     }
-    
+
     try {
       await api.post('/admin/change-password', { oldPassword, newPassword });
       showToast('Administrative credentials updated successfully.', 'success');
@@ -565,7 +565,7 @@ export default function App() {
       showToast('Validation failed: Required administrative fields missing.', 'error');
       return;
     }
-    
+
     try {
       const names = editName.split(' ');
       await api.post('/admin/profile', {
@@ -593,7 +593,7 @@ export default function App() {
       showToast('Invalid commission value detected.', 'error');
       return;
     }
-    
+
     try {
       await api.post('/admin/settings', {
         platformFee: feeNum,
@@ -615,7 +615,7 @@ export default function App() {
     e.preventDefault();
     if (!newMarketPair.trim() || !newMarketRate || !newMarketVol) return;
     const rateNum = parseFloat(newMarketRate) || 0;
-    
+
     try {
       await api.post('/admin/markets', {
         pair: newMarketPair.toUpperCase(),
@@ -659,7 +659,7 @@ export default function App() {
         [transferSource]: vaultBalances[transferSource] - amountVal,
         [transferDest]: vaultBalances[transferDest] + amountVal
       };
-      
+
       await api.post('/admin/vaults', nextBalances);
       setVaultBalances(nextBalances);
       setTransferAmount('');
@@ -706,11 +706,11 @@ export default function App() {
       await api.post('/admin/transactions/status', { reference: hash, status: nextStatus.toLowerCase() === 'success' ? 'completed' : 'failed' });
       showToast(`Transaction ${nextStatus === 'SUCCESS' ? 'approved' : 'rejected'} successfully.`, 'success');
       fetchTransactions();
-      
+
       logSecurityEvent(
-        nextStatus === 'SUCCESS' ? 'success' : 'warning', 
-        `Transaction record ${hash.substring(0, 10)}... was manually ${nextStatus === 'SUCCESS' ? 'validated' : 'voided'}`, 
-        `Authorization: ${adminName}`, 
+        nextStatus === 'SUCCESS' ? 'success' : 'warning',
+        `Transaction record ${hash.substring(0, 10)}... was manually ${nextStatus === 'SUCCESS' ? 'validated' : 'voided'}`,
+        `Authorization: ${adminName}`,
         nextStatus === 'SUCCESS' ? 'shield' : 'alert-triangle'
       );
     } catch (error) {
@@ -774,7 +774,7 @@ export default function App() {
   // Filtered and searched KYC users
   const filteredKycUsers = useMemo(() => {
     return kycUsers.filter(user => {
-      const matchesSearch = 
+      const matchesSearch =
         user.name.toLowerCase().includes(kycSearchQuery.toLowerCase()) ||
         user.email.toLowerCase().includes(kycSearchQuery.toLowerCase()) ||
         user.phone.includes(kycSearchQuery);
@@ -865,9 +865,9 @@ export default function App() {
             ) : null}
 
             <div className="login-options" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-              <input 
-                type="checkbox" 
-                id="remember-me" 
+              <input
+                type="checkbox"
+                id="remember-me"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
                 style={{ cursor: 'pointer' }}
@@ -889,7 +889,7 @@ export default function App() {
   return (
     <div className="admin-layout">
       {/* Mobile Sidebar Overlay */}
-      <div 
+      <div
         className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
         onClick={() => setIsSidebarOpen(false)}
       />
@@ -984,8 +984,8 @@ export default function App() {
 
         {/* Sidebar Footer with Logout trigger */}
         <div className="sidebar-footer">
-          <button 
-            className="logout-item-btn" 
+          <button
+            className="logout-item-btn"
             onClick={handleLogout}
             id="btn-admin-logout"
           >
@@ -999,8 +999,8 @@ export default function App() {
       <div className="main-wrapper">
         {/* Top Control Bar */}
         <header className="top-bar">
-          <button 
-            className="menu-toggle-btn" 
+          <button
+            className="menu-toggle-btn"
             onClick={() => setIsSidebarOpen(true)}
           >
             <Menu size={20} />
@@ -1021,15 +1021,15 @@ export default function App() {
           </div>
 
           <div className="top-bar-controls">
-            <button 
-              className="control-icon-btn" 
+            <button
+              className="control-icon-btn"
               title={`Switch to ${isDarkMode ? 'Light' : 'Dark'} Mode`}
               onClick={toggleTheme}
             >
               {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <button 
-              className={`control-icon-btn ${activeTab === 'notifications' ? 'active' : ''}`} 
+            <button
+              className={`control-icon-btn ${activeTab === 'notifications' ? 'active' : ''}`}
               title="Notifications"
               onClick={() => {
                 setActiveTab('notifications');
@@ -1038,8 +1038,8 @@ export default function App() {
             >
               <Bell size={18} />
             </button>
-            <button 
-              className={`control-icon-btn ${activeTab === 'settings' ? 'active' : ''}`} 
+            <button
+              className={`control-icon-btn ${activeTab === 'settings' ? 'active' : ''}`}
               title="Portal Settings"
               onClick={() => {
                 setActiveTab('settings');
@@ -1048,7 +1048,7 @@ export default function App() {
             >
               <Settings size={18} />
             </button>
-            <div 
+            <div
               className={`user-badge ${activeTab === 'profile' ? 'active' : ''}`}
               style={{ cursor: 'pointer' }}
               onClick={() => {
@@ -1081,8 +1081,8 @@ export default function App() {
                   <option value="All Time">All Time</option>
                 </select>
 
-                <button 
-                  className="export-btn" 
+                <button
+                  className="export-btn"
                   onClick={handleExportReport}
                 >
                   <Download size={14} />
@@ -1326,9 +1326,8 @@ export default function App() {
                         <td>{trade.time}</td>
                         <td>
                           <span
-                            className={`status-badge-td ${
-                              trade.status === 'SETTLED' ? 'settled' : 'blocked'
-                            }`}
+                            className={`status-badge-td ${trade.status === 'SETTLED' ? 'settled' : 'blocked'
+                              }`}
                           >
                             {trade.status}
                           </span>
@@ -1478,8 +1477,8 @@ export default function App() {
                 <p className="overview-sub">Institutional ledger audits and escrow clearing settlements.</p>
               </div>
               <div className="header-action-row">
-                <button 
-                  className="export-btn" 
+                <button
+                  className="export-btn"
                   onClick={() => alert('Exporting full transaction registry CSV...')}
                 >
                   <Download size={14} />
@@ -1558,12 +1557,12 @@ export default function App() {
                       <tr key={txn.hash}>
                         <td className="trade-id-col" style={{ fontSize: 11 }}>{txn.hash}</td>
                         <td>
-                          <span style={{ 
-                            fontWeight: '700', 
+                          <span style={{
+                            fontWeight: '700',
                             fontSize: 10,
-                            color: txn.type === 'ESCROW_LOCK' ? '#3B82F6' : 
-                                   txn.type === 'SETTLEMENT_PAYOUT' ? '#00D285' :
-                                   txn.type === 'DEPOSIT' ? '#10B981' : '#EF4444',
+                            color: txn.type === 'ESCROW_LOCK' ? '#3B82F6' :
+                              txn.type === 'SETTLEMENT_PAYOUT' ? '#00D285' :
+                                txn.type === 'DEPOSIT' ? '#10B981' : '#EF4444',
                             backgroundColor: 'rgba(255,255,255,0.03)',
                             padding: '3px 8px',
                             borderRadius: 4
@@ -1590,11 +1589,11 @@ export default function App() {
                             className="status-badge-td"
                             style={{
                               backgroundColor: txn.status === 'SUCCESS' ? 'rgba(0, 210, 133, 0.08)' :
-                                               txn.status === 'PENDING' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                                txn.status === 'PENDING' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)',
                               border: txn.status === 'SUCCESS' ? '1px solid rgba(0, 210, 133, 0.2)' :
-                                      txn.status === 'PENDING' ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
+                                txn.status === 'PENDING' ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
                               color: txn.status === 'SUCCESS' ? '#00D285' :
-                                     txn.status === 'PENDING' ? '#F59E0B' : '#EF4444'
+                                txn.status === 'PENDING' ? '#F59E0B' : '#EF4444'
                             }}
                           >
                             {txn.status}
@@ -1743,13 +1742,12 @@ export default function App() {
                   {auditLogs.map((log) => (
                     <div key={log.id} className="audit-log-item">
                       <div
-                        className={`audit-log-icon-box ${
-                          log.type === 'success'
+                        className={`audit-log-icon-box ${log.type === 'success'
                             ? 'success'
                             : log.type === 'warning'
-                            ? 'warning'
-                            : 'system'
-                        }`}
+                              ? 'warning'
+                              : 'system'
+                          }`}
                       >
                         {log.icon === 'login' ? (
                           <UserCheck size={16} />
@@ -1780,7 +1778,7 @@ export default function App() {
                 <p className="overview-sub">Operational status logs, threat flags, and network alerts.</p>
               </div>
               <div className="header-action-row">
-                <button 
+                <button
                   className="export-btn"
                   onClick={handleMarkAllRead}
                   disabled={notifications.every(n => n.read)}
@@ -1800,7 +1798,7 @@ export default function App() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 20 }}>
                 {notifications.map((notif) => (
-                  <div 
+                  <div
                     key={notif.id}
                     style={{
                       display: 'flex',
@@ -1814,22 +1812,22 @@ export default function App() {
                     }}
                   >
                     <div style={{ display: 'flex', gap: 12 }}>
-                      <div 
+                      <div
                         style={{
                           width: 8,
                           height: 8,
                           borderRadius: '50%',
                           backgroundColor: notif.category === 'SECURITY' ? '#EF4444' :
-                                           notif.category === 'OPERATIONS' ? '#F59E0B' : '#00D285',
+                            notif.category === 'OPERATIONS' ? '#F59E0B' : '#00D285',
                           marginTop: 6
-                        }} 
+                        }}
                       />
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <h4 style={{ margin: 0, fontSize: 14, fontWeight: 'bold', color: '#ffffff' }}>
                             {notif.title}
                           </h4>
-                          <span 
+                          <span
                             style={{
                               fontSize: 9,
                               fontWeight: 'bold',
@@ -1850,8 +1848,8 @@ export default function App() {
                         </span>
                       </div>
                     </div>
-                    
-                    <button 
+
+                    <button
                       style={{
                         background: 'transparent',
                         border: 'none',
@@ -1943,7 +1941,7 @@ export default function App() {
                 <div className="settings-field">
                   <label className="settings-label">Maintenance Mode</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
-                    <button 
+                    <button
                       className={`notif-action-btn ${metrics.maintenance ? 'active' : ''}`}
                       onClick={() => showToast('Maintenance mode toggled...', 'warning')}
                       style={{ padding: '8px 16px', backgroundColor: metrics.maintenance ? 'var(--color-red)' : 'transparent' }}
@@ -1953,9 +1951,9 @@ export default function App() {
                   </div>
                 </div>
                 <div className="settings-field">
-                   <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                     System protocols are enforced globally across all active market pairs and user wallets.
-                   </p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    System protocols are enforced globally across all active market pairs and user wallets.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1975,15 +1973,15 @@ export default function App() {
                 <div className="security-settings-section">
                   <h3 className="security-section-title">Modify Profile Details</h3>
                   <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    
+
                     {/* Avatar picker circle selection list */}
                     <div className="form-group-wrap">
                       <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 'bold', marginBottom: 12, display: 'block' }}>
                         Profile Avatar Icon
                       </label>
                       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <img 
-                          src={editAvatar} 
+                        <img
+                          src={editAvatar}
                           alt="Current avatar preview"
                           style={{ width: 64, height: 64, borderRadius: '50%', border: '2px solid #00D285', padding: 2 }}
                         />
@@ -2099,7 +2097,7 @@ export default function App() {
                 <p className="overview-sub">Configure real-time share indices, pricing status, and trade volumes.</p>
               </div>
               <div className="header-action-row">
-                <button 
+                <button
                   className="btn-primary"
                   onClick={() => setIsMarketModalOpen(true)}
                   style={{ display: 'flex', alignItems: 'center', gap: 6 }}
@@ -2139,7 +2137,7 @@ export default function App() {
                         <td style={{ color: '#00D285', fontWeight: '600' }}>
                           ₦{mkt.rate.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </td>
-                        <td style={{ 
+                        <td style={{
                           color: mkt.change.startsWith('+') ? '#00D285' : '#EF4444',
                           fontWeight: '600'
                         }}>
@@ -2376,7 +2374,7 @@ export default function App() {
             {/* Filter controls card */}
             <div className="table-filter-card" style={{ marginBottom: 24, padding: '16px 24px', backgroundColor: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between' }}>
-                
+
                 {/* Search Bar */}
                 <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '6px 12px', minWidth: 320 }}>
                   <Search size={16} color="var(--text-muted)" style={{ marginRight: 8 }} />
@@ -2460,12 +2458,12 @@ export default function App() {
                             <span
                               className="status-badge-td"
                               style={{
-                                backgroundColor: user.status === 'APPROVED' ? 'rgba(0, 210, 133, 0.08)' : 
-                                                 user.status === 'PENDING' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                                border: user.status === 'APPROVED' ? '1px solid rgba(0, 210, 133, 0.2)' : 
-                                        user.status === 'PENDING' ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
-                                color: user.status === 'APPROVED' ? '#00D285' : 
-                                       user.status === 'PENDING' ? '#F59E0B' : '#EF4444'
+                                backgroundColor: user.status === 'APPROVED' ? 'rgba(0, 210, 133, 0.08)' :
+                                  user.status === 'PENDING' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                                border: user.status === 'APPROVED' ? '1px solid rgba(0, 210, 133, 0.2)' :
+                                  user.status === 'PENDING' ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
+                                color: user.status === 'APPROVED' ? '#00D285' :
+                                  user.status === 'PENDING' ? '#F59E0B' : '#EF4444'
                               }}
                             >
                               {user.status}
@@ -2576,9 +2574,9 @@ export default function App() {
                     <div className="notification-main">
                       <div className={`notification-icon-box ${notif.type}`}>
                         {notif.type === 'market' ? <Activity size={20} /> :
-                         notif.type === 'security' ? <Shield size={20} /> :
-                         notif.type === 'system' ? <Cpu size={20} /> :
-                         <BarChart3 size={20} />}
+                          notif.type === 'security' ? <Shield size={20} /> :
+                            notif.type === 'system' ? <Cpu size={20} /> :
+                              <BarChart3 size={20} />}
                       </div>
                       <div className="notification-content">
                         <span className="notification-text">{notif.text}</span>
@@ -2591,16 +2589,16 @@ export default function App() {
                     </div>
                     <div className="notification-actions">
                       {!notif.read && (
-                        <button 
-                          className="notif-action-btn" 
+                        <button
+                          className="notif-action-btn"
                           title="Mark as read"
-                          onClick={() => setNotifications(notifications.map(n => n.id === notif.id ? {...n, read: true} : n))}
+                          onClick={() => setNotifications(notifications.map(n => n.id === notif.id ? { ...n, read: true } : n))}
                         >
                           <CheckCircle size={16} />
                         </button>
                       )}
-                      <button 
-                        className="notif-action-btn" 
+                      <button
+                        className="notif-action-btn"
                         title="Dismiss"
                         onClick={() => handleDismissNotification(notif.id)}
                       >
@@ -2844,16 +2842,16 @@ export default function App() {
               </div>
               <h3 style={{ fontSize: 18, color: '#ffffff', fontWeight: 'bold', margin: '0 0 4px 0' }}>{selectedKycUser.name}</h3>
               <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 12px 0' }}>{selectedKycUser.email}</p>
-              
+
               <span
                 className="status-badge-td"
                 style={{
-                  backgroundColor: selectedKycUser.status === 'APPROVED' ? 'rgba(0, 210, 133, 0.08)' : 
-                                   selectedKycUser.status === 'PENDING' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                  border: selectedKycUser.status === 'APPROVED' ? '1px solid rgba(0, 210, 133, 0.2)' : 
-                          selectedKycUser.status === 'PENDING' ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
-                  color: selectedKycUser.status === 'APPROVED' ? '#00D285' : 
-                         selectedKycUser.status === 'PENDING' ? '#F59E0B' : '#EF4444',
+                  backgroundColor: selectedKycUser.status === 'APPROVED' ? 'rgba(0, 210, 133, 0.08)' :
+                    selectedKycUser.status === 'PENDING' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                  border: selectedKycUser.status === 'APPROVED' ? '1px solid rgba(0, 210, 133, 0.2)' :
+                    selectedKycUser.status === 'PENDING' ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
+                  color: selectedKycUser.status === 'APPROVED' ? '#00D285' :
+                    selectedKycUser.status === 'PENDING' ? '#F59E0B' : '#EF4444',
                   fontSize: 12,
                   padding: '4px 12px'
                 }}
@@ -2927,9 +2925,9 @@ export default function App() {
       {toast.show && (
         <div className="toast-container">
           <div className={`toast-item ${toast.type}`}>
-            {toast.type === 'success' ? <CheckCircle size={18} color="#00D285" /> : 
-             toast.type === 'error' ? <AlertTriangle size={18} color="#EF4444" /> : 
-             <Bell size={18} color="#F59E0B" />}
+            {toast.type === 'success' ? <CheckCircle size={18} color="#00D285" /> :
+              toast.type === 'error' ? <AlertTriangle size={18} color="#EF4444" /> :
+                <Bell size={18} color="#F59E0B" />}
             <span className="toast-text">{toast.message}</span>
           </div>
         </div>
