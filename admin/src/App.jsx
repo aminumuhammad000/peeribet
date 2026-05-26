@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import api from './services/api';
 import {
   LayoutDashboard,
   TrendingUp,
@@ -30,8 +31,14 @@ import {
   Shield,
   Cpu,
   UserCheck,
-  ToggleLeft
+  ToggleLeft,
+  Menu,
+  Sun,
+  Moon,
+  Eye,
+  EyeOff
 } from 'lucide-react';
+import logo from './assets/logo.png';
 
 // Standard fallback mock images for party avatars
 const avatarList = [
@@ -45,13 +52,44 @@ const avatarList = [
 
 export default function App() {
   // Session authentication state
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [emailInput, setEmailInput] = useState('uuhashim0918@gmail.com');
-  const [passwordInput, setPasswordInput] = useState('admin123');
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [loginSuccess, setLoginSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Custom Toast state
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 4000);
+  };
 
   // Navigation tabs
   const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Mobile sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // Theme state
+  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+
+  // Apply theme class to body
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.add('dark-theme');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-theme');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,65 +98,35 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   
   // Date filter state
-  const [dateRange, setDateRange] = useState('Aug 12 - Aug 19');
+  const [dateRange, setDateRange] = useState('Today');
 
   // Admin profile state details
-  const [adminName, setAdminName] = useState('HASHIM');
-  const [adminEmail, setAdminEmail] = useState('uuhashim0918@gmail.com');
-  const [adminPhone, setAdminPhone] = useState('09044922410');
-  const [adminAvatar, setAdminAvatar] = useState('https://ui-avatars.com/api/?name=Hashim&background=00D285&color=000&bold=true');
+  const [adminName, setAdminName] = useState('Admin');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPhone, setAdminPhone] = useState('');
+  const [adminAvatar, setAdminAvatar] = useState('https://ui-avatars.com/api/?name=Admin&background=00D285&color=000&bold=true');
 
   // Admin Profile Edit states
-  const [editName, setEditName] = useState('HASHIM');
-  const [editEmail, setEditEmail] = useState('uuhashim0918@gmail.com');
-  const [editPhone, setEditPhone] = useState('09044922410');
-  const [editAvatar, setEditAvatar] = useState('https://ui-avatars.com/api/?name=Hashim&background=00D285&color=000&bold=true');
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAvatar, setEditAvatar] = useState('');
 
   // Platform setting parameter configurations
-  const [platformFee, setPlatformFee] = useState(1.5);
+  const [platformFee, setPlatformFee] = useState(0);
   const [settlementMode, setSettlementMode] = useState('AUTOMATED');
-  const [complianceThreshold, setComplianceThreshold] = useState(50000);
+  const [complianceThreshold, setComplianceThreshold] = useState(0);
 
   // Edit settings form fields
-  const [editFee, setEditFee] = useState(1.5);
+  const [editFee, setEditFee] = useState(0);
   const [editMode, setEditMode] = useState('AUTOMATED');
-  const [editThreshold, setEditThreshold] = useState(50000);
+  const [editThreshold, setEditThreshold] = useState(0);
 
   // Notifications feed state
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      category: 'SECURITY',
-      title: 'Failed Withdrawal Escrow Flagged',
-      desc: 'Escrow clearing flagged a high risk value transfer on wallet route #TRD-7489.',
-      time: '12 mins ago',
-      read: false
-    },
-    {
-      id: 2,
-      category: 'OPERATIONS',
-      title: 'Platform Fee Updated',
-      desc: 'Master commission rate adjusted to 1.50% by lead operator key.',
-      time: '1 hour ago',
-      read: true
-    },
-    {
-      id: 3,
-      category: 'SYSTEM',
-      title: 'Distributed Nodes Synchronized',
-      desc: '5 out of 5 validator nodes confirmed transaction block consensus.',
-      time: '3 hours ago',
-      read: true
-    }
-  ]);
+  const [notifications, setNotifications] = useState([]);
 
   // Markets list state
-  const [markets, setMarkets] = useState([
-    { id: 1, pair: 'Chelsea FC', rate: 850.50, change: '+2.4%', volume: '₦120,400,000', status: 'ACTIVE' },
-    { id: 2, pair: 'Arsenal FC', rate: 920.00, change: '+1.5%', volume: '₦145,000,000', status: 'ACTIVE' },
-    { id: 3, pair: 'Manchester United', rate: 680.20, change: '-3.1%', volume: '₦98,200,000', status: 'ACTIVE' },
-    { id: 4, pair: 'Real Madrid', rate: 1250.00, change: '+4.8%', volume: '₦230,000,000', status: 'MAINTENANCE' }
-  ]);
+  const [markets, setMarkets] = useState([]);
   const [newMarketPair, setNewMarketPair] = useState('');
   const [newMarketRate, setNewMarketRate] = useState('');
   const [newMarketVol, setNewMarketVol] = useState('');
@@ -126,32 +134,20 @@ export default function App() {
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
 
   // User Portfolio balances ledger
-  const [userBalances, setUserBalances] = useState([
-    { id: 1, name: 'Sarah K.', email: 'sarah.k@gmail.com', phone: '09044922410', balance: 142000, stock: 12, status: 'Healthy' },
-    { id: 2, name: 'Musa B.', email: 'musa.b@yahoo.com', phone: '09137148568', balance: 2300, stock: 2, status: 'Low Balance' },
-    { id: 3, name: 'Chinedu A.', email: 'chinedu.a@outlook.com', phone: '08034567890', balance: 480000, stock: 45, status: 'Healthy' },
-    { id: 4, name: 'Fatima Z.', email: 'fatima.z@gmail.com', phone: '08123456789', balance: 1500, stock: 0, status: 'Low Stock' },
-    { id: 5, name: 'Tunde O.', email: 'tunde.o@gmail.com', phone: '07098765432', balance: 85000, stock: 1, status: 'Low Stock' },
-    { id: 6, name: 'Grace A.', email: 'grace.a@hotmail.com', phone: '09012345678', balance: 0, stock: 0, status: 'Overdrawn' }
-  ]);
+  const [userBalances, setUserBalances] = useState([]);
 
   // KYC User Verification requests state
-  const [kycUsers, setKycUsers] = useState([
-    { id: 1, name: 'Babatunde G.', email: 'babatunde.g@gmail.com', phone: '08022334455', documentType: 'NIN National ID Card', documentNumber: 'NIN-789210984', date: 'Aug 18, 2026', status: 'PENDING' },
-    { id: 2, name: 'Ngozi O.', email: 'ngozi.o@yahoo.com', phone: '09088776655', documentType: 'International Passport', documentNumber: 'PP-A0891238', date: 'Aug 17, 2026', status: 'PENDING' },
-    { id: 3, name: 'Ibrahim Y.', email: 'ibrahim.y@hotmail.com', phone: '08155443322', documentType: 'Driver License', documentNumber: 'DL-NG823901A', date: 'Aug 16, 2026', status: 'APPROVED' },
-    { id: 4, name: 'Amara K.', email: 'amara.k@gmail.com', phone: '07044332211', documentType: 'NIN National ID Card', documentNumber: 'NIN-109283749', date: 'Aug 15, 2026', status: 'REJECTED' }
-  ]);
+  const [kycUsers, setKycUsers] = useState([]);
   const [kycSearchQuery, setKycSearchQuery] = useState('');
   const [kycStatusFilter, setKycStatusFilter] = useState('ALL');
   const [selectedKycUser, setSelectedKycUser] = useState(null);
 
   // Portfolio vault reserve states
   const [vaultBalances, setVaultBalances] = useState({
-    custodyPool: 1420500000,
-    escrowLocked: 482100000,
-    coldReserve: 850000000,
-    payoutBank: 120400000
+    custodyPool: 0,
+    escrowLocked: 0,
+    coldReserve: 0,
+    payoutBank: 0
   });
   const [transferSource, setTransferSource] = useState('payoutBank');
   const [transferDest, setTransferDest] = useState('coldReserve');
@@ -165,198 +161,24 @@ export default function App() {
   // Transactions list state
   const [txnStatusFilter, setTxnStatusFilter] = useState('ALL');
   const [txnSearchQuery, setTxnSearchQuery] = useState('');
-  const [transactions, setTransactions] = useState([
-    {
-      hash: '0x8f3c912a21b4a8e2',
-      type: 'ESCROW_LOCK',
-      amount: 12000,
-      fromTo: 'Sarah K. -> Escrow Pool',
-      userName: 'Sarah K.',
-      userEmail: 'sarah.k@gmail.com',
-      userPhone: '09044922410',
-      time: '2 mins ago',
-      status: 'SUCCESS'
-    },
-    {
-      hash: '0x3a9b1c5e4f8d9a1b',
-      type: 'SETTLEMENT_PAYOUT',
-      amount: 20000,
-      fromTo: 'Escrow Pool -> Musa B. & Chinedu A.',
-      userName: 'Musa B.',
-      userEmail: 'musa.b@yahoo.com',
-      userPhone: '09137148568',
-      time: '15 mins ago',
-      status: 'SUCCESS'
-    },
-    {
-      hash: '0x9d5e7f2c8a1b3c5d',
-      type: 'DEPOSIT',
-      amount: 50000,
-      fromTo: 'Bank Transfer -> Hashim (Admin)',
-      userName: 'Hashim',
-      userEmail: 'uuhashim0918@gmail.com',
-      userPhone: '09071234567',
-      time: '30 mins ago',
-      status: 'SUCCESS'
-    },
-    {
-      hash: '0xe2a8c3d76f1a5b8c',
-      type: 'WITHDRAWAL',
-      amount: 10000,
-      fromTo: 'Alex M. -> Bank Account',
-      userName: 'Alex M.',
-      userEmail: 'alex.m@gmail.com',
-      userPhone: '08022119933',
-      time: '1 hour ago',
-      status: 'PENDING'
-    },
-    {
-      hash: '0x4b7c8d9e1f2a3b4c',
-      type: 'ESCROW_LOCK',
-      amount: 40000,
-      fromTo: 'David O. -> Escrow Pool',
-      userName: 'David O.',
-      userEmail: 'david.o@outlook.com',
-      userPhone: '07033557799',
-      time: '5 hours ago',
-      status: 'FAILED'
-    },
-    {
-      hash: '0x5c8d9e0f2a3b4c5d',
-      type: 'WITHDRAWAL',
-      amount: 25000,
-      fromTo: 'Chinedu A. -> Card Account',
-      userName: 'Chinedu A.',
-      userEmail: 'chinedu.a@gmail.com',
-      userPhone: '09011223344',
-      time: '12 hours ago',
-      status: 'SUCCESS'
-    },
-    {
-      hash: '0x6d9e0f1a3b4c5d6e',
-      type: 'DEPOSIT',
-      amount: 15000,
-      fromTo: 'Bank Transfer -> Grace A.',
-      userName: 'Grace A.',
-      userEmail: 'grace.a@yahoo.com',
-      userPhone: '08122334455',
-      time: '1 day ago',
-      status: 'SUCCESS'
-    }
-  ]);
+  const [transactions, setTransactions] = useState([]);
+  
+  // Dashboard stats from server
+  const [dbStats, setDbStats] = useState({
+    users: 0,
+    activeTrades: 0,
+    volume: 0,
+    revenue: 0,
+    inEscrow: 0,
+    coldWalletBalance: 0,
+    liquidity: 0
+  });
 
   // Security audit logs state
-  const [auditLogs, setAuditLogs] = useState([
-    {
-      id: 1,
-      type: 'success',
-      text: 'Administrative login authorized for uuhashim0918@gmail.com',
-      meta: 'IP: 197.210.64.12 . 2 mins ago',
-      icon: 'login'
-    },
-    {
-      id: 2,
-      type: 'system',
-      text: 'Hourly escrow smart contracts balance verified: ₦842,920,000',
-      meta: 'SYSTEM NODES . 1 hour ago',
-      icon: 'cpu'
-    },
-    {
-      id: 3,
-      type: 'warning',
-      text: 'Escrow block applied automatically on #TRD-8910 due to high volatility risk factors',
-      meta: 'COMPLIANCE ENG . 3 hours ago',
-      icon: 'warning'
-    },
-    {
-      id: 4,
-      type: 'success',
-      text: 'Cold Wallet address signatures synchronized with decentralized node keys',
-      meta: 'SYSTEM ENGINE . 6 hours ago',
-      icon: 'shield'
-    }
-  ]);
+  const [auditLogs, setAuditLogs] = useState([]);
 
   // Trade list state
-  const [trades, setTrades] = useState([
-    {
-      id: '#TRD-9072',
-      partyA: 'Sarah K.',
-      partyB: 'Alex M.',
-      avatarA: avatarList[0],
-      avatarB: avatarList[1],
-      asset: 'NGN',
-      amount: 12000,
-      time: '2 mins ago',
-      status: 'SETTLED'
-    },
-    {
-      id: '#TRD-8910',
-      partyA: 'David O.',
-      partyB: 'John D.',
-      avatarA: avatarList[2],
-      avatarB: avatarList[3],
-      asset: 'NGN',
-      amount: 40000,
-      time: '5 mins ago',
-      status: 'BLOCKED'
-    },
-    {
-      id: '#TRD-8234',
-      partyA: 'Musa B.',
-      partyB: 'Chinedu A.',
-      avatarA: avatarList[4],
-      avatarB: avatarList[5],
-      asset: 'NGN',
-      amount: 20000,
-      time: '15 mins ago',
-      status: 'SETTLED'
-    },
-    {
-      id: '#TRD-7612',
-      partyA: 'Ibrahim H.',
-      partyB: 'Emeka O.',
-      avatarA: avatarList[1],
-      avatarB: avatarList[4],
-      asset: 'NGN',
-      amount: 15000,
-      time: '1 hour ago',
-      status: 'SETTLED'
-    },
-    {
-      id: '#TRD-7489',
-      partyA: 'Grace A.',
-      partyB: 'Fatima Z.',
-      avatarA: avatarList[3],
-      avatarB: avatarList[0],
-      asset: 'NGN',
-      amount: 60000,
-      time: '3 hours ago',
-      status: 'BLOCKED'
-    },
-    {
-      id: '#TRD-7123',
-      partyA: 'Kabir U.',
-      partyB: 'Stanley N.',
-      avatarA: avatarList[2],
-      avatarB: avatarList[5],
-      asset: 'NGN',
-      amount: 30000,
-      time: '6 hours ago',
-      status: 'SETTLED'
-    },
-    {
-      id: '#TRD-6991',
-      partyA: 'Hassan M.',
-      partyB: 'Tunde B.',
-      avatarA: avatarList[4],
-      avatarB: avatarList[2],
-      asset: 'NGN',
-      amount: 8000,
-      time: '12 hours ago',
-      status: 'SETTLED'
-    }
-  ]);
+  const [trades, setTrades] = useState([]);
 
   // Modal forms state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -388,43 +210,257 @@ export default function App() {
 
   // Dynamically calculate dashboard overview metrics based on state
   const metrics = useMemo(() => {
-    const totalUsers = 142593 + (trades.length - 7) * 2;
-    const activeTrades = 8210 + (trades.length - 7);
-    const totalVolume = 2.4; // 2.4 Billion
-    const platformRevenue = 48.2 + ((trades.filter(t => t.status === 'SETTLED').reduce((acc, t) => acc + t.amount, 0) - 85000) / 1000000) * (platformFee / 100);
-    
     return {
-      users: totalUsers.toLocaleString(),
-      activeTrades: activeTrades.toLocaleString(),
-      volume: totalVolume.toFixed(2) + 'B',
-      revenue: '₦' + platformRevenue.toFixed(2) + 'M'
+      users: dbStats.users.toLocaleString(),
+      activeTrades: dbStats.activeTrades.toLocaleString(),
+      volume: '₦' + dbStats.volume.toLocaleString(),
+      revenue: '₦' + dbStats.revenue.toLocaleString(),
+      inEscrow: '₦' + dbStats.inEscrow.toLocaleString(),
+      coldWalletBalance: '₦' + (dbStats.coldWalletBalance / 1000000000).toFixed(2) + 'B',
+      liquidity: '₦' + (dbStats.liquidity / 1000000000).toFixed(2) + 'B'
     };
-  }, [trades, platformFee]);
+  }, [dbStats]);
+
+  // Fetch data on mount if logged in
+  // Pre-fill email if "Remember Me" was previously used
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmailInput(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchDashboardStats();
+      fetchUsers();
+      fetchTransactions();
+      fetchTrades();
+      fetchMarkets();
+      fetchSettings();
+      fetchSecurityLogs();
+      fetchVaults();
+    }
+  }, [isLoggedIn]);
+
+  const fetchDashboardStats = async () => {
+    try {
+      const { data } = await api.get('/admin/stats');
+      setDbStats(data);
+      // Update platform fee etc from actual settings if exists
+      setPlatformFee(1.5); // Placeholder or fetch from settings
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data } = await api.get('/admin/users');
+      // Map server users to userBalances structure
+      const mappedUsers = data.map(u => ({
+        id: u._id,
+        name: `${u.firstName} ${u.lastName}`,
+        email: u.email,
+        phone: u.phone,
+        balance: u.balance,
+        status: u.isVerified ? 'Healthy' : 'Unverified'
+      }));
+      setUserBalances(mappedUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    try {
+      const { data } = await api.get('/admin/transactions');
+      const mappedTxns = data.map(t => ({
+        hash: t.reference,
+        type: t.type.toUpperCase(),
+        amount: t.amount,
+        fromTo: t.type === 'deposit' ? `Bank -> ${t.user?.firstName || 'User'}` : `${t.user?.firstName || 'User'} -> Bank`,
+        userName: t.user ? `${t.user.firstName} ${t.user.lastName}` : 'Unknown',
+        userEmail: t.user?.email || 'N/A',
+        userPhone: t.user?.phone || 'N/A',
+        time: new Date(t.createdAt).toLocaleString(),
+        status: t.status === 'completed' ? 'SUCCESS' : t.status === 'pending' ? 'PENDING' : 'FAILED'
+      }));
+      setTransactions(mappedTxns);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    }
+  };
+
+  const fetchTrades = async () => {
+    try {
+      const { data } = await api.get('/admin/trades');
+      const mappedTrades = data.map(t => ({
+        id: t._id,
+        partyA: t.initiator ? `${t.initiator.firstName} ${t.initiator.lastName}` : 'System',
+        partyB: t.responder ? `${t.responder.firstName} ${t.responder.lastName}` : 'Unpaired',
+        avatarA: avatarList[Math.floor(Math.random() * avatarList.length)],
+        avatarB: avatarList[Math.floor(Math.random() * avatarList.length)],
+        asset: 'NGN',
+        amount: t.amount,
+        time: new Date(t.createdAt).toLocaleTimeString(),
+        status: t.status
+      }));
+      setTrades(mappedTrades);
+    } catch (error) {
+       console.error('Error fetching trades:', error);
+    }
+  };
+
+  const fetchMarkets = async () => {
+    try {
+      const { data } = await api.get('/admin/markets');
+      setMarkets(data.map(m => ({
+        id: m._id,
+        pair: m.pair,
+        rate: m.rate,
+        change: m.change,
+        volume: m.volume,
+        status: m.status
+      })));
+    } catch (error) {
+       console.error('Error fetching markets:', error);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const { data } = await api.get('/admin/settings');
+      setPlatformFee(data.platformFee);
+      setSettlementMode(data.settlementMode);
+      setComplianceThreshold(data.complianceThreshold);
+      
+      setEditFee(data.platformFee);
+      setEditMode(data.settlementMode);
+      setEditThreshold(data.complianceThreshold);
+    } catch (error) {
+       console.error('Error fetching settings:', error);
+    }
+  };
+
+  const fetchSecurityLogs = async () => {
+    try {
+      const { data } = await api.get('/admin/security-logs');
+      setAuditLogs(data.map(l => ({
+        id: l._id,
+        type: l.type,
+        text: l.text,
+        meta: l.meta,
+        icon: l.icon,
+        time: new Date(l.createdAt).toLocaleString()
+      })));
+    } catch (error) {
+       console.error('Error fetching security logs:', error);
+    }
+  };
+
+  const fetchVaults = async () => {
+    try {
+      const { data } = await api.get('/admin/vaults');
+      setVaultBalances({
+        custodyPool: data.custodyPool,
+        escrowLocked: data.escrowLocked,
+        coldReserve: data.coldReserve,
+        payoutBank: data.payoutBank
+      });
+    } catch (error) {
+       console.error('Error fetching vaults:', error);
+    }
+  };
+
+
+
+  const handleExportReport = () => {
+    try {
+      showToast('Preparing analytical report for download...', 'success');
+      const headers = ['Transaction Hash', 'Type', 'Amount', 'User', 'Time', 'Status'];
+      const rows = transactions.map(t => [
+        t.hash,
+        t.type,
+        t.amount,
+        t.userName,
+        t.time,
+        t.status
+      ]);
+      
+      const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `peeritrade_report_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+       showToast('Failed to generate export.', 'error');
+    }
+  };
 
   // Log in administrative session
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (emailInput.trim() === 'uuhashim0918@gmail.com' && passwordInput === 'admin123') {
-      setIsLoggedIn(true);
-      setLoginError('');
-      // Log login event
-      logSecurityEvent('success', `Administrative login authorized for ${emailInput}`, 'IP: 197.210.64.12 . Just now', 'login');
-    } else {
-      setLoginError('Invalid administrative email username or security password.');
-      logSecurityEvent('warning', `Unauthorized login attempt blocked for user: ${emailInput}`, 'IP: 197.210.64.12 . Just now', 'shield');
+    setIsSubmitting(true);
+    setLoginError('');
+    setLoginSuccess('');
+
+    try {
+      const { data } = await api.post('/auth/login', {
+        email: emailInput,
+        password: passwordInput
+      });
+
+      if (data.role !== 'admin') {
+        setLoginError('Access denied: Unauthorized biological or machine signature.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      localStorage.setItem('token', data.token);
+      setAdminName(data.firstName + ' ' + data.lastName);
+      setAdminEmail(data.email);
+      setAdminPhone(data.phone);
+      
+      // Handle "Remember Me"
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', emailInput);
+      } else {
+        localStorage.removeItem('rememberedEmail');
+      }
+
+      setLoginSuccess('Authentication successful. Redirecting to terminal...');
+      
+      logSecurityEvent('success', `Administrative login authorized for ${emailInput}`, 'IP Detected', 'login');
+      
+      // Delay transition for visual feedback
+      setTimeout(() => {
+        setIsLoggedIn(true);
+        setLoginSuccess('');
+        setIsSubmitting(false);
+      }, 1500);
+
+    } catch (error) {
+      console.error('Login error:', error);
+      const msg = error.response?.data?.message || 'Gateway rejection: Invalid credentials or server offline.';
+      setLoginError(msg);
+      setIsSubmitting(false);
     }
   };
 
   // Helper to log security events
-  const logSecurityEvent = (type, text, meta, iconType) => {
-    const newLog = {
-      id: Date.now(),
-      type,
-      text,
-      meta,
-      icon: iconType
-    };
-    setAuditLogs((prevLogs) => [newLog, ...prevLogs]);
+  const logSecurityEvent = async (type, text, meta, iconType) => {
+    try {
+      await api.post('/admin/security-logs', { type, text, meta, icon: iconType });
+      fetchSecurityLogs(); // Refresh logs
+    } catch (error) {
+      console.error('Error logging event:', error);
+    }
   };
 
   // Handle New Trade Creation
@@ -474,40 +510,21 @@ export default function App() {
   };
 
   // Handle Changing Trade Status
-  const handleUpdateStatus = (id, nextStatus) => {
-    setTrades(
-      trades.map((trade) =>
-        trade.id === id ? { ...trade, status: nextStatus } : trade
-      )
-    );
-    setActiveMenuId(null);
-    
-    // Write audit log
-    logSecurityEvent(
-      nextStatus === 'SETTLED' ? 'success' : 'warning', 
-      `Trade ${id} status updated to ${nextStatus}`, 
-      `Operator: HASHIM . Just now`, 
-      nextStatus === 'SETTLED' ? 'login' : 'warning'
-    );
-
-    // Prepend a Transaction payout record if status is SETTLED
-    if (nextStatus === 'SETTLED') {
-      const matchTrade = trades.find(t => t.id === id);
-      const amount = matchTrade ? matchTrade.amount : 0;
-      const partyA = matchTrade ? matchTrade.partyA : 'Party A';
-      const partyB = matchTrade ? matchTrade.partyB : 'Party B';
-      const newTx = {
-        hash: '0x' + Math.random().toString(16).substring(2, 18),
-        type: 'SETTLEMENT_PAYOUT',
-        amount: amount,
-        fromTo: `Escrow Pool -> ${partyA} & ${partyB}`,
-        userName: partyA,
-        userEmail: `${partyA.toLowerCase().replace(/\s+/g, '')}@gmail.com`,
-        userPhone: '081' + Math.floor(10000000 + Math.random() * 90000000),
-        time: 'Just now',
-        status: 'SUCCESS'
-      };
-      setTransactions(prev => [newTx, ...prev]);
+  const handleUpdateStatus = async (id, nextStatus) => {
+    try {
+      await api.post('/admin/trades/status', { tradeId: id, status: nextStatus });
+      showToast(`Trade status updated to ${nextStatus}`, 'success');
+      fetchTrades();
+      setActiveMenuId(null);
+      
+      logSecurityEvent(
+        nextStatus === 'SETTLED' ? 'success' : 'warning', 
+        `Trade record ${id} status modified to ${nextStatus} via manual override`, 
+        `Operator Authorization: ${adminName}`, 
+        nextStatus === 'SETTLED' ? 'shield' : 'alert-triangle'
+      );
+    } catch (error) {
+      showToast('Failed to update trade status.', 'error');
     }
   };
 
@@ -521,105 +538,143 @@ export default function App() {
   };
 
   // Handle Change Password Form
-  const handleChangePassword = (e) => {
+  const handleChangePassword = async (e) => {
     e.preventDefault();
     if (!oldPassword || !newPassword || !confirmPassword) return;
     if (newPassword !== confirmPassword) {
-      alert('Passwords do not match');
+      showToast('New passwords do not match sequential signature.', 'error');
       return;
     }
     
-    alert('Administrative security password updated successfully.');
-    setOldPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    logSecurityEvent('success', 'Admin master portal password updated successfully', 'Operator: HASHIM . Just now', 'shield');
+    try {
+      await api.post('/admin/change-password', { oldPassword, newPassword });
+      showToast('Administrative credentials updated successfully.', 'success');
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      logSecurityEvent('success', 'Admin master access token updated', `Operator: ${adminName}`, 'key');
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Failed to update credentials.', 'error');
+    }
   };
 
   // Handle saving administrator profile updates
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!editName.trim() || !editEmail.trim() || !editPhone.trim()) {
-      alert('Please fill out all admin details.');
+      showToast('Validation failed: Required administrative fields missing.', 'error');
       return;
     }
-    setAdminName(editName);
-    setAdminEmail(editEmail);
-    setAdminPhone(editPhone);
-    setAdminAvatar(editAvatar);
-    alert('Administrator Profile details updated successfully!');
-    logSecurityEvent('success', `Admin profile details modified: ${editName} (${editEmail})`, 'Operator: HASHIM . Just now', 'shield');
+    
+    try {
+      const names = editName.split(' ');
+      await api.post('/admin/profile', {
+        firstName: names[0],
+        lastName: names.slice(1).join(' '),
+        email: editEmail,
+        phone: editPhone
+      });
+      setAdminName(editName);
+      setAdminEmail(editEmail);
+      setAdminPhone(editPhone);
+      setAdminAvatar(editAvatar);
+      showToast('Administrator profile metadata synchronized.', 'success');
+      logSecurityEvent('info', `Admin identity modified: ${editName}`, `Signature: ${editEmail}`, 'user-check');
+    } catch (error) {
+      showToast('Failed to update administrative profile.', 'error');
+    }
   };
 
   // Handle saving platform config settings
-  const handleSaveSettings = (e) => {
+  const handleSaveSettings = async (e) => {
     e.preventDefault();
     const feeNum = parseFloat(editFee);
     if (isNaN(feeNum) || feeNum < 0 || feeNum > 100) {
-      alert('Please configure a valid platform fee percentage (0-100%).');
+      showToast('Invalid commission value detected.', 'error');
       return;
     }
-    setPlatformFee(feeNum);
-    setSettlementMode(editMode);
-    setComplianceThreshold(parseFloat(editThreshold) || 0);
-    alert('System settings and commission policies stored successfully!');
-    logSecurityEvent('success', `Platform parameters modified: Fee: ${feeNum}%, Mode: ${editMode}`, 'Operator: HASHIM . Just now', 'cpu');
+    
+    try {
+      await api.post('/admin/settings', {
+        platformFee: feeNum,
+        settlementMode: editMode,
+        complianceThreshold: parseFloat(editThreshold) || 0
+      });
+      setPlatformFee(feeNum);
+      setSettlementMode(editMode);
+      setComplianceThreshold(parseFloat(editThreshold) || 0);
+      showToast('Platform parameters committed to mainframe.', 'success');
+      logSecurityEvent('warning', `System configuration updated: ${feeNum}% fee, ${editMode} mode`, `Authorized by ${adminName}`, 'cpu');
+    } catch (error) {
+      showToast('Failed to commit system settings.', 'error');
+    }
   };
 
   // Handle simulated market creation
-  const handleCreateMarket = (e) => {
+  const handleCreateMarket = async (e) => {
     e.preventDefault();
     if (!newMarketPair.trim() || !newMarketRate || !newMarketVol) return;
     const rateNum = parseFloat(newMarketRate) || 0;
-    const volumeNum = parseFloat(newMarketVol) || 0;
-    const newMkt = {
-      id: Date.now(),
-      pair: newMarketPair.toUpperCase(),
-      rate: rateNum,
-      change: '0.0%',
-      volume: '₦' + volumeNum.toLocaleString(),
-      status: newMarketStatus
-    };
-    setMarkets([newMkt, ...markets]);
-    setIsMarketModalOpen(false);
-    setNewMarketPair('');
-    setNewMarketRate('');
-    setNewMarketVol('');
-    setNewMarketStatus('ACTIVE');
-    logSecurityEvent('success', `New simulated market pair added: ${newMarketPair.toUpperCase()}`, 'Operator: HASHIM . Just now', 'cpu');
+    
+    try {
+      await api.post('/admin/markets', {
+        pair: newMarketPair.toUpperCase(),
+        rate: rateNum,
+        volume: '₦' + (parseFloat(newMarketVol) || 0).toLocaleString(),
+        status: newMarketStatus
+      });
+      fetchMarkets();
+      setIsMarketModalOpen(false);
+      setNewMarketPair('');
+      setNewMarketRate('');
+      setNewMarketVol('');
+      setNewMarketStatus('ACTIVE');
+      showToast(`Market pair ${newMarketPair.toUpperCase()} successfully registered.`, 'success');
+      logSecurityEvent('success', `New market pair synchronized: ${newMarketPair.toUpperCase()}`, `Authorized: ${adminName}`, 'trending-up');
+    } catch (error) {
+      showToast('Failed to register new market pair.', 'error');
+    }
   };
 
   // Handle internal vault reserves transfers
-  const handleVaultTransfer = (e) => {
+  const handleVaultTransfer = async (e) => {
     e.preventDefault();
     const amountVal = parseFloat(transferAmount) || 0;
     if (amountVal <= 0) {
-      alert('Please enter a valid transfer amount.');
+      showToast('Please enter a valid transfer amount.', 'error');
       return;
     }
     if (transferSource === transferDest) {
-      alert('Source and destination vault partitions must be different.');
+      showToast('Source and destination vault partitions must be different.', 'error');
       return;
     }
     if (vaultBalances[transferSource] < amountVal) {
-      alert('Insufficient reserves inside selected source vault.');
+      showToast('Insufficient reserves inside selected source vault.', 'error');
       return;
     }
-    setVaultBalances(prev => ({
-      ...prev,
-      [transferSource]: prev[transferSource] - amountVal,
-      [transferDest]: prev[transferDest] + amountVal
-    }));
-    setTransferAmount('');
-    alert(`Transfer of ₦${amountVal.toLocaleString()} completed successfully between vault partitions!`);
-    logSecurityEvent('success', `Internal vault reserve clearing: ₦${amountVal.toLocaleString()} moved from ${transferSource} to ${transferDest}`, 'Operator: HASHIM . Just now', 'shield');
+
+    try {
+      const nextBalances = {
+        ...vaultBalances,
+        [transferSource]: vaultBalances[transferSource] - amountVal,
+        [transferDest]: vaultBalances[transferDest] + amountVal
+      };
+      
+      await api.post('/admin/vaults', nextBalances);
+      setVaultBalances(nextBalances);
+      setTransferAmount('');
+      showToast(`Transfer of ₦${amountVal.toLocaleString()} completed successfully between vault partitions!`);
+      logSecurityEvent('success', `Internal vault reserve clearing: ₦${amountVal.toLocaleString()} moved from ${transferSource} to ${transferDest}`, `Authorized by ${adminName}`, 'shield');
+    } catch (error) {
+      showToast('Vault transfer synchronization failed.', 'error');
+    }
   };
 
   // Handle notification actions
   const handleMarkAllRead = () => {
     setNotifications(notifications.map(n => ({ ...n, read: true })));
-    alert('All notifications marked as read.');
-    logSecurityEvent('success', `All system notifications marked as READ`, 'Operator: HASHIM . Just now', 'login');
+    showToast('All notifications marked as read.');
+    logSecurityEvent('success', `All system notifications marked as READ`, 'Operator Authorization', 'login');
   };
 
   const handleDismissNotification = (id) => {
@@ -627,31 +682,40 @@ export default function App() {
   };
 
   // Handle approving or rejecting KYC users registration
-  const handleUpdateKycStatus = (id, nextStatus) => {
-    setKycUsers(prev => prev.map(user => user.id === id ? { ...user, status: nextStatus } : user));
-    const targetUser = kycUsers.find(u => u.id === id);
-    const userName = targetUser ? targetUser.name : 'User';
-    logSecurityEvent(
-      nextStatus === 'APPROVED' ? 'success' : 'warning',
-      `User registration request for ${userName} set to ${nextStatus}`,
-      'Operator: HASHIM . Just now',
-      nextStatus === 'APPROVED' ? 'login' : 'warning'
-    );
-    alert(`User profile verification updated to ${nextStatus} successfully!`);
+  const handleUpdateKycStatus = async (userId, nextStatus) => {
+    try {
+      await api.post('/admin/kyc-verify', { userId, status: nextStatus });
+      fetchUsers(); // Refresh list
+      logSecurityEvent(
+        nextStatus === 'APPROVED' ? 'success' : 'warning',
+        `User registration request updated to ${nextStatus}`,
+        'Operator Authorization',
+        nextStatus === 'APPROVED' ? 'login' : 'warning'
+      );
+      showToast(`User profile verification updated to ${nextStatus} successfully!`);
+    } catch (error) {
+      console.error('Error updating KYC status:', error);
+      showToast('Failed to update KYC status.', 'error');
+    }
   };
 
   // Handle Approve/Reject Transactions
-  const handleUpdateTxnStatus = (hash, nextStatus) => {
-    setTransactions(prev =>
-      prev.map(t => t.hash === hash ? { ...t, status: nextStatus } : t)
-    );
-    // Write audit log
-    logSecurityEvent(
-      nextStatus === 'SUCCESS' ? 'success' : 'warning', 
-      `Transaction ${hash.substring(0, 8)}... was manually ${nextStatus === 'SUCCESS' ? 'APPROVED' : 'REJECTED'}`, 
-      `Operator: HASHIM . Just now`, 
-      nextStatus === 'SUCCESS' ? 'login' : 'shield'
-    );
+  const handleUpdateTxnStatus = async (hash, nextStatus) => {
+    try {
+      // Need endpoint for updating transaction status
+      await api.post('/admin/transactions/status', { reference: hash, status: nextStatus.toLowerCase() === 'success' ? 'completed' : 'failed' });
+      showToast(`Transaction ${nextStatus === 'SUCCESS' ? 'approved' : 'rejected'} successfully.`, 'success');
+      fetchTransactions();
+      
+      logSecurityEvent(
+        nextStatus === 'SUCCESS' ? 'success' : 'warning', 
+        `Transaction record ${hash.substring(0, 10)}... was manually ${nextStatus === 'SUCCESS' ? 'validated' : 'voided'}`, 
+        `Authorization: ${adminName}`, 
+        nextStatus === 'SUCCESS' ? 'shield' : 'alert-triangle'
+      );
+    } catch (error) {
+      showToast('Failed to update transaction status.', 'error');
+    }
   };
 
   // Filtered transactions calculation
@@ -686,7 +750,7 @@ export default function App() {
 
   // Log out administrative session
   const handleLogout = () => {
-    logSecurityEvent('system', `Administrative terminal session terminated for uuhashim0918@gmail.com`, 'IP: 197.210.64.12 . Just now', 'cpu');
+    localStorage.removeItem('token');
     setIsLoggedIn(false);
   };
 
@@ -733,11 +797,11 @@ export default function App() {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
-            <div className="login-logo-wrap">
-              <Landmark size={28} />
+            <div className="login-logo-wrap" style={{ padding: '0', background: 'transparent', border: 'none' }}>
+              <img src={logo} alt="Logo" style={{ width: '48px', height: '48px' }} />
             </div>
             <h1 className="login-title">Peeritrade</h1>
-            <span className="login-subtitle">Institutional Access Portal</span>
+            <span className="login-subtitle">Admin Access Portal</span>
           </div>
 
           <form onSubmit={handleLogin} className="login-form">
@@ -755,28 +819,68 @@ export default function App() {
 
             <div className="login-input-group">
               <label htmlFor="login-password">Access Password</label>
-              <input
-                type="password"
-                id="login-password"
-                className="login-input"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                required
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  id="login-password"
+                  className="login-input"
+                  style={{ width: '100%', paddingRight: '40px' }}
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
-            {loginError ? <span className="login-error">{loginError}</span> : null}
+            {loginError ? (
+              <div className="login-feedback error">
+                <AlertTriangle size={14} />
+                <span>{loginError}</span>
+              </div>
+            ) : null}
 
-            <button type="submit" className="login-btn">
-              Access Terminal
+            {loginSuccess ? (
+              <div className="login-feedback success">
+                <CheckCircle size={14} />
+                <span>{loginSuccess}</span>
+              </div>
+            ) : null}
+
+            <div className="login-options" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <input 
+                type="checkbox" 
+                id="remember-me" 
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={{ cursor: 'pointer' }}
+              />
+              <label htmlFor="remember-me" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: '500' }}>
+                Remember my email
+              </label>
+            </div>
+
+            <button type="submit" className="login-btn" disabled={isSubmitting}>
+              {isSubmitting ? 'Authenticating...' : 'Access Terminal'}
             </button>
           </form>
-
-          <div className="login-hint">
-            <strong>Demo Access Details:</strong><br />
-            Username: <code>uuhashim0918@gmail.com</code><br />
-            Password: <code>admin123</code>
-          </div>
         </div>
       </div>
     );
@@ -784,31 +888,31 @@ export default function App() {
 
   return (
     <div className="admin-layout">
+      {/* Mobile Sidebar Overlay */}
+      <div 
+        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
+        onClick={() => setIsSidebarOpen(false)}
+      />
+
       {/* Sticky Left Sidebar Navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-logo-icon">
-            <Landmark size={20} />
+          <div className="sidebar-logo-icon" style={{ padding: '0', background: 'transparent', border: 'none' }}>
+            <img src={logo} alt="Logo" style={{ width: '32px', height: '32px' }} />
           </div>
           <div className="logo-text-container">
             <h1 className="logo-title">Peeritrade</h1>
-            <span className="logo-subtitle">Institutional Grade</span>
+            <span className="logo-subtitle">Admin Terminal</span>
           </div>
         </div>
-
-        <button 
-          className="new-trade-btn" 
-          onClick={() => setIsModalOpen(true)}
-          id="btn-new-trade"
-        >
-          <Plus size={16} />
-          <span>New Trade</span>
-        </button>
 
         <ul className="sidebar-menu">
           <li>
             <button
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => {
+                setActiveTab('dashboard');
+                setIsSidebarOpen(false);
+              }}
               className={`menu-item-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
             >
               <LayoutDashboard className="menu-icon" size={16} />
@@ -817,36 +921,10 @@ export default function App() {
           </li>
           <li>
             <button
-              onClick={() => setActiveTab('markets')}
-              className={`menu-item-btn ${activeTab === 'markets' ? 'active' : ''}`}
-            >
-              <TrendingUp className="menu-icon" size={16} />
-              <span>Live Markets</span>
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() => setActiveTab('portfolio')}
-              className={`menu-item-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
-            >
-              <Briefcase className="menu-icon" size={16} />
-              <span>Portfolio</span>
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() => setActiveTab('transactions')}
-              className={`menu-item-btn ${activeTab === 'transactions' ? 'active' : ''}`}
-            >
-              <ArrowLeftRight className="menu-icon" size={16} />
-              <span>Transactions</span>
-            </button>
-          </li>
-          <li>
-            <button
               onClick={() => {
                 setActiveTab('users');
                 setCurrentPage(1);
+                setIsSidebarOpen(false);
               }}
               className={`menu-item-btn ${activeTab === 'users' ? 'active' : ''}`}
             >
@@ -856,7 +934,46 @@ export default function App() {
           </li>
           <li>
             <button
-              onClick={() => setActiveTab('security')}
+              onClick={() => {
+                setActiveTab('markets');
+                setIsSidebarOpen(false);
+              }}
+              className={`menu-item-btn ${activeTab === 'markets' ? 'active' : ''}`}
+            >
+              <TrendingUp className="menu-icon" size={16} />
+              <span>Live Markets</span>
+            </button>
+          </li>
+          <li>
+            <button
+              onClick={() => {
+                setActiveTab('portfolio');
+                setIsSidebarOpen(false);
+              }}
+              className={`menu-item-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
+            >
+              <Briefcase className="menu-icon" size={16} />
+              <span>Portfolio</span>
+            </button>
+          </li>
+          <li>
+            <button
+              onClick={() => {
+                setActiveTab('transactions');
+                setIsSidebarOpen(false);
+              }}
+              className={`menu-item-btn ${activeTab === 'transactions' ? 'active' : ''}`}
+            >
+              <ArrowLeftRight className="menu-icon" size={16} />
+              <span>Transactions</span>
+            </button>
+          </li>
+          <li>
+            <button
+              onClick={() => {
+                setActiveTab('security');
+                setIsSidebarOpen(false);
+              }}
               className={`menu-item-btn ${activeTab === 'security' ? 'active' : ''}`}
             >
               <ShieldCheck className="menu-icon" size={16} />
@@ -882,6 +999,12 @@ export default function App() {
       <div className="main-wrapper">
         {/* Top Control Bar */}
         <header className="top-bar">
+          <button 
+            className="menu-toggle-btn" 
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <Menu size={20} />
+          </button>
           <div className="search-box-container">
             <Search className="search-icon" size={16} />
             <input
@@ -898,6 +1021,13 @@ export default function App() {
           </div>
 
           <div className="top-bar-controls">
+            <button 
+              className="control-icon-btn" 
+              title={`Switch to ${isDarkMode ? 'Light' : 'Dark'} Mode`}
+              onClick={toggleTheme}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             <button 
               className={`control-icon-btn ${activeTab === 'notifications' ? 'active' : ''}`} 
               title="Notifications"
@@ -927,11 +1057,6 @@ export default function App() {
               }}
             >
               <span className="user-name">{adminName}</span>
-              <img
-                src={adminAvatar}
-                alt="Admin Profile"
-                className="user-avatar"
-              />
             </div>
           </div>
         </header>
@@ -958,7 +1083,7 @@ export default function App() {
 
                 <button 
                   className="export-btn" 
-                  onClick={() => alert('Exporting raw analytical data summary CSV...')}
+                  onClick={handleExportReport}
                 >
                   <Download size={14} />
                   <span>Export Report</span>
@@ -1073,7 +1198,7 @@ export default function App() {
                       </div>
                       <div className="oversight-details">
                         <span className="oversight-label">In Escrow</span>
-                        <span className="oversight-value">₦842,920,000</span>
+                        <span className="oversight-value">{metrics.inEscrow}</span>
                       </div>
                     </div>
                     <span className="oversight-badge risk-low">Low Risks</span>
@@ -1087,7 +1212,7 @@ export default function App() {
                       </div>
                       <div className="oversight-details">
                         <span className="oversight-label">Cold Wallet Balance</span>
-                        <span className="oversight-value">₦1.56B</span>
+                        <span className="oversight-value">{metrics.coldWalletBalance}</span>
                       </div>
                     </div>
                     <span className="oversight-badge change-pos">+3.4%</span>
@@ -1665,7 +1790,7 @@ export default function App() {
               </div>
             </div>
 
-            <section className="recent-trades-card" style={{ maxWidth: 800, margin: '0 auto' }}>
+            <section className="recent-trades-card">
               <div className="table-filter-row" style={{ borderBottom: '1px solid #1e293b', paddingBottom: 16 }}>
                 <div>
                   <h3 className="card-heading">Platform Notifications</h3>
@@ -1753,7 +1878,6 @@ export default function App() {
           </main>
         ) : activeTab === 'settings' ? (
           <main className="dashboard-container">
-            {/* Header section */}
             <div className="section-header">
               <div>
                 <h2 className="overview-title">Portal Settings</h2>
@@ -1761,67 +1885,77 @@ export default function App() {
               </div>
             </div>
 
-            <div className="security-grid" style={{ gridTemplateColumns: '1fr' }}>
-              <div className="security-settings-card" style={{ maxWidth: 650, margin: '0 auto', width: '100%' }}>
-                <div className="security-settings-section">
-                  <h3 className="security-section-title">Platform Config Parameters</h3>
-                  <form onSubmit={handleSaveSettings} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    
-                    <div className="form-group-wrap">
-                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 'bold', marginBottom: 6, display: 'block' }}>
-                        Platform Commission Fee (%)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Platform Fee (e.g. 1.5)"
-                        className="form-input-text"
-                        value={editFee}
-                        onChange={(e) => setEditFee(e.target.value)}
-                        required
-                      />
-                      <span style={{ fontSize: 10, color: '#64748b', marginTop: 4, display: 'block' }}>
-                        This commission is automatically assessed against completed simulated escrow trades.
-                      </span>
-                    </div>
+            <div className="settings-grid">
+              {/* Financial Configurations */}
+              <div className="settings-card">
+                <div className="settings-card-title">Financial Configurations</div>
+                <p className="settings-card-sub">Manage commission rates and transaction thresholds.</p>
+                <form onSubmit={handleSaveSettings}>
+                  <div className="settings-field">
+                    <label className="settings-label">Platform Commission Fee (%)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="vault-input"
+                      value={editFee}
+                      onChange={(e) => setEditFee(e.target.value)}
+                      required
+                    />
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      This percentage is deducted from every successful escrow settlement.
+                    </span>
+                  </div>
+                  <div className="settings-field">
+                    <label className="settings-label">Multi-Sig Verification Threshold (₦)</label>
+                    <input
+                      type="number"
+                      className="vault-input"
+                      value={editThreshold}
+                      onChange={(e) => setEditThreshold(e.target.value)}
+                      required
+                    />
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      Transactions above this amount require second-tier administrative approval.
+                    </span>
+                  </div>
+                  <button type="submit" className="btn-primary" style={{ marginTop: 8 }}>
+                    Update Financials
+                  </button>
+                </form>
+              </div>
 
-                    <div className="form-group-wrap">
-                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 'bold', marginBottom: 6, display: 'block' }}>
-                        Settlement Release Protocol
-                      </label>
-                      <select
-                        className="form-input-text"
-                        style={{ backgroundColor: '#0d1527', border: '1px solid #1e293b', color: '#ffffff' }}
-                        value={editMode}
-                        onChange={(e) => setEditMode(e.target.value)}
-                      >
-                        <option value="AUTOMATED">Automated Instant Payouts</option>
-                        <option value="DELAYED">Delayed Escrow Batching (24h Lock)</option>
-                        <option value="MANUAL">Manual Admin Approval Required</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group-wrap">
-                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 'bold', marginBottom: 6, display: 'block' }}>
-                        Multi-Sig Verification Threshold (₦)
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="Multi-Sig Threshold Amount"
-                        className="form-input-text"
-                        value={editThreshold}
-                        onChange={(e) => setEditThreshold(e.target.value)}
-                        required
-                      />
-                      <span style={{ fontSize: 10, color: '#64748b', marginTop: 4, display: 'block' }}>
-                        Settlements above this limit will require compliance signatures.
-                      </span>
-                    </div>
-
-                    <button type="submit" className="btn-primary" style={{ alignSelf: 'flex-start', marginTop: 8 }}>
-                      Save Settings Configuration
+              {/* Operational Protocols */}
+              <div className="settings-card">
+                <div className="settings-card-title">Operational Protocols</div>
+                <p className="settings-card-sub">Define how the platform handles automated settlements.</p>
+                <div className="settings-field">
+                  <label className="settings-label">Settlement Release Protocol</label>
+                  <select
+                    className="vault-select"
+                    value={editMode}
+                    onChange={(e) => setEditMode(e.target.value)}
+                  >
+                    <option value="AUTOMATED">Automated Instant Payouts</option>
+                    <option value="DELAYED">Delayed Escrow Batching (24h Lock)</option>
+                    <option value="MANUAL">Manual Admin Approval Required</option>
+                  </select>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-label">Maintenance Mode</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                    <button 
+                      className={`notif-action-btn ${metrics.maintenance ? 'active' : ''}`}
+                      onClick={() => showToast('Maintenance mode toggled...', 'warning')}
+                      style={{ padding: '8px 16px', backgroundColor: metrics.maintenance ? 'var(--color-red)' : 'transparent' }}
+                    >
+                      {metrics.maintenance ? 'Disable Maintenance' : 'Enable Maintenance'}
                     </button>
-                  </form>
+                  </div>
+                </div>
+                <div className="settings-field">
+                   <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                     System protocols are enforced globally across all active market pairs and user wallets.
+                   </p>
                 </div>
               </div>
             </div>
@@ -2053,63 +2187,137 @@ export default function App() {
           </main>
         ) : activeTab === 'portfolio' ? (
           <main className="dashboard-container">
-            {/* Header section */}
             <div className="section-header">
               <div>
-                <h2 className="overview-title">Vaults & Reserves</h2>
+                <h2 className="overview-title">Vaults &amp; Reserves</h2>
                 <p className="overview-sub">Institutional reserve partitions, multi-sig cold vaults, and escrow pool clearing balances.</p>
               </div>
-            </div>
-
-            {/* Grid of vault cards */}
-            <div className="metrics-grid" style={{ marginBottom: 24 }}>
-              <div className="metric-card">
-                <span className="metric-title">Main Custody Pool</span>
-                <span className="metric-value" style={{ color: '#00D285' }}>
-                  ₦{vaultBalances.custodyPool.toLocaleString()}
-                </span>
-                <span className="metric-trend success">Institutional Reserve Wallet</span>
-              </div>
-              <div className="metric-card">
-                <span className="metric-title">Active Escrow Locked</span>
-                <span className="metric-value" style={{ color: '#3B82F6' }}>
-                  ₦{vaultBalances.escrowLocked.toLocaleString()}
-                </span>
-                <span className="metric-trend success">Currently Locked in Trades</span>
-              </div>
-              <div className="metric-card">
-                <span className="metric-title">Cold Vault Reserves</span>
-                <span className="metric-value" style={{ color: '#F59E0B' }}>
-                  ₦{vaultBalances.coldReserve.toLocaleString()}
-                </span>
-                <span className="metric-trend warning">Multi-Sig Hard Locked</span>
-              </div>
-              <div className="metric-card">
-                <span className="metric-title">Payout Bank Reserves</span>
-                <span className="metric-value" style={{ color: '#ffffff' }}>
-                  ₦{vaultBalances.payoutBank.toLocaleString()}
-                </span>
-                <span className="metric-trend success">Automated Releases Float</span>
+              <div className="header-action-row">
+                <button className="export-btn" onClick={handleExportReport}>
+                  <Download size={14} />
+                  <span>Export Report</span>
+                </button>
               </div>
             </div>
 
-            {/* User Portfolio Balances Ledger Table */}
-            <section className="recent-trades-card" style={{ marginTop: 24 }}>
-              <div className="table-filter-row" style={{ borderBottom: '1px solid #1e293b', paddingBottom: 16 }}>
+            {/* Vault Summary Cards */}
+            <div className="vault-cards-grid">
+              <div className="vault-card">
+                <div className="vault-card-top">
+                  <div className="vault-icon-box" style={{ background: 'rgba(0,210,133,0.1)', color: '#00D285' }}>
+                    <Landmark size={20} />
+                  </div>
+                  <span className="vault-badge green">Active</span>
+                </div>
+                <span className="vault-label">Main Custody Pool</span>
+                <span className="vault-amount" style={{ color: '#00D285' }}>₦{vaultBalances.custodyPool.toLocaleString()}</span>
+                <span className="vault-sublabel">Institutional Reserve Wallet</span>
+              </div>
+
+              <div className="vault-card">
+                <div className="vault-card-top">
+                  <div className="vault-icon-box" style={{ background: 'rgba(59,130,246,0.1)', color: '#3B82F6' }}>
+                    <Lock size={20} />
+                  </div>
+                  <span className="vault-badge blue">{metrics.activeTrades} Trades</span>
+                </div>
+                <span className="vault-label">Active Escrow Locked</span>
+                <span className="vault-amount" style={{ color: '#3B82F6' }}>₦{vaultBalances.escrowLocked.toLocaleString()}</span>
+                <span className="vault-sublabel">Currently Locked in Trades</span>
+              </div>
+
+              <div className="vault-card">
+                <div className="vault-card-top">
+                  <div className="vault-icon-box" style={{ background: 'rgba(245,158,11,0.1)', color: '#F59E0B' }}>
+                    <ShieldCheck size={20} />
+                  </div>
+                  <span className="vault-badge orange">Multi-Sig</span>
+                </div>
+                <span className="vault-label">Cold Vault Reserves</span>
+                <span className="vault-amount" style={{ color: '#F59E0B' }}>₦{vaultBalances.coldReserve.toLocaleString()}</span>
+                <span className="vault-sublabel">Multi-Sig Hard Locked</span>
+              </div>
+
+              <div className="vault-card">
+                <div className="vault-card-top">
+                  <div className="vault-icon-box" style={{ background: 'rgba(139,92,246,0.1)', color: '#8B5CF6' }}>
+                    <ArrowLeftRight size={20} />
+                  </div>
+                  <span className="vault-badge purple">Live</span>
+                </div>
+                <span className="vault-label">Payout Bank Float</span>
+                <span className="vault-amount" style={{ color: 'var(--text-white)' }}>₦{vaultBalances.payoutBank.toLocaleString()}</span>
+                <span className="vault-sublabel">Automated Releases Float</span>
+              </div>
+            </div>
+
+            {/* Internal Transfer Panel */}
+            <section className="vault-transfer-card">
+              <div className="table-filter-row">
                 <div>
-                  <h3 className="card-heading">User Balances & Escrow Stock Ledger</h3>
-                  <p className="card-subheading">Track remaining naira deposits, active escrow locks, and risk alert status</p>
+                  <h3 className="card-heading">Internal Vault Transfer</h3>
+                  <p className="card-subheading">Move reserve funds between vault partitions securely</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,210,133,0.08)', border: '1px solid rgba(0,210,133,0.2)', padding: '6px 14px', borderRadius: 6 }}>
+                  <ShieldCheck size={14} color="#00D285" />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#00D285' }}>Authorized</span>
                 </div>
               </div>
+              <div className="vault-transfer-form">
+                <div className="vault-field-group">
+                  <label className="vault-field-label">Source Vault</label>
+                  <select className="vault-select" value={transferSource} onChange={(e) => setTransferSource(e.target.value)}>
+                    <option value="custodyPool">Main Custody Pool</option>
+                    <option value="escrowLocked">Active Escrow</option>
+                    <option value="coldReserve">Cold Vault</option>
+                    <option value="payoutBank">Payout Float</option>
+                  </select>
+                </div>
+                <div className="vault-arrow-divider">
+                  <ArrowLeftRight size={18} color="var(--color-primary)" />
+                </div>
+                <div className="vault-field-group">
+                  <label className="vault-field-label">Destination Vault</label>
+                  <select className="vault-select" value={transferDest} onChange={(e) => setTransferDest(e.target.value)}>
+                    <option value="custodyPool">Main Custody Pool</option>
+                    <option value="escrowLocked">Active Escrow</option>
+                    <option value="coldReserve">Cold Vault</option>
+                    <option value="payoutBank">Payout Float</option>
+                  </select>
+                </div>
+                <div className="vault-field-group">
+                  <label className="vault-field-label">Amount (₦)</label>
+                  <input
+                    type="number"
+                    className="vault-input"
+                    placeholder="Enter amount..."
+                    value={transferAmount}
+                    onChange={(e) => setTransferAmount(e.target.value)}
+                  />
+                </div>
+                <button className="btn-primary" style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 8 }} onClick={handleVaultTransfer}>
+                  <ArrowLeftRight size={14} />
+                  Transfer
+                </button>
+              </div>
+            </section>
 
+            {/* User Balances Ledger */}
+            <section className="recent-trades-card">
+              <div className="table-filter-row">
+                <div>
+                  <h3 className="card-heading">User Balances &amp; Escrow Ledger</h3>
+                  <p className="card-subheading">Live naira deposits, escrow locks, and risk status per user</p>
+                </div>
+              </div>
               <div className="trades-table-container">
                 <table className="trades-table">
                   <thead>
                     <tr>
                       <th>User Account</th>
                       <th>Naira Balance</th>
-                      <th>Escrow Stock (Contracts)</th>
-                      <th>Risk Indicator</th>
+                      <th>Escrow Stock</th>
+                      <th>Risk Status</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
@@ -2118,58 +2326,34 @@ export default function App() {
                       <tr key={user.id}>
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: 'bold', color: '#ffffff' }}>{user.name}</span>
-                            <span style={{ fontSize: 11, color: '#64748b' }}>{user.email} • {user.phone}</span>
+                            <span style={{ fontWeight: 'bold', color: 'var(--text-white)' }}>{user.name}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{user.email} • {user.phone}</span>
                           </div>
                         </td>
-                        <td style={{ color: '#00D285', fontWeight: '600' }}>
-                          ₦{user.balance.toLocaleString()}
-                        </td>
-                        <td style={{ color: '#ffffff', fontWeight: 'bold' }}>
-                          {user.stock} Units
-                        </td>
+                        <td style={{ color: '#00D285', fontWeight: '600' }}>₦{user.balance.toLocaleString()}</td>
+                        <td style={{ color: 'var(--text-white)', fontWeight: 'bold' }}>{user.stock} Units</td>
                         <td>
-                          <span
-                            className="status-badge-td"
-                            style={{
-                              backgroundColor: user.status === 'Healthy' ? 'rgba(0, 210, 133, 0.08)' :
-                                               user.status === 'Low Balance' ? 'rgba(245, 158, 11, 0.08)' :
-                                               user.status === 'Low Stock' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                              border: user.status === 'Healthy' ? '1px solid rgba(0, 210, 133, 0.2)' :
-                                      user.status === 'Low Balance' ? '1px solid rgba(245, 158, 11, 0.2)' :
-                                      user.status === 'Low Stock' ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
-                              color: user.status === 'Healthy' ? '#00D285' :
-                                     user.status === 'Low Balance' ? '#F59E0B' :
-                                     user.status === 'Low Stock' ? '#3B82F6' : '#EF4444'
-                            }}
-                          >
+                          <span className="status-badge-td" style={{
+                            backgroundColor: user.status === 'Healthy' ? 'rgba(0,210,133,0.08)' : user.status === 'Low Balance' ? 'rgba(245,158,11,0.08)' : user.status === 'Low Stock' ? 'rgba(59,130,246,0.08)' : 'rgba(239,68,68,0.08)',
+                            border: user.status === 'Healthy' ? '1px solid rgba(0,210,133,0.2)' : user.status === 'Low Balance' ? '1px solid rgba(245,158,11,0.2)' : user.status === 'Low Stock' ? '1px solid rgba(59,130,246,0.2)' : '1px solid rgba(239,68,68,0.2)',
+                            color: user.status === 'Healthy' ? '#00D285' : user.status === 'Low Balance' ? '#F59E0B' : user.status === 'Low Stock' ? '#3B82F6' : '#EF4444'
+                          }}>
                             {user.status}
                           </span>
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <button
-                            style={{
-                              backgroundColor: 'transparent',
-                              border: '1px solid #1e293b',
-                              color: '#64748b',
-                              fontSize: 10,
-                              fontWeight: 'bold',
-                              padding: '4px 10px',
-                              borderRadius: 4,
-                              cursor: 'pointer'
-                            }}
-                            onClick={() => {
-                              const extraVal = 50000;
-                              setUserBalances(userBalances.map(u => u.id === user.id ? { 
-                                ...u, 
-                                balance: u.balance + extraVal,
-                                status: 'Healthy'
-                              } : u));
-                              logSecurityEvent('success', `Simulated reserve credit: ₦${extraVal.toLocaleString()} added to ${user.name}'s ledger`, 'Operator: HASHIM . Just now', 'shield');
-                              alert(`Simulated credit of ₦${extraVal.toLocaleString()} successfully applied to ${user.name}!`);
-                            }}
-                          >
-                            Simulate Deposit
+                          <button className="notif-action-btn" onClick={async () => {
+                            const extraVal = 50000;
+                            try {
+                              await api.post('/admin/users/credit', { userId: user.id, amount: extraVal });
+                              fetchUsers();
+                              showToast(`₦${extraVal.toLocaleString()} credited to ${user.name} successfully!`, 'success');
+                              logSecurityEvent('success', `Manual balance credit: ₦${extraVal.toLocaleString()} added to ${user.name}`, `Authorized by ${adminName}`, 'wallet');
+                            } catch (error) {
+                              showToast('System failed to credit user account.', 'error');
+                            }
+                          }}>
+                            Credit
                           </button>
                         </td>
                       </tr>
@@ -2190,16 +2374,16 @@ export default function App() {
             </div>
 
             {/* Filter controls card */}
-            <div className="table-filter-card" style={{ marginBottom: 24, padding: '16px 24px', backgroundColor: '#0b1220', borderRadius: 8, border: '1px solid #1e293b' }}>
+            <div className="table-filter-card" style={{ marginBottom: 24, padding: '16px 24px', backgroundColor: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between' }}>
                 
                 {/* Search Bar */}
-                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#0d1527', border: '1px solid #1e293b', borderRadius: 6, padding: '6px 12px', minWidth: 320 }}>
-                  <Search size={16} color="#64748b" style={{ marginRight: 8 }} />
+                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: 6, padding: '6px 12px', minWidth: 320 }}>
+                  <Search size={16} color="var(--text-muted)" style={{ marginRight: 8 }} />
                   <input
                     type="text"
                     placeholder="Search name, email, phone..."
-                    style={{ backgroundColor: 'transparent', border: 'none', color: '#ffffff', outline: 'none', fontSize: 13, width: '100%' }}
+                    style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--text-white)', outline: 'none', fontSize: 13, width: '100%' }}
                     value={kycSearchQuery}
                     onChange={(e) => setKycSearchQuery(e.target.value)}
                   />
@@ -2212,10 +2396,10 @@ export default function App() {
 
                 {/* Filter dropdown */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 'bold' }}>Verification Status:</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'bold' }}>Verification Status:</span>
                   <select
                     className="dropdown-select"
-                    style={{ height: 36, padding: '0 12px', backgroundColor: '#0d1527', border: '1px solid #1e293b', color: '#ffffff', borderRadius: 6 }}
+                    style={{ height: 36, padding: '0 12px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-white)', borderRadius: 6 }}
                     value={kycStatusFilter}
                     onChange={(e) => setKycStatusFilter(e.target.value)}
                   >
@@ -2263,15 +2447,15 @@ export default function App() {
                         <tr key={user.id}>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontWeight: 'bold', color: '#ffffff' }}>{user.name}</span>
-                              <span style={{ fontSize: 11, color: '#64748b' }}>{user.email} • {user.phone}</span>
+                              <span style={{ fontWeight: 'bold', color: 'var(--text-white)' }}>{user.name}</span>
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{user.email} • {user.phone}</span>
                             </div>
                           </td>
-                          <td style={{ color: '#94a3b8' }}>{user.documentType}</td>
-                          <td style={{ fontFamily: 'monospace', color: '#ffffff', fontWeight: '500' }}>
+                          <td style={{ color: 'var(--text-muted)' }}>{user.documentType}</td>
+                          <td style={{ fontFamily: 'monospace', color: 'var(--text-white)', fontWeight: '500' }}>
                             {user.documentNumber}
                           </td>
-                          <td style={{ color: '#94a3b8' }}>{user.date}</td>
+                          <td style={{ color: 'var(--text-muted)' }}>{user.date}</td>
                           <td>
                             <span
                               className="status-badge-td"
@@ -2364,6 +2548,69 @@ export default function App() {
                 </table>
               </div>
             </section>
+          </main>
+        ) : activeTab === 'notifications' ? (
+          <main className="dashboard-container">
+            {/* Header section */}
+            <div className="section-header">
+              <div>
+                <h2 className="overview-title">System Alert Center</h2>
+                <p className="overview-sub">Monitor security triggers, market signals, and network events.</p>
+              </div>
+              <button className="export-btn" onClick={handleMarkAllRead}>
+                <CheckCircle size={14} />
+                <span>Mark Protocol Read</span>
+              </button>
+            </div>
+
+            <div className="notifications-list-card">
+              {notifications.length === 0 ? (
+                <div className="empty-notifications">
+                  <Bell size={48} strokeWidth={1} />
+                  <h3>No Active Alerts</h3>
+                  <p>System is currently operating within normal parameters.</p>
+                </div>
+              ) : (
+                notifications.map((notif) => (
+                  <div key={notif.id} className={`notification-item ${notif.read ? 'read' : 'unread'}`}>
+                    <div className="notification-main">
+                      <div className={`notification-icon-box ${notif.type}`}>
+                        {notif.type === 'market' ? <Activity size={20} /> :
+                         notif.type === 'security' ? <Shield size={20} /> :
+                         notif.type === 'system' ? <Cpu size={20} /> :
+                         <BarChart3 size={20} />}
+                      </div>
+                      <div className="notification-content">
+                        <span className="notification-text">{notif.text}</span>
+                        <div className="notification-meta">
+                          <span style={{ textTransform: 'uppercase', fontWeight: 'bold' }}>{notif.type}</span>
+                          <span>•</span>
+                          <span>{notif.time}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="notification-actions">
+                      {!notif.read && (
+                        <button 
+                          className="notif-action-btn" 
+                          title="Mark as read"
+                          onClick={() => setNotifications(notifications.map(n => n.id === notif.id ? {...n, read: true} : n))}
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                      )}
+                      <button 
+                        className="notif-action-btn" 
+                        title="Dismiss"
+                        onClick={() => handleDismissNotification(notif.id)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </main>
         ) : (
           <main className="dashboard-container">
@@ -2672,6 +2919,18 @@ export default function App() {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Toast Notifications */}
+      {toast.show && (
+        <div className="toast-container">
+          <div className={`toast-item ${toast.type}`}>
+            {toast.type === 'success' ? <CheckCircle size={18} color="#00D285" /> : 
+             toast.type === 'error' ? <AlertTriangle size={18} color="#EF4444" /> : 
+             <Bell size={18} color="#F59E0B" />}
+            <span className="toast-text">{toast.message}</span>
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ dotenv.config();
 
 import authRoutes from './routes/authRoutes';
 import transactionRoutes from './routes/transactionRoutes';
+import adminRoutes from './routes/adminRoutes';
 
 const app: Application = express();
 
@@ -24,6 +25,7 @@ if (process.env.NODE_ENV === 'development') {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Server is running smoothly' });
