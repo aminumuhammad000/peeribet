@@ -64,6 +64,7 @@ export const login = async (req: Request, res: Response) => {
         email: user.email,
         phone: user.phone,
         isVerified: user.isVerified,
+        role: user.role,
         balance: user.balance,
         token: generateToken((user._id as any).toString()),
       });
