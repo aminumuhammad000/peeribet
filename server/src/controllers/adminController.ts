@@ -28,10 +28,9 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const pendingTrades = await Trade.find({ status: 'PENDING' });
     const inEscrow = pendingTrades.reduce((acc, trade) => acc + (trade.amount || 0), 0);
 
-    // Cold Wallet: For demonstration of "real" fetching, we use a calculation 
-    // or a fixed system reserve that can be configured.
-    // Let's assume cold wallet is 1.5x the user funds to ensure liquidity
-    const coldWalletBalance = userFunds * 1.5 || 1560000000;
+    // Fetch live vault balances
+    const vault = await VaultBalance.findOne();
+    const coldWalletBalance = vault ? vault.coldReserve : 0;
 
     res.json({
       users: totalUsers,
@@ -250,15 +249,25 @@ export const updateTransactionStatus = async (req: Request, res: Response) => {
 
 export const getVaultBalances = async (req: Request, res: Response) => {
   try {
+    // 1. Calculate Escrow Locked from live pending trades
+    const pendingTrades = await Trade.find({ status: 'PENDING' });
+    const liveEscrowLocked = pendingTrades.reduce((acc, trade) => acc + (trade.amount || 0), 0);
+
     let vault = await VaultBalance.findOne();
     if (!vault) {
+      // Create with 0 defaults if no vault record exists yet
       vault = await VaultBalance.create({
-          custodyPool: 2500000,
-          escrowLocked: 842920000,
-          coldReserve: 1560000000,
-          payoutBank: 450000
+          custodyPool: 0,
+          escrowLocked: liveEscrowLocked,
+          coldReserve: 0,
+          payoutBank: 0
       });
+    } else {
+      // Sync escrowLocked with live trade data
+      vault.escrowLocked = liveEscrowLocked;
+      await vault.save();
     }
+
     res.json(vault);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
