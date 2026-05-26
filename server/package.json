@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && tsc && npm run seed:admin",
     "seed:admin": "ts-node src/scripts/seedAdmin.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
