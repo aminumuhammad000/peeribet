@@ -57,6 +57,14 @@ export const authService = {
     const response = await api.put('/auth/profile', data);
     return response.data;
   },
+  uploadProfileImage: async (formData: FormData) => {
+    const response = await api.post('/auth/profile/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
   logout: async () => {
     await AsyncStorage.removeItem('userToken');
     await AsyncStorage.removeItem('userData');

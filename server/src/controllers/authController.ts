@@ -240,3 +240,26 @@ export const updateProfile = async (req: any, res: Response) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─── Upload Profile Image ────────────────────────────────────────────────────
+// @route  POST /api/auth/profile/image
+export const uploadProfileImage = async (req: any, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No image file uploaded' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.profileImage = req.file.path; // Cloudinary URL
+    await user.save();
+
+    res.json({
+      message: 'Profile image updated successfully',
+      profileImage: user.profileImage,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};

@@ -7,8 +7,10 @@ import {
   forgotPassword,
   resetPassword,
   updateProfile,
+  uploadProfileImage,
 } from '../controllers/authController';
 import { protect } from '../middlewares/authMiddleware';
+import { upload } from '../config/cloudinary';
 
 const router = express.Router();
 
@@ -19,6 +21,7 @@ router.post('/resend-otp', resendOtp);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 router.put('/profile', protect, updateProfile);
+router.post('/profile/image', protect, upload.single('image'), uploadProfileImage);
 router.get('/me', protect, (req: any, res: Response) => {
   res.json(req.user);
 });
