@@ -65,7 +65,19 @@ export const authService = {
       console.warn('AsyncStorage not available yet:', error);
       return false;
     }
-  }
+  },
+  resendOtp: async (email: string) => {
+    const response = await api.post('/auth/resend-otp', { email });
+    return response.data;
+  },
+  forgotPassword: async (email: string) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+  resetPassword: async (data: { email: string; otp: string; newPassword: string }) => {
+    const response = await api.post('/auth/reset-password', data);
+    return response.data;
+  },
 };
 
 // Transaction endpoints

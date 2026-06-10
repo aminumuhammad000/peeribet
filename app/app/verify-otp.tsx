@@ -56,12 +56,14 @@ export default function VerifyOtpScreen() {
 
     setLoading(true);
     try {
-      await authService.verifyOtp({ email, otp: code });
-      setLoading(false);
-      
       if (context === 'reset_password') {
-        router.replace({ pathname: '/reset-password', params: { email } });
+        // For password reset: pass the OTP to reset-password screen
+        // (verification happens together with the password reset on the server)
+        setLoading(false);
+        router.replace({ pathname: '/reset-password', params: { email, otp: code } });
       } else {
+        await authService.verifyOtp({ email, otp: code });
+        setLoading(false);
         router.replace({ pathname: '/welcome-user', params: { type: 'signup' } });
       }
     } catch (err: any) {
@@ -72,8 +74,13 @@ export default function VerifyOtpScreen() {
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (timer === 0) {
+      try {
+        await authService.resendOtp(email);
+      } catch (err) {
+        console.warn('Resend OTP failed:', err);
+      }
       setTimer(59);
       setOtp(['', '', '', '', '', '']);
       setError('');

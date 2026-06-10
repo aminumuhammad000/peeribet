@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
@@ -7,11 +7,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
+import { authService } from '../services/apiService';
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const email = params.email || '';
+  const email = params.email as string || '';
+  const otp = params.otp as string || '';
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -19,7 +21,7 @@ export default function ResetPasswordScreen() {
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleResetPassword = () => {
+  const handleResetPassword = async () => {
     let isValid = true;
     setPasswordError('');
     setConfirmPasswordError('');
@@ -42,12 +44,17 @@ export default function ResetPasswordScreen() {
 
     if (isValid) {
       setLoading(true);
-      // Simulate password reset
-      setTimeout(() => {
+      try {
+        await authService.resetPassword({ email, otp, newPassword: password });
         setLoading(false);
-        // After successful reset, route back to sign in
-        router.replace('/signin');
-      }, 1500);
+        Alert.alert('Success', 'Password reset successfully!', [
+          { text: 'Sign In', onPress: () => router.replace('/signin') },
+        ]);
+      } catch (err: any) {
+        setLoading(false);
+        const errorMsg = err.response?.data?.message || 'Failed to reset password. Please try again.';
+        Alert.alert('Error', errorMsg);
+      }
     }
   };
 
