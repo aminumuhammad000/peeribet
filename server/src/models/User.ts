@@ -1,6 +1,15 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+export interface IVirtualAccount {
+  accountNumber: string;
+  accountName: string;
+  bankName: string;
+  bankCode: string;
+  reference: string;
+  providerRef?: string;
+}
+
 export interface IUser extends Document {
   firstName: string;
   lastName: string;
@@ -12,6 +21,7 @@ export interface IUser extends Document {
   otp?: string;
   otpExpires?: Date;
   role: 'user' | 'admin';
+  virtualAccount?: IVirtualAccount;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -29,6 +39,14 @@ const userSchema: Schema = new Schema(
     otp: { type: String },
     otpExpires: { type: Date },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    virtualAccount: {
+      accountNumber: { type: String },
+      accountName: { type: String },
+      bankName: { type: String },
+      bankCode: { type: String },
+      reference: { type: String },
+      providerRef: { type: String },
+    },
   },
   {
     timestamps: true,

@@ -1743,10 +1743,10 @@ export default function App() {
                     <div key={log.id} className="audit-log-item">
                       <div
                         className={`audit-log-icon-box ${log.type === 'success'
-                            ? 'success'
-                            : log.type === 'warning'
-                              ? 'warning'
-                              : 'system'
+                          ? 'success'
+                          : log.type === 'warning'
+                            ? 'warning'
+                            : 'system'
                           }`}
                       >
                         {log.icon === 'login' ? (
