@@ -96,4 +96,16 @@ export const transactionService = {
   }
 };
 
+// Wallet endpoints
+export const walletService = {
+  getVirtualAccount: async () => {
+    const response = await api.get('/wallet/virtual-account');
+    return response.data;
+  },
+  provisionVirtualAccount: async (bvn: string) => {
+    const response = await api.post('/wallet/virtual-account', { bvn });
+    return response.data;
+  }
+};
+
 export default api;

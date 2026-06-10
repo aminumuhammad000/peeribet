@@ -1,27 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Wallet, Copy, ArrowUpRight, ArrowDownLeft, Check } from 'lucide-react-native';
+import { Wallet, Copy, ArrowUpRight, ArrowDownLeft, Check, X, ShieldCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
-import { authService, transactionService } from '../../services/apiService';
+import { authService, transactionService, walletService } from '../../services/apiService';
+import { CustomButton } from '../../components/CustomButton';
+import { CustomInput } from '../../components/CustomInput';
 
 export default function WalletScreen() {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [virtualAccount, setVirtualAccount] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Provisioning state
+  const [showBvnModal, setShowBvnModal] = useState(false);
+  const [bvn, setBvn] = useState('');
+  const [bvnError, setBvnError] = useState('');
+  const [provisioning, setProvisioning] = useState(false);
 
   const fetchData = async () => {
     try {
-      const [userData, txHistory] = await Promise.all([
+      const [userData, txHistory, vaData] = await Promise.all([
         authService.getMe(),
-        transactionService.getHistory()
+        transactionService.getHistory(),
+        walletService.getVirtualAccount()
       ]);
       setUser(userData);
       setTransactions(txHistory);
+      setVirtualAccount(vaData.data);
     } catch (error) {
       console.error('Error fetching wallet data:', error);
     }
@@ -38,8 +49,32 @@ export default function WalletScreen() {
   };
 
   const copyToClipboard = () => {
+    // In a real app use Clipboard.setString(virtualAccount.accountNumber)
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleProvision = async () => {
+    if (!bvn || bvn.length !== 11) {
+      setBvnError('Please enter a valid 11-digit BVN');
+      return;
+    }
+
+    setProvisioning(true);
+    setBvnError('');
+    try {
+      const res = await walletService.provisionVirtualAccount(bvn);
+      setVirtualAccount(res.data);
+      setShowBvnModal(false);
+      setBvn('');
+      Alert.alert('Success', 'Your virtual account has been created successfully!');
+      fetchData(); // Refresh all data
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Failed to create virtual account';
+      setBvnError(msg);
+    } finally {
+      setProvisioning(false);
+    }
   };
 
   return (
@@ -87,7 +122,7 @@ export default function WalletScreen() {
           {/* Action Row */}
           <View style={styles.actionsRow}>
             <TouchableOpacity
-              onPress={() => {}}
+              onPress={() => !virtualAccount ? setShowBvnModal(true) : {}}
               activeOpacity={0.8}
               style={[styles.actionButton, { marginRight: 12 }]}
             >
@@ -107,64 +142,132 @@ export default function WalletScreen() {
 
           {/* Bank transfer payment detail boxes */}
           <Text style={styles.sectionTitle}>Escrow Fund Deposit</Text>
-          <View style={styles.virtualAccountCard}>
-            <View style={styles.vaHeader}>
-              <Text style={styles.vaTitle}>Virtual Funding Details</Text>
-              <Text style={styles.vaSubtitle}>Transfer to instant credit your trading escrow wallet</Text>
-            </View>
-
-            <View style={styles.vaDetails}>
-              <View style={styles.vaRow}>
-                <Text style={styles.vaLabel}>Bank Name :</Text>
-                <Text style={styles.vaValBold}>Providus Bank</Text>
+          
+          {virtualAccount ? (
+            <View style={styles.virtualAccountCard}>
+              <View style={styles.vaHeader}>
+                <Text style={styles.vaTitle}>Virtual Funding Details</Text>
+                <Text style={styles.vaSubtitle}>Transfer to instant credit your trading escrow wallet</Text>
               </View>
 
-              <View style={styles.vaRow}>
-                <Text style={styles.vaLabel}>Account Name :</Text>
-                <Text style={styles.vaVal}>PEERITRADE / {user?.firstName} {user?.lastName}</Text>
-              </View>
-
-              <View style={[styles.vaRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.vaLabel}>Account Number :</Text>
-                  <Text style={styles.vaAccountNum}>9023 458 291</Text>
+              <View style={styles.vaDetails}>
+                <View style={styles.vaRow}>
+                  <Text style={styles.vaLabel}>Bank Name :</Text>
+                  <Text style={styles.vaValBold}>{virtualAccount.bankName}</Text>
                 </View>
-                <TouchableOpacity
-                  onPress={copyToClipboard}
-                  activeOpacity={0.7}
-                  style={styles.copyButton}
-                >
-                  {copied ? (
-                    <Check size={16} color={Colors.dark.primary} />
-                  ) : (
-                    <Copy size={16} color="#FFFFFF" />
-                  )}
-                </TouchableOpacity>
+
+                <View style={styles.vaRow}>
+                  <Text style={styles.vaLabel}>Account Name :</Text>
+                  <Text style={styles.vaVal}>{virtualAccount.accountName}</Text>
+                </View>
+
+                <View style={[styles.vaRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.vaLabel}>Account Number :</Text>
+                    <Text style={styles.vaAccountNum}>{virtualAccount.accountNumber}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={copyToClipboard}
+                    activeOpacity={0.7}
+                    style={styles.copyButton}
+                  >
+                    {copied ? (
+                      <Check size={16} color={Colors.dark.primary} />
+                    ) : (
+                      <Copy size={16} color="#FFFFFF" />
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
+          ) : (
+            <TouchableOpacity 
+              onPress={() => setShowBvnModal(true)}
+              activeOpacity={0.9} 
+              style={styles.noAccountCard}
+            >
+              <View style={styles.noAccountIcon}>
+                <ShieldCheck size={28} color={Colors.dark.primary} />
+              </View>
+              <Text style={styles.noAccountTitle}>Generate Virtual Account</Text>
+              <Text style={styles.noAccountSub}>Securely fund your wallet by generating a dedicated bank account for your trades.</Text>
+              <View style={styles.generateBtnInline}>
+                 <Text style={styles.generateBtnText}>Get Started</Text>
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* History Transactions lists */}
           <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Recent Ledger Entries</Text>
-          {transactions.map((tx) => (
-            <View key={tx._id} style={styles.txCard}>
-              <View style={[styles.txIconBox, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txIconBoxCredit : styles.txIconBoxDebit]}>
-                {tx.type === 'deposit' || tx.type === 'bet_won' ? (
-                  <ArrowDownLeft size={16} color={Colors.dark.primary} />
-                ) : (
-                  <ArrowUpRight size={16} color={Colors.dark.red} />
-                )}
+          {transactions.length > 0 ? (
+            transactions.map((tx) => (
+              <View key={tx._id} style={styles.txCard}>
+                <View style={[styles.txIconBox, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txIconBoxCredit : styles.txIconBoxDebit]}>
+                  {tx.type === 'deposit' || tx.type === 'bet_won' ? (
+                    <ArrowDownLeft size={16} color={Colors.dark.primary} />
+                  ) : (
+                    <ArrowUpRight size={16} color={Colors.dark.red} />
+                  )}
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.txType}>{tx.type.replace('_', ' ').toUpperCase()}</Text>
+                  <Text style={styles.txMeta}>{tx.status} • {new Date(tx.createdAt).toLocaleDateString()}</Text>
+                </View>
+                <Text style={[styles.txAmount, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txAmountCredit : styles.txAmountDebit]}>
+                  {tx.type === 'deposit' || tx.type === 'bet_won' ? '+' : '-'}₦{tx.amount.toLocaleString()}
+                </Text>
               </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.txType}>{tx.type.replace('_', ' ').toUpperCase()}</Text>
-                <Text style={styles.txMeta}>{tx.status} • {new Date(tx.createdAt).toLocaleDateString()}</Text>
-              </View>
-              <Text style={[styles.txAmount, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txAmountCredit : styles.txAmountDebit]}>
-                {tx.type === 'deposit' || tx.type === 'bet_won' ? '+' : '-'}₦{tx.amount.toLocaleString()}
-              </Text>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No transactions found yet.</Text>
             </View>
-          ))}
+          )}
         </ScrollView>
+
+        {/* BVN Modal */}
+        <Modal
+          visible={showBvnModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowBvnModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Identification</Text>
+                <TouchableOpacity onPress={() => setShowBvnModal(false)}>
+                  <X size={20} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.modalSub}>Enter your 11-digit Bank Verification Number (BVN) to create your virtual funding account.</Text>
+              
+              <View style={styles.secureNotice}>
+                <ShieldCheck size={16} color="#00D285" />
+                <Text style={styles.secureText}>Standard identity verification secured by VTStack</Text>
+              </View>
+
+              <CustomInput
+                label="BVN Number"
+                placeholder="22XXXXXXXXX"
+                value={bvn}
+                onChangeText={(text) => setBvn(text.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                maxLength={11}
+                error={bvnError}
+              />
+
+              <CustomButton
+                title="Generate Account"
+                variant="primary"
+                onPress={handleProvision}
+                loading={provisioning}
+                style={{ marginTop: 20 }}
+              />
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -341,6 +444,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  noAccountCard: {
+    backgroundColor: '#131C32',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    padding: 24,
+    alignItems: 'center',
+  },
+  noAccountIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0, 210, 133, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  noAccountTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginBottom: 8,
+  },
+  noAccountSub: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 18,
+    fontFamily: 'Inter',
+    marginBottom: 20,
+  },
+  generateBtnInline: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  generateBtnText: {
+    color: '#3B82F6',
+    fontWeight: 'bold',
+    fontSize: 13,
+    fontFamily: 'Inter',
+  },
   txCard: {
     backgroundColor: '#131C32',
     borderRadius: 16,
@@ -387,4 +534,62 @@ const styles = StyleSheet.create({
   txAmountDebit: {
     color: Colors.dark.red,
   },
+  emptyState: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontFamily: 'Inter',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#0A1124',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    borderTopWidth: 1,
+    borderTopColor: '#1E293B',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  modalSub: {
+    fontSize: 14,
+    color: '#94A3B8',
+    lineHeight: 22,
+    fontFamily: 'Inter',
+    marginBottom: 20,
+  },
+  secureNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 133, 0.05)',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 24,
+  },
+  secureText: {
+    fontSize: 11,
+    color: '#00D285',
+    fontWeight: '600',
+    marginLeft: 8,
+    fontFamily: 'Inter',
+  },
 });
+

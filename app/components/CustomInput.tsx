@@ -12,6 +12,8 @@ interface CustomInputProps {
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   error?: string;
   style?: ViewStyle;
+  maxLength?: number;
+  autoFocus?: boolean;
 }
 
 export const CustomInput: React.FC<CustomInputProps> = ({
@@ -23,6 +25,8 @@ export const CustomInput: React.FC<CustomInputProps> = ({
   keyboardType = 'default',
   error,
   style,
+  maxLength,
+  autoFocus = false,
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
@@ -41,6 +45,8 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
           autoCapitalize="none"
+          maxLength={maxLength}
+          autoFocus={autoFocus}
           style={styles.textInput}
         />
 
