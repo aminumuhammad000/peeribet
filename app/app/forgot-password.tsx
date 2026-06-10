@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
+import { authService } from '../services/apiService';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function ForgotPasswordScreen() {
   const [emailError, setEmailError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSendResetLink = () => {
+  const handleSendResetLink = async () => {
     let isValid = true;
     setEmailError('');
 
@@ -28,11 +29,15 @@ export default function ForgotPasswordScreen() {
 
     if (isValid) {
       setLoading(true);
-      // Simulate sending reset link
-      setTimeout(() => {
+      try {
+        await authService.forgotPassword(email);
         setLoading(false);
         router.push({ pathname: '/verify-otp', params: { email, context: 'reset_password' } });
-      }, 1500);
+      } catch (err: any) {
+        setLoading(false);
+        const errorMsg = err.response?.data?.message || 'Something went wrong. Please try again.';
+        Alert.alert('Error', errorMsg);
+      }
     }
   };
 
