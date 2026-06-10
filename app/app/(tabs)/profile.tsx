@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl, Image, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, ShieldCheck, Key, Settings, HelpCircle, FileText, LogOut, ChevronRight, Edit2, Check, X, Lock } from 'lucide-react-native';
+import { User, ShieldCheck, Key, Settings, HelpCircle, FileText, LogOut, ChevronRight, Edit2, Check, X, Lock, Camera } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../constants/Colors';
 import { useKyc } from '../../constants/KycStore';
 import { authService } from '../../services/apiService';
@@ -15,6 +16,7 @@ export default function ProfileScreen() {
   // Editable Profile States
   const [profileName, setProfileName] = useState('User');
   const [profileUsername, setProfileUsername] = useState('user');
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [tempName, setTempName] = useState('');
   const [tempUsername, setTempUsername] = useState('');
@@ -22,6 +24,7 @@ export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const fetchUser = async () => {
     try {
@@ -29,6 +32,7 @@ export default function ProfileScreen() {
       setUser(userData);
       setProfileName(`${userData.firstName} ${userData.lastName}`);
       setProfileUsername(userData.username || userData.email.split('@')[0]);
+      setProfileImage(userData.profileImage || null);
     } catch (error) {
       console.error('Error fetching user for profile:', error);
     }
@@ -42,6 +46,47 @@ export default function ProfileScreen() {
     setRefreshing(true);
     await fetchUser();
     setRefreshing(false);
+  };
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'We need camera roll permissions to change your profile picture.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      handleUploadImage(result.assets[0].uri);
+    }
+  };
+
+  const handleUploadImage = async (uri: string) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      const filename = uri.split('/').pop() || 'profile.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : `image/jpg`;
+
+      // @ts-ignore
+      formData.append('image', { uri, name: filename, type });
+
+      const res = await authService.uploadProfileImage(formData);
+      setProfileImage(res.profileImage);
+      Alert.alert('Success', 'Profile image updated successfully');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', 'Failed to upload image. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const profileEmail = user?.email || '...';
@@ -208,9 +253,24 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             ) : null}
 
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{getInitials(isEditing ? tempName : profileName)}</Text>
-            </View>
+            <TouchableOpacity 
+              style={styles.avatarCircle} 
+              onPress={handlePickImage}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : profileImage ? (
+                <Image source={{ uri: profileImage }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>{getInitials(isEditing ? tempName : profileName)}</Text>
+              )}
+              {!isEditing && (
+                <View style={styles.cameraIconBadge}>
+                  <Camera size={10} color="#FFFFFF" />
+                </View>
+              )}
+            </TouchableOpacity>
 
             {!isEditing ? (
               <>
@@ -400,12 +460,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   avatarText: {
     fontSize: 24,
     fontWeight: '900',
     color: '#FFFFFF',
     fontFamily: 'Inter',
+  },
+  cameraIconBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: Colors.dark.primary,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#131C32',
   },
   profileName: {
     fontSize: 18,
