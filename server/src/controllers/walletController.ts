@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import User from '../models/User';
 import Transaction from '../models/Transaction';
 import { AuthRequest } from '../middlewares/authMiddleware';
-import { createVirtualAccount, verifyWebhookSignature } from '../services/vtStackService';
+import { createVirtualAccount, verifyWebhookSignature, getBanks, verifyBankAccount, sendPayout } from '../services/vtStackService';
 
 // ─── Provision Virtual Account ───────────────────────────────────────────────
 // @route  POST /api/wallet/virtual-account
@@ -125,5 +125,97 @@ export const vtStackWebhook = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('[Webhook] Error:', error.message);
     res.status(200).json({ received: true }); // Still 200 — avoid retries
+  }
+};
+// ─── Get Supported Banks ───────────────────────────────────────────────────
+// @route  GET /api/wallet/banks
+// @access Private
+export const listBanks = async (req: AuthRequest, res: Response) => {
+  try {
+    const data = await getBanks();
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── Verify Bank Account ─────────────────────────────────────────────────────
+// @route  GET /api/wallet/banks/verify
+// @access Private
+export const verifyBank = async (req: AuthRequest, res: Response) => {
+  try {
+    const { bankCode, accountNumber } = req.query as { bankCode: string; accountNumber: string };
+    if (!bankCode || !accountNumber) {
+      return res.status(400).json({ message: 'bankCode and accountNumber are required' });
+    }
+    const data = await verifyBankAccount(bankCode, accountNumber);
+    res.json(data);
+  } catch (error: any) {
+    res.status(400).json({ message: error.response?.data?.message || 'Bank verification failed' });
+  }
+};
+
+// ─── Request Withdrawal (Payout) ───────────────────────────────────────────
+// @route  POST /api/wallet/withdraw
+// @access Private
+export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
+  try {
+    const { amount, bankCode, accountNumber, accountName } = req.body;
+    const user = await User.findById(req.user?._id);
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.balance < Number(amount)) {
+      return res.status(400).json({ message: 'Insufficient balance' });
+    }
+
+    // 1. Create pending transaction
+    const reference = `payout_${Date.now()}_${user._id}`;
+    const transaction = await Transaction.create({
+      user: user._id,
+      type: 'withdrawal',
+      amount: Number(amount),
+      status: 'pending',
+      reference,
+      description: `Withdrawal to ${accountNumber} (${accountName})`,
+    });
+
+    // 2. Deduct from balance immediately to prevent double spending
+    user.balance -= Number(amount);
+    await user.save();
+
+    // 3. Initiate VTStack Secure Payout
+    try {
+      const payoutRes = await sendPayout({
+        amount: Number(amount),
+        bankCode,
+        accountNumber,
+        accountName,
+        narration: `Peeribet Withdrawal - ${user.firstName}`,
+      });
+
+      // Update transaction with status from VTStack if available
+      transaction.status = 'completed'; // Assuming instant for this demo
+      await transaction.save();
+
+      res.status(200).json({ 
+        message: 'Withdrawal successful', 
+        transaction,
+        balance: user.balance 
+      });
+    } catch (payoutError: any) {
+      console.error('[Payout Error]', payoutError.response?.data || payoutError.message);
+      
+      // Rollback balance on failure
+      user.balance += Number(amount);
+      await user.save();
+      
+      transaction.status = 'failed';
+      await transaction.save();
+
+      const errMsg = payoutError.response?.data?.message || 'Payout service unavailable';
+      res.status(500).json({ message: errMsg });
+    }
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
   }
 };

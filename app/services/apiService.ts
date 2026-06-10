@@ -105,6 +105,18 @@ export const walletService = {
   provisionVirtualAccount: async (bvn: string) => {
     const response = await api.post('/wallet/virtual-account', { bvn });
     return response.data;
+  },
+  getBanks: async () => {
+    const response = await api.get('/wallet/banks');
+    return response.data;
+  },
+  verifyBankAccount: async (bankCode: string, accountNumber: string) => {
+    const response = await api.get('/wallet/banks/verify', { params: { bankCode, accountNumber } });
+    return response.data;
+  },
+  requestWithdrawal: async (data: { amount: number; bankCode: string; accountNumber: string; accountName: string }) => {
+    const response = await api.post('/wallet/withdraw', data);
+    return response.data;
   }
 };
 
