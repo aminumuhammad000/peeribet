@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://localhost:5000/api'; // In production, replace with your real server domain
+const API_URL = 'https://peeribet-production.up.railway.app/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -58,8 +58,13 @@ export const authService = {
     await AsyncStorage.removeItem('userData');
   },
   isAuthenticated: async () => {
-    const token = await AsyncStorage.getItem('userToken');
-    return !!token;
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      return !!token;
+    } catch (error) {
+      console.warn('AsyncStorage not available yet:', error);
+      return false;
+    }
   }
 };
 
