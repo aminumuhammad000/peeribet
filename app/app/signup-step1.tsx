@@ -70,7 +70,7 @@ export default function SignUpStep1Screen() {
             <View style={styles.formContainer}>
               <CustomInput
                 label="First Name :"
-                placeholder="Ex. Hafeez"
+                placeholder="Ex. John"
                 value={firstName}
                 onChangeText={setFirstName}
                 error={firstNameError}
@@ -78,7 +78,7 @@ export default function SignUpStep1Screen() {
 
               <CustomInput
                 label="Last Name :"
-                placeholder="Ex. Makama"
+                placeholder="Ex. Doe"
                 value={lastName}
                 onChangeText={setLastName}
                 error={lastNameError}
