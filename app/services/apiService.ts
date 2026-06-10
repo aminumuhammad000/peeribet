@@ -53,6 +53,10 @@ export const authService = {
     const response = await api.get('/auth/me');
     return response.data;
   },
+  updateProfile: async (data: { firstName?: string; lastName?: string; username?: string }) => {
+    const response = await api.put('/auth/profile', data);
+    return response.data;
+  },
   logout: async () => {
     await AsyncStorage.removeItem('userToken');
     await AsyncStorage.removeItem('userData');

@@ -21,13 +21,14 @@ export default function ProfileScreen() {
   
   const [user, setUser] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const fetchUser = async () => {
     try {
       const userData = await authService.getMe();
       setUser(userData);
       setProfileName(`${userData.firstName} ${userData.lastName}`);
-      setProfileUsername(userData.email.split('@')[0]); // Placeholder for username
+      setProfileUsername(userData.username || userData.email.split('@')[0]);
     } catch (error) {
       console.error('Error fetching user for profile:', error);
     }
@@ -60,11 +61,39 @@ export default function ProfileScreen() {
     setIsEditing(true);
   };
 
-  const handleSaveEdit = () => {
-    if (tempName.trim()) {
+  const handleSaveEdit = async () => {
+    if (!tempName.trim()) {
+      Alert.alert('Error', 'Full name is required');
+      return;
+    }
+
+    const nameParts = tempName.trim().split(/\s+/);
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ');
+
+    if (!lastName) {
+      Alert.alert('Error', 'Please enter at least two names (First & Last Name)');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await authService.updateProfile({
+        firstName,
+        lastName,
+        username: tempUsername
+      });
+      
       setProfileName(tempName);
       setProfileUsername(tempUsername);
       setIsEditing(false);
+      Alert.alert('Success', 'Profile updated successfully');
+      fetchUser(); // Refresh user data
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Failed to update profile';
+      Alert.alert('Error', msg);
+    } finally {
+      setLoading(false);
     }
   };
 
