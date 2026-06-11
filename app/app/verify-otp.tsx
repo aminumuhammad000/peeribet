@@ -57,8 +57,8 @@ export default function VerifyOtpScreen() {
     setLoading(true);
     try {
       if (context === 'reset_password') {
-        // For password reset: pass the OTP to reset-password screen
-        // (verification happens together with the password reset on the server)
+        // For password reset: first verify the code is valid
+        await authService.verifyResetOtp({ email, otp: code });
         setLoading(false);
         router.replace({ pathname: '/reset-password', params: { email, otp: code } });
       } else {
@@ -77,7 +77,11 @@ export default function VerifyOtpScreen() {
   const handleResend = async () => {
     if (timer === 0) {
       try {
-        await authService.resendOtp(email);
+        if (context === 'reset_password') {
+          await authService.forgotPassword(email);
+        } else {
+          await authService.resendOtp(email);
+        }
       } catch (err) {
         console.warn('Resend OTP failed:', err);
       }

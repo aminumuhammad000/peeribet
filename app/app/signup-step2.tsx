@@ -18,33 +18,51 @@ export default function SignUpStep2Screen() {
   const [emailError, setEmailError] = useState('');
   const [phoneError, setPhoneError] = useState('');
 
-  const handleNext = () => {
-    let isValid = true;
-    setEmailError('');
-    setPhoneError('');
-
-    if (!email) {
+  // ── Real-time validators ──────────────────────────────────────────
+  const validateEmail = (value: string) => {
+    if (!value.trim()) {
       setEmailError('Email address is required');
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
+    } else if (!/\S+@\S+\.\S+/.test(value)) {
       setEmailError('Please enter a valid email address');
-      isValid = false;
+    } else {
+      setEmailError('');
     }
+  };
 
-    if (!phone) {
+  const validatePhone = (value: string) => {
+    if (!value.trim()) {
       setPhoneError('Phone number is required');
-      isValid = false;
-    } else if (phone.length < 8) {
+    } else if (value.length < 8) {
       setPhoneError('Please enter a valid phone number');
-      isValid = false;
+    } else {
+      setPhoneError('');
     }
+  };
 
-    if (isValid) {
-      router.push({
-        pathname: '/signup-step3',
-        params: { firstName, lastName, email, phone },
-      });
-    }
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    validateEmail(value);
+  };
+
+  const handlePhoneChange = (value: string) => {
+    setPhone(value);
+    validatePhone(value);
+  };
+
+  // Button enabled only when both fields pass
+  const isFormValid =
+    email.trim().length > 0 &&
+    /\S+@\S+\.\S+/.test(email) &&
+    phone.length >= 8 &&
+    !emailError &&
+    !phoneError;
+
+  const handleNext = () => {
+    if (!isFormValid) return;
+    router.push({
+      pathname: '/signup-step3',
+      params: { firstName, lastName, email, phone },
+    });
   };
 
   return (
@@ -81,7 +99,7 @@ export default function SignUpStep2Screen() {
                 label="Email address :"
                 placeholder="Example@gmail.com"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={handleEmailChange}
                 error={emailError}
                 keyboardType="email-address"
               />
@@ -90,7 +108,7 @@ export default function SignUpStep2Screen() {
                 label="Phone Number :"
                 placeholder="+234"
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={handlePhoneChange}
                 error={phoneError}
                 keyboardType="phone-pad"
               />
@@ -100,6 +118,7 @@ export default function SignUpStep2Screen() {
                 title="Next"
                 variant="primary"
                 onPress={handleNext}
+                disabled={!isFormValid}
                 style={styles.submitButton}
               />
             </View>
@@ -133,38 +152,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 24,
-  },
-  demoBanner: {
-    backgroundColor: 'rgba(0, 210, 133, 0.08)',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 133, 0.25)',
-  },
-  demoHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  demoBannerTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#00D285',
-    fontFamily: 'Inter',
-  },
-  demoBannerTap: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#3B82F6',
-    fontFamily: 'Inter',
-    textDecorationLine: 'underline',
-  },
-  demoBannerSub: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontFamily: 'Inter',
   },
   backButton: {
     width: 44,

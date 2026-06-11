@@ -17,60 +17,97 @@ export default function SignUpStep3Screen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
-  
+
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
-  const [termsError, setTermsError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSignUp = async () => {
-    let isValid = true;
-    setPasswordError('');
-    setConfirmPasswordError('');
-    setTermsError('');
-
-    if (!password) {
+  // ── Real-time validators ──────────────────────────────────────────
+  const validatePassword = (value: string) => {
+    if (!value) {
       setPasswordError('Password is required');
-      isValid = false;
-    } else if (password.length < 6) {
+    } else if (value.length < 6) {
       setPasswordError('Password must be at least 6 characters');
-      isValid = false;
+    } else if (!/[A-Z]/.test(value)) {
+      setPasswordError('Password must contain at least one uppercase letter');
+    } else if (!/[0-9]/.test(value)) {
+      setPasswordError('Password must contain at least one number');
+    } else {
+      setPasswordError('');
     }
+  };
 
-    if (!confirmPassword) {
+  const validateConfirmPassword = (value: string, pwd = password) => {
+    if (!value) {
       setConfirmPasswordError('Please confirm your password');
-      isValid = false;
-    } else if (password !== confirmPassword) {
+    } else if (value !== pwd) {
       setConfirmPasswordError('Passwords do not match');
-      isValid = false;
+    } else {
+      setConfirmPasswordError('');
     }
+  };
 
-    if (!agreeTerms) {
-      setTermsError('You must agree to the Terms & Conditions');
-      isValid = false;
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    validatePassword(value);
+    // Re-validate confirmPassword whenever password changes
+    if (confirmPassword) {
+      validateConfirmPassword(confirmPassword, value);
     }
+  };
 
-    if (isValid) {
-      setLoading(true);
-      try {
-        await authService.register({
-          firstName,
-          lastName,
-          email,
-          phone,
-          password
-        });
-        
-        setLoading(false);
-        router.push({
-          pathname: '/verify-otp',
-          params: { email, phone },
-        });
-      } catch (error: any) {
-        setLoading(false);
-        const errorMsg = error.response?.data?.message || 'Something went wrong. Please try again.';
-        Alert.alert('Registration Failed', errorMsg);
-      }
+  const handleConfirmPasswordChange = (value: string) => {
+    setConfirmPassword(value);
+    validateConfirmPassword(value);
+  };
+
+  // Password strength helpers
+  const getPasswordStrength = (): { label: string; color: string; width: string } => {
+    if (!password) return { label: '', color: 'transparent', width: '0%' };
+    let score = 0;
+    if (password.length >= 6) score++;
+    if (password.length >= 10) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    if (score <= 1) return { label: 'Weak', color: '#EF4444', width: '25%' };
+    if (score <= 2) return { label: 'Fair', color: '#F97316', width: '50%' };
+    if (score <= 3) return { label: 'Good', color: '#EAB308', width: '75%' };
+    return { label: 'Strong', color: '#22C55E', width: '100%' };
+  };
+
+  const strength = getPasswordStrength();
+
+  // Button enabled only when all fields pass and terms agreed
+  const isFormValid =
+    password.length >= 6 &&
+    /[A-Z]/.test(password) &&
+    /[0-9]/.test(password) &&
+    !passwordError &&
+    confirmPassword === password &&
+    !confirmPasswordError &&
+    agreeTerms;
+
+  const handleSignUp = async () => {
+    if (!isFormValid) return;
+    setLoading(true);
+    try {
+      await authService.register({
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+      });
+      setLoading(false);
+      router.push({
+        pathname: '/verify-otp',
+        params: { email, phone },
+      });
+    } catch (error: any) {
+      setLoading(false);
+      const errorMsg = error.response?.data?.message || 'Something went wrong. Please try again.';
+      Alert.alert('Registration Failed', errorMsg);
     }
   };
 
@@ -108,19 +145,37 @@ export default function SignUpStep3Screen() {
                 label="Password :"
                 placeholder="********"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={handlePasswordChange}
                 error={passwordError}
                 secureTextEntry={true}
               />
+
+              {/* Password strength bar */}
+              {password.length > 0 && (
+                <View style={styles.strengthContainer}>
+                  <View style={styles.strengthBarTrack}>
+                    <View style={[styles.strengthBarFill, { width: strength.width, backgroundColor: strength.color }]} />
+                  </View>
+                  <Text style={[styles.strengthLabel, { color: strength.color }]}>{strength.label}</Text>
+                </View>
+              )}
 
               <CustomInput
                 label="Confirm Password :"
                 placeholder="********"
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={handleConfirmPasswordChange}
                 error={confirmPasswordError}
                 secureTextEntry={true}
               />
+
+              {/* Password criteria hints */}
+              <View style={styles.criteriaContainer}>
+                <CriteriaRow met={password.length >= 6} text="At least 6 characters" />
+                <CriteriaRow met={/[A-Z]/.test(password)} text="One uppercase letter" />
+                <CriteriaRow met={/[0-9]/.test(password)} text="One number" />
+                <CriteriaRow met={confirmPassword.length > 0 && confirmPassword === password} text="Passwords match" />
+              </View>
 
               {/* Custom terms & condition selection row */}
               <TouchableOpacity
@@ -137,8 +192,6 @@ export default function SignUpStep3Screen() {
                   Agree with <Text style={styles.termsText}>Terms & Condition</Text>
                 </Text>
               </TouchableOpacity>
-              
-              {termsError && <Text style={styles.termsErrorText}>{termsError}</Text>}
 
               {/* SignUp Trigger */}
               <CustomButton
@@ -146,6 +199,7 @@ export default function SignUpStep3Screen() {
                 variant="primary"
                 onPress={handleSignUp}
                 loading={loading}
+                disabled={!isFormValid}
                 style={styles.submitButton}
               />
             </View>
@@ -164,6 +218,35 @@ export default function SignUpStep3Screen() {
   );
 }
 
+// ── Criteria row helper component ─────────────────────────────────────
+function CriteriaRow({ met, text }: { met: boolean; text: string }) {
+  return (
+    <View style={criteriaStyles.row}>
+      <View style={[criteriaStyles.dot, { backgroundColor: met ? '#22C55E' : '#64748B' }]} />
+      <Text style={[criteriaStyles.text, { color: met ? '#22C55E' : '#94A3B8' }]}>{text}</Text>
+    </View>
+  );
+}
+
+const criteriaStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  text: {
+    fontSize: 12,
+    fontFamily: 'Inter',
+    fontWeight: '500',
+  },
+});
+
 const styles = StyleSheet.create({
   background: {
     flex: 1,
@@ -179,38 +262,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 24,
-  },
-  demoBanner: {
-    backgroundColor: 'rgba(0, 210, 133, 0.08)',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 133, 0.25)',
-  },
-  demoHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  demoBannerTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#00D285',
-    fontFamily: 'Inter',
-  },
-  demoBannerTap: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#3B82F6',
-    fontFamily: 'Inter',
-    textDecorationLine: 'underline',
-  },
-  demoBannerSub: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontFamily: 'Inter',
   },
   backButton: {
     width: 44,
@@ -240,6 +291,37 @@ const styles = StyleSheet.create({
   formContainer: {
     width: '100%',
   },
+  strengthContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: -4,
+    marginBottom: 8,
+    gap: 10,
+  },
+  strengthBarTrack: {
+    flex: 1,
+    height: 5,
+    backgroundColor: '#1E293B',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  strengthBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  strengthLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+    width: 44,
+    textAlign: 'right',
+  },
+  criteriaContainer: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -256,14 +338,6 @@ const styles = StyleSheet.create({
   termsText: {
     color: '#3B82F6',
     fontWeight: '700',
-  },
-  termsErrorText: {
-    color: Colors.dark.red,
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
-    marginLeft: 4,
-    fontFamily: 'Inter',
   },
   submitButton: {
     marginTop: 16,

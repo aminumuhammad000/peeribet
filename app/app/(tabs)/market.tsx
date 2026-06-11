@@ -1,71 +1,38 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Landmark, Lock, Flame } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
+import { matchService } from '../../services/apiService';
 
 export default function MarketScreen() {
   const router = useRouter();
   const [selectedSport, setSelectedSport] = useState('Football');
+  const [matches, setMatches] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchMatches = async () => {
+    try {
+      const data = await matchService.getMatches();
+      setMatches(data);
+    } catch (error) {
+      console.error('Error fetching matches for market:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchMatches();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchMatches();
+    setRefreshing(false);
+  };
 
   const sportsList = ['Football', 'Basketball', 'Tennis', 'Cricket', 'Esports'];
-
-  const marketMatches = [
-    {
-      id: '1',
-      homeTeam: 'Chelsea',
-      awayTeam: 'Arsenal',
-      time: "LIVE 65'",
-      score: '2 - 1',
-      league: 'English Premier League',
-      oddsHome: '1.45',
-      oddsDraw: '3.10',
-      oddsAway: '4.80',
-      isLive: true,
-      suspended: false,
-    },
-    {
-      id: '2',
-      homeTeam: 'Man City',
-      awayTeam: 'Liverpool',
-      time: 'Today, 20:00',
-      score: '0 - 0',
-      league: 'English Premier League',
-      oddsHome: '1.95',
-      oddsDraw: '2.50',
-      oddsAway: '2.10',
-      isLive: false,
-      suspended: false,
-    },
-    {
-      id: '3',
-      homeTeam: 'Lazio',
-      awayTeam: 'Roma',
-      time: "LIVE 88'",
-      score: '1 - 0',
-      league: 'Serie A',
-      oddsHome: '--',
-      oddsDraw: '--',
-      oddsAway: '--',
-      isLive: true,
-      suspended: true,
-    },
-    {
-      id: '4',
-      homeTeam: 'Real Madrid',
-      awayTeam: 'Barcelona',
-      time: 'Tomorrow, 21:00',
-      score: '0 - 0',
-      league: 'La Liga',
-      oddsHome: '2.20',
-      oddsDraw: '3.40',
-      oddsAway: '2.80',
-      isLive: false,
-      suspended: false,
-    },
-  ];
 
   return (
     <LinearGradient
@@ -98,35 +65,43 @@ export default function MarketScreen() {
           </ScrollView>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {marketMatches.map((match) => (
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
+          }
+        >
+          {matches.map((match) => (
             <TouchableOpacity
-              key={match.id}
-              disabled={match.suspended}
+              key={match._id}
+              disabled={match.status === 'SUSPENDED'}
               onPress={() => router.push({
                 pathname: '/match-detail',
-                params: { homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
               })}
               activeOpacity={0.8}
-              style={[styles.marketCard, match.suspended && styles.marketCardSuspended]}
+              style={[styles.marketCard, match.status === 'SUSPENDED' && styles.marketCardSuspended]}
             >
               {/* Card Meta header */}
               <View style={styles.cardHeader}>
                 <View style={styles.leagueContainer}>
-                  {match.isLive && <Flame size={14} color="#EF4444" style={{ marginRight: 4 }} />}
+                  {match.status === 'LIVE' && <Flame size={14} color="#EF4444" style={{ marginRight: 4 }} />}
                   <Text style={styles.leagueText}>{match.league}</Text>
                 </View>
-                <Text style={[styles.timeText, match.isLive && styles.liveTimeText]}>{match.time}</Text>
+                <Text style={[styles.timeText, match.status === 'LIVE' && styles.liveTimeText]}>
+                  {match.status === 'LIVE' ? 'LIVE NOW' : new Date(match.startTime).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </Text>
               </View>
 
               {/* Match Teams/Scores */}
               <View style={styles.matchTeamsRow}>
                 <Text style={styles.teamsText}>{match.homeTeam} vs {match.awayTeam}</Text>
-                <Text style={styles.scoreText}>{match.score}</Text>
+                <Text style={styles.scoreText}>{match.scoreHome} - {match.scoreAway}</Text>
               </View>
 
               {/* Odds grid matching high fidelity mockups */}
-              {match.suspended ? (
+              {match.status === 'SUSPENDED' ? (
                 <View style={styles.suspendedContainer}>
                   <Lock size={15} color="#64748B" style={{ marginRight: 6 }} />
                   <Text style={styles.suspendedText}>MARKET SUSPENDED</Text>
@@ -135,15 +110,15 @@ export default function MarketScreen() {
                 <View style={styles.oddsGrid}>
                   <View style={styles.oddsBox}>
                     <Text style={styles.oddsBoxLabel}>1 (Home)</Text>
-                    <Text style={styles.oddsBoxValue}>{match.oddsHome}</Text>
+                    <Text style={styles.oddsBoxValue}>{match.odds.home.toFixed(2)}</Text>
                   </View>
                   <View style={styles.oddsBox}>
                     <Text style={styles.oddsBoxLabel}>X (Draw)</Text>
-                    <Text style={styles.oddsBoxValue}>{match.oddsDraw}</Text>
+                    <Text style={styles.oddsBoxValue}>{match.odds.draw.toFixed(2)}</Text>
                   </View>
                   <View style={styles.oddsBox}>
                     <Text style={styles.oddsBoxLabel}>2 (Away)</Text>
-                    <Text style={styles.oddsBoxValue}>{match.oddsAway}</Text>
+                    <Text style={styles.oddsBoxValue}>{match.odds.away.toFixed(2)}</Text>
                   </View>
                 </View>
               )}

@@ -14,12 +14,13 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
+      // AsyncStorage may not be ready yet during early app startup — skip silently if so
       const token = await AsyncStorage.getItem('userToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-    } catch (error) {
-      console.error('Error fetching token:', error);
+    } catch {
+      // Native module not yet available; request proceeds without auth header
     }
     return config;
   },
@@ -90,6 +91,10 @@ export const authService = {
     const response = await api.post('/auth/reset-password', data);
     return response.data;
   },
+  verifyResetOtp: async (data: { email: string; otp: string }) => {
+    const response = await api.post('/auth/verify-reset-otp', data);
+    return response.data;
+  },
 };
 
 // Transaction endpoints
@@ -129,7 +134,29 @@ export const walletService = {
   requestWithdrawal: async (data: { amount: number; bankCode: string; accountNumber: string; accountName: string }) => {
     const response = await api.post('/wallet/withdraw', data);
     return response.data;
-  }
+  },
+};
+
+export const matchService = {
+  getMatches: async (params?: { status?: string; isPromoted?: boolean }) => {
+    const response = await api.get('/matches', { params });
+    return response.data;
+  },
+  getMatchById: async (id: string) => {
+    const response = await api.get(`/matches/${id}`);
+    return response.data;
+  },
+};
+
+export const betService = {
+  placeBet: async (data: { matchId: string; selection: 'HOME' | 'DRAW' | 'AWAY'; amount: number }) => {
+    const response = await api.post('/bets', data);
+    return response.data;
+  },
+  getMyBets: async () => {
+    const response = await api.get('/bets/my-bets');
+    return response.data;
+  },
 };
 
 export default api;
