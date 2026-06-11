@@ -4,7 +4,7 @@ import { generateToken } from '../utils/generateToken';
 import { sendOtpEmail, sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailService';
 
 // ─── Helper: generate OTP ────────────────────────────────────────────────────
-const generateOtp = () => Math.floor(1000 + Math.random() * 9000).toString();
+const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 // ─── Register ────────────────────────────────────────────────────────────────
 // @route  POST /api/auth/register
@@ -198,6 +198,27 @@ export const resetPassword = async (req: Request, res: Response) => {
     await user.save();
 
     res.status(200).json({ message: 'Password reset successfully' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── Check Reset OTP (without deleting it) ───────────────────────────────────
+// @route  POST /api/auth/verify-reset-otp
+export const checkResetOtp = async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.otp === otp && user.otpExpires && user.otpExpires > new Date()) {
+      res.status(200).json({ message: 'OTP is valid' });
+    } else {
+      res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

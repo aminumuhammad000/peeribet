@@ -6,6 +6,7 @@ import {
   resendOtp,
   forgotPassword,
   resetPassword,
+  checkResetOtp,
   updateProfile,
   uploadProfileImage,
 } from '../controllers/authController';
@@ -20,6 +21,7 @@ router.post('/verify-otp', verifyOtp);
 router.post('/resend-otp', resendOtp);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
+router.post('/verify-reset-otp', checkResetOtp);
 router.put('/profile', protect, updateProfile);
 router.post('/profile/image', protect, upload.single('image'), uploadProfileImage);
 router.get('/me', protect, (req: any, res: Response) => {

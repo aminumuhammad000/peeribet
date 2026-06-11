@@ -5,30 +5,38 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, Settings, Search } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
-import { authService } from '../../services/apiService';
+import { authService, matchService } from '../../services/apiService';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState('24');
   const [user, setUser] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [promotedMatches, setPromotedMatches] = useState<any[]>([]);
+  const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
 
-  const fetchUser = async () => {
+  const fetchData = async () => {
     try {
-      const userData = await authService.getMe();
+      const [userData, promoted, upcoming] = await Promise.all([
+        authService.getMe(),
+        matchService.getMatches({ isPromoted: true }),
+        matchService.getMatches({ status: 'UPCOMING' })
+      ]);
       setUser(userData);
+      setPromotedMatches(promoted);
+      setUpcomingMatches(upcoming);
     } catch (error) {
-      console.error('Error fetching user for home:', error);
+      console.error('Error fetching data for home:', error);
     }
   };
 
   useEffect(() => {
-    fetchUser();
+    fetchData();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchUser();
+    await fetchData();
     setRefreshing(false);
   };
 
@@ -40,80 +48,6 @@ export default function HomeScreen() {
     { id: '25', day: 'Thu', num: '25' },
     { id: '26', day: 'Fri', num: '26' },
     { id: '27', day: 'Sat', num: '27' },
-  ];
-
-  const promotedMatches = [
-    {
-      id: '1',
-      homeTeam: 'Chelsea',
-      awayTeam: 'Arsenal',
-      time: 'LIVE IN 3HRS',
-      price: '₦85,00',
-      pool: '₦8,500',
-    },
-    {
-      id: '2',
-      homeTeam: 'Man City',
-      awayTeam: 'Liverpool',
-      time: 'LIVE IN 3HRS',
-      price: '₦78,000',
-      pool: '₦78,000',
-    },
-  ];
-
-  const upcomingMatches = [
-    {
-      id: '1',
-      time: '18:00',
-      day: 'Tue',
-      homeTeam: 'Dortmund',
-      homeLogo: `https://ui-avatars.com/api/?name=DO&background=FFD700&color=000&rounded=true`,
-      awayTeam: 'Girona',
-      awayLogo: `https://ui-avatars.com/api/?name=GI&background=FF0000&color=fff&rounded=true`,
-      odds1: '1.7',
-      oddsX: '3.4',
-      odds2: '1.8',
-      market: '$430',
-    },
-    {
-      id: '2',
-      time: '18:00',
-      day: 'Tue',
-      homeTeam: 'Al itihad',
-      homeLogo: `https://ui-avatars.com/api/?name=AL&background=FFD700&color=000&rounded=true`,
-      awayTeam: 'AL Nassr',
-      awayLogo: `https://ui-avatars.com/api/?name=AN&background=0000FF&color=fff&rounded=true`,
-      odds1: '1.7',
-      oddsX: '3.4',
-      odds2: '1.8',
-      market: '$430',
-    },
-    {
-      id: '3',
-      time: '18:00',
-      day: 'Tue',
-      homeTeam: 'Barcelona',
-      homeLogo: `https://ui-avatars.com/api/?name=BA&background=0000FF&color=FFD700&rounded=true`,
-      awayTeam: 'Madrid',
-      awayLogo: `https://ui-avatars.com/api/?name=RM&background=FFFFFF&color=000&rounded=true`,
-      odds1: '1.7',
-      oddsX: '3.4',
-      odds2: '1.8',
-      market: '$430',
-    },
-    {
-      id: '4',
-      time: '18:00',
-      day: 'Tue',
-      homeTeam: 'Arsenal',
-      homeLogo: `https://ui-avatars.com/api/?name=AR&background=FF0000&color=fff&rounded=true`,
-      awayTeam: 'PSG',
-      awayLogo: `https://ui-avatars.com/api/?name=PS&background=00008B&color=fff&rounded=true`,
-      odds1: '1.7',
-      oddsX: '3.4',
-      odds2: '1.8',
-      market: '$430',
-    },
   ];
 
   return (
@@ -176,10 +110,10 @@ export default function HomeScreen() {
           {/* Promoted Matches */}
           <View style={styles.promotedContainer}>
             {promotedMatches.map((match) => (
-              <View key={match.id} style={styles.promotedCard}>
+              <View key={match._id} style={styles.promotedCard}>
                 <View style={styles.promotedTop}>
                   <View style={styles.liveTag}>
-                    <Text style={styles.liveTagText}>{match.time}</Text>
+                    <Text style={styles.liveTagText}>{match.status === 'LIVE' ? 'LIVE NOW' : `LIVE @ ${new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}</Text>
                   </View>
                   <Text style={styles.dots}>•••</Text>
                 </View>
@@ -189,7 +123,7 @@ export default function HomeScreen() {
                     <Text style={styles.promotedMatchTitle}>{match.homeTeam} vs {match.awayTeam}</Text>
                     <Text style={styles.promotedSub}>Market Match Outcome</Text>
                   </View>
-                  <Text style={styles.promotedPrice}>{match.price}</Text>
+                  <Text style={styles.promotedPrice}>{match.odds.home.toFixed(2)}x</Text>
                 </View>
 
                 <View style={styles.bulletsRow}>
@@ -201,7 +135,7 @@ export default function HomeScreen() {
                 <TouchableOpacity 
                   onPress={() => router.push({
                     pathname: '/match-detail',
-                    params: { homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                    params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
                   })}
                   activeOpacity={0.85}
                 >
@@ -213,7 +147,7 @@ export default function HomeScreen() {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                <Text style={styles.poolText}>Pool . <Text style={styles.poolAmount}>{match.pool}</Text></Text>
+                <Text style={styles.poolText}>Pool . <Text style={styles.poolAmount}>₦{(match.poolAmount || 0).toLocaleString()}</Text></Text>
               </View>
             ))}
           </View>
@@ -239,37 +173,37 @@ export default function HomeScreen() {
           <View style={styles.upcomingList}>
             {upcomingMatches.map((match) => (
               <TouchableOpacity 
-                key={match.id} 
+                key={match._id} 
                 style={styles.upcomingRow}
                 onPress={() => router.push({
                   pathname: '/match-detail',
-                  params: { homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
                 })}
               >
                 <View style={styles.dateCol}>
-                  <Text style={styles.upcomingTime}>{match.time}</Text>
-                  <Text style={styles.upcomingDay}>{match.day}</Text>
+                  <Text style={styles.upcomingTime}>{new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</Text>
+                  <Text style={styles.upcomingDay}>{new Date(match.startTime).toLocaleDateString([], { weekday: 'short' })}</Text>
                 </View>
 
                 <View style={styles.teamColLeft}>
                   <Text style={styles.teamTextLeft} numberOfLines={1}>{match.homeTeam}</Text>
                 </View>
                 
-                <Image source={{ uri: match.homeLogo }} style={styles.rowLogo} />
+                <Image source={{ uri: match.homeLogo || `https://ui-avatars.com/api/?name=${match.homeTeam}&background=random` }} style={styles.rowLogo} />
 
                 <View style={styles.oddsContainer}>
-                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{match.odds1}</Text></View>
-                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{match.oddsX}</Text></View>
-                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{match.odds2}</Text></View>
+                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{match.odds.home.toFixed(1)}</Text></View>
+                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{match.odds.draw.toFixed(1)}</Text></View>
+                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{match.odds.away.toFixed(1)}</Text></View>
                 </View>
 
-                <Image source={{ uri: match.awayLogo }} style={styles.rowLogo} />
+                <Image source={{ uri: match.awayLogo || `https://ui-avatars.com/api/?name=${match.awayTeam}&background=random` }} style={styles.rowLogo} />
                 
                 <View style={styles.teamColRight}>
                   <Text style={styles.teamTextRight} numberOfLines={1}>{match.awayTeam}</Text>
                 </View>
 
-                <Text style={styles.marketText}>{match.market}</Text>
+                <Text style={styles.marketText}>₦{(match.poolAmount || 0).toLocaleString()}</Text>
               </TouchableOpacity>
             ))}
           </View>

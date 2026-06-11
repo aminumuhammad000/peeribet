@@ -15,27 +15,50 @@ export default function SignUpStep1Screen() {
   const [firstNameError, setFirstNameError] = useState('');
   const [lastNameError, setLastNameError] = useState('');
 
-  const handleNext = () => {
-    let isValid = true;
-    setFirstNameError('');
-    setLastNameError('');
-
-    if (!firstName.trim()) {
+  // ── Real-time validators ──────────────────────────────────────────
+  const validateFirstName = (value: string) => {
+    if (!value.trim()) {
       setFirstNameError('First name is required');
-      isValid = false;
+    } else if (value.trim().length < 2) {
+      setFirstNameError('First name must be at least 2 characters');
+    } else {
+      setFirstNameError('');
     }
+  };
 
-    if (!lastName.trim()) {
+  const validateLastName = (value: string) => {
+    if (!value.trim()) {
       setLastNameError('Last name is required');
-      isValid = false;
+    } else if (value.trim().length < 2) {
+      setLastNameError('Last name must be at least 2 characters');
+    } else {
+      setLastNameError('');
     }
+  };
 
-    if (isValid) {
-      router.push({
-        pathname: '/signup-step2',
-        params: { firstName, lastName },
-      });
-    }
+  const handleFirstNameChange = (value: string) => {
+    setFirstName(value);
+    validateFirstName(value);
+  };
+
+  const handleLastNameChange = (value: string) => {
+    setLastName(value);
+    validateLastName(value);
+  };
+
+  // Button is only enabled when both fields pass validation
+  const isFormValid =
+    firstName.trim().length >= 2 &&
+    lastName.trim().length >= 2 &&
+    !firstNameError &&
+    !lastNameError;
+
+  const handleNext = () => {
+    if (!isFormValid) return;
+    router.push({
+      pathname: '/signup-step2',
+      params: { firstName, lastName },
+    });
   };
 
   return (
@@ -72,7 +95,7 @@ export default function SignUpStep1Screen() {
                 label="First Name :"
                 placeholder="Ex. John"
                 value={firstName}
-                onChangeText={setFirstName}
+                onChangeText={handleFirstNameChange}
                 error={firstNameError}
               />
 
@@ -80,7 +103,7 @@ export default function SignUpStep1Screen() {
                 label="Last Name :"
                 placeholder="Ex. Doe"
                 value={lastName}
-                onChangeText={setLastName}
+                onChangeText={handleLastNameChange}
                 error={lastNameError}
               />
 
@@ -89,6 +112,7 @@ export default function SignUpStep1Screen() {
                 title="Next"
                 variant="primary"
                 onPress={handleNext}
+                disabled={!isFormValid}
                 style={styles.submitButton}
               />
             </View>
@@ -122,38 +146,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 24,
-  },
-  demoBanner: {
-    backgroundColor: 'rgba(0, 210, 133, 0.08)',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 133, 0.25)',
-  },
-  demoHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  demoBannerTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#00D285',
-    fontFamily: 'Inter',
-  },
-  demoBannerTap: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#3B82F6',
-    fontFamily: 'Inter',
-    textDecorationLine: 'underline',
-  },
-  demoBannerSub: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontFamily: 'Inter',
   },
   backButton: {
     width: 44,

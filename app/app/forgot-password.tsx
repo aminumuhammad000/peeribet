@@ -14,30 +14,35 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [loading, setLoading] = useState(false);
+  // ── Real-time validators ──────────────────────────────────────────
+  const validateEmail = (value: string) => {
+    if (!value.trim()) {
+      setEmailError('Email address is required');
+    } else if (!/\S+@\S+\.\S+/.test(value)) {
+      setEmailError('Please enter a valid email address');
+    } else {
+      setEmailError('');
+    }
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    validateEmail(value);
+  };
+
+  const isFormValid = email.trim().length > 0 && /\S+@\S+\.\S+/.test(email) && !emailError;
 
   const handleSendResetLink = async () => {
-    let isValid = true;
-    setEmailError('');
-
-    if (!email) {
-      setEmailError('Email address is required');
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      setEmailError('Please enter a valid email address');
-      isValid = false;
-    }
-
-    if (isValid) {
-      setLoading(true);
-      try {
-        await authService.forgotPassword(email);
-        setLoading(false);
-        router.push({ pathname: '/verify-otp', params: { email, context: 'reset_password' } });
-      } catch (err: any) {
-        setLoading(false);
-        const errorMsg = err.response?.data?.message || 'Something went wrong. Please try again.';
-        Alert.alert('Error', errorMsg);
-      }
+    if (!isFormValid) return;
+    setLoading(true);
+    try {
+      await authService.forgotPassword(email);
+      setLoading(false);
+      router.push({ pathname: '/verify-otp', params: { email, context: 'reset_password' } });
+    } catch (err: any) {
+      setLoading(false);
+      const errorMsg = err.response?.data?.message || 'Something went wrong. Please try again.';
+      Alert.alert('Error', errorMsg);
     }
   };
 
@@ -74,7 +79,7 @@ export default function ForgotPasswordScreen() {
                   label="Email address :"
                   placeholder="Example@gmail.com"
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={handleEmailChange}
                   error={emailError}
                   keyboardType="email-address"
                 />
@@ -85,6 +90,7 @@ export default function ForgotPasswordScreen() {
                   variant="primary"
                   onPress={handleSendResetLink}
                   loading={loading}
+                  disabled={!isFormValid}
                   style={styles.submitButton}
                 />
               </View>
