@@ -84,7 +84,8 @@ export default function KycScreen() {
       }
     } catch (error: any) {
       console.error(error);
-      setFormError('Failed to upload document. Please try again.');
+      const serverMsg = error.response?.data?.message || error.message;
+      setFormError(`Upload failed: ${serverMsg}`);
     } finally {
       setDocumentUploading(false);
     }
@@ -124,7 +125,8 @@ export default function KycScreen() {
       }
     } catch (error: any) {
       console.error(error);
-      setFormError('Failed to upload selfie.');
+      const serverMsg = error.response?.data?.message || error.message;
+      setFormError(`Selfie upload failed: ${serverMsg}`);
     } finally {
       setSelfieUploading(false);
     }
