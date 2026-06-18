@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
+import { authService } from '../services/apiService';
 
 export default function SignUpStep2Screen() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export default function SignUpStep2Screen() {
   const [phone, setPhone] = useState('');
   const [emailError, setEmailError] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [isCheckingPhone, setIsCheckingPhone] = useState(false);
   const handleEmailChange = (value: string) => {
     setEmail(value);
     if (!value.trim()) {
@@ -41,26 +44,38 @@ export default function SignUpStep2Screen() {
 
   // Debounced availability checks
   useEffect(() => {
-    if (!email || emailError) return;
+    if (!email || emailError || !/\S+@\S+\.\S+/.test(email)) {
+      setIsCheckingEmail(false);
+      return;
+    }
+    setIsCheckingEmail(true);
     const timer = setTimeout(async () => {
       try {
         const res = await authService.checkAvailability({ email: email.trim() });
         if (!res.available) setEmailError(res.message);
       } catch (err: any) {
         if (err.response?.status === 400) setEmailError(err.response.data.message);
+      } finally {
+        setIsCheckingEmail(false);
       }
     }, 600);
     return () => clearTimeout(timer);
   }, [email]);
 
   useEffect(() => {
-    if (!phone || phoneError) return;
+    if (!phone || phoneError || phone.length < 8) {
+      setIsCheckingPhone(false);
+      return;
+    }
+    setIsCheckingPhone(true);
     const timer = setTimeout(async () => {
       try {
         const res = await authService.checkAvailability({ phone: phone.trim() });
         if (!res.available) setPhoneError(res.message);
       } catch (err: any) {
         if (err.response?.status === 400) setPhoneError(err.response.data.message);
+      } finally {
+        setIsCheckingPhone(false);
       }
     }, 600);
     return () => clearTimeout(timer);
@@ -72,14 +87,43 @@ export default function SignUpStep2Screen() {
     /\S+@\S+\.\S+/.test(email) &&
     phone.length >= 8 &&
     !emailError &&
-    !phoneError;
+    !phoneError &&
+    !isCheckingEmail &&
+    !isCheckingPhone;
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!isFormValid) return;
-    router.push({
-      pathname: '/signup-step3',
-      params: { firstName, lastName, email, phone },
-    });
+    
+    // Final defensive check before proceeding
+    setIsCheckingEmail(true);
+    setIsCheckingPhone(true);
+    try {
+      const [emailStatus, phoneStatus] = await Promise.all([
+        authService.checkAvailability({ email: email.trim() }),
+        authService.checkAvailability({ phone: phone.trim() })
+      ]);
+      
+      if (!emailStatus.available) {
+        setEmailError(emailStatus.message);
+        return;
+      }
+      if (!phoneStatus.available) {
+        setPhoneError(phoneStatus.message);
+        return;
+      }
+
+      router.push({
+        pathname: '/signup-step3',
+        params: { firstName, lastName, email, phone },
+      });
+    } catch (err: any) {
+      const msg = err.response?.data?.message;
+      if (msg?.toLowerCase().includes('email')) setEmailError(msg);
+      else if (msg?.toLowerCase().includes('phone')) setPhoneError(msg);
+    } finally {
+      setIsCheckingEmail(false);
+      setIsCheckingPhone(false);
+    }
   };
 
   return (
@@ -136,6 +180,7 @@ export default function SignUpStep2Screen() {
                 variant="primary"
                 onPress={handleNext}
                 disabled={!isFormValid}
+                loading={isCheckingEmail || isCheckingPhone}
                 style={styles.submitButton}
               />
             </View>
