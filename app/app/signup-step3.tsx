@@ -158,8 +158,7 @@ export default function SignUpStep3Screen() {
                   </View>
                   <Text style={[styles.strengthLabel, { color: strength.color }]}>{strength.label}</Text>
                 </View>
-              ) : null}
-              <CustomInput
+              ) : null}<CustomInput
                 label="Confirm Password :"
                 placeholder="********"
                 value={confirmPassword}
