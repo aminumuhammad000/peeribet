@@ -119,8 +119,7 @@ export default function SignUpStep1Screen() {
 
             {/* Footer redirect */}
             <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/signin')} activeOpacity={0.7}>
+              <Text style={styles.footerText}>Already have an account? </Text><TouchableOpacity onPress={() => router.push('/signin')} activeOpacity={0.7}>
                 <Text style={styles.footerLink}>Sign In</Text>
               </TouchableOpacity>
             </View>

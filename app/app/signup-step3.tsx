@@ -151,15 +151,14 @@ export default function SignUpStep3Screen() {
               />
 
               {/* Password strength bar */}
-              {password.length > 0 && (
+              {password.length > 0 ? (
                 <View style={styles.strengthContainer}>
                   <View style={styles.strengthBarTrack}>
                     <View style={[styles.strengthBarFill, { width: strength.width, backgroundColor: strength.color }]} />
                   </View>
                   <Text style={[styles.strengthLabel, { color: strength.color }]}>{strength.label}</Text>
                 </View>
-              )}
-
+              ) : null}
               <CustomInput
                 label="Confirm Password :"
                 placeholder="********"
@@ -187,8 +186,7 @@ export default function SignUpStep3Screen() {
                   <CheckSquare size={22} color={Colors.dark.primary} />
                 ) : (
                   <Square size={22} color="#64748B" />
-                )}
-                <Text style={styles.checkboxText}>
+                )}<Text style={styles.checkboxText}>
                   Agree with <Text style={styles.termsText}>Terms & Condition</Text>
                 </Text>
               </TouchableOpacity>
@@ -206,8 +204,7 @@ export default function SignUpStep3Screen() {
 
             {/* Footer redirect */}
             <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/signin')} activeOpacity={0.7}>
+              <Text style={styles.footerText}>Already have an account? </Text><TouchableOpacity onPress={() => router.push('/signin')} activeOpacity={0.7}>
                 <Text style={styles.footerLink}>Sign In</Text>
               </TouchableOpacity>
             </View>

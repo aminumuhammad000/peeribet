@@ -67,7 +67,7 @@ export const CustomInput: React.FC<CustomInputProps> = ({
       </View>
 
       {/* Validation error display */}
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 };

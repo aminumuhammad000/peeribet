@@ -75,7 +75,7 @@ export const authService = {
       const token = await AsyncStorage.getItem('userToken');
       return !!token;
     } catch (error) {
-      console.warn('AsyncStorage not available yet:', error);
+      // Native module not yet available during early startup
       return false;
     }
   },
