@@ -23,8 +23,10 @@ import {
   RefreshCw
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../constants/Colors';
 import { useKyc } from '../constants/KycStore';
+import { authService } from '../services/apiService';
 
 export default function KycScreen() {
   const router = useRouter();
@@ -34,7 +36,7 @@ export default function KycScreen() {
   const [fullName, setFullName] = useState(data?.fullName || '');
   const [dob, setDob] = useState(data?.dob || '');
   const [nationality, setNationality] = useState(data?.nationality || 'Nigeria');
-  const [idType, setIdType] = useState(data?.idType || 'NIN');
+  const [idType, setIdType] = useState(data?.idType || 'National ID');
   const [idNumber, setIdNumber] = useState(data?.idNumber || '');
   
   // Document Mock States
@@ -45,21 +47,72 @@ export default function KycScreen() {
 
   const [formError, setFormError] = useState('');
 
-  // Simulating uploads
-  const simulateUploadDoc = () => {
-    setDocumentUploading(true);
-    setTimeout(() => {
+  // Document Uploads vs API
+  const pickAndUploadDocument = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setDocumentUploading(true);
+        const asset = result.assets[0];
+        
+        // Prepare form data
+        const formData = new FormData() as any;
+        formData.append('document', {
+          uri: asset.uri,
+          name: asset.uri.split('/').pop() || 'document.jpg',
+          type: 'image/jpeg',
+        });
+
+        const res = await authService.uploadKycDocument(formData);
+        
+        setDocumentName(asset.uri.split('/').pop() || 'document.jpg');
+        // Save the cloudinary URL somewhere if needed, currently we just need the file name to show it's uploaded
+        setFormError('');
+      }
+    } catch (error: any) {
+      console.error(error);
+      setFormError('Failed to upload document. Please try again.');
+    } finally {
       setDocumentUploading(false);
-      setDocumentName(`${idType.toLowerCase()}_front_scan.jpg`);
-    }, 1200);
+    }
   };
 
-  const simulateUploadSelfie = () => {
-    setSelfieUploading(true);
-    setTimeout(() => {
+  const pickSelfie = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        cameraType: ImagePicker.CameraType.front,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelfieUploading(true);
+        const asset = result.assets[0];
+        
+        // Prepare form data
+        const formData = new FormData() as any;
+        formData.append('document', {
+          uri: asset.uri,
+          name: 'selfie.jpg',
+          type: 'image/jpeg',
+        });
+
+        // Normally you might have a separate route or same route. Let's reuse it for now.
+        await authService.uploadKycDocument(formData);
+        setSelfieName('selfie.jpg');
+      }
+    } catch (error: any) {
+      console.error(error);
+      setFormError('Failed to upload selfie.');
+    } finally {
       setSelfieUploading(false);
-      setSelfieName('selfie_with_id.jpg');
-    }, 1200);
+    }
   };
 
   // Submit Form
@@ -187,7 +240,7 @@ export default function KycScreen() {
 
                 <Text style={styles.inputLabel}>Choose Document Type</Text>
                 <View style={styles.typeSelectorRow}>
-                  {['NIN', 'National ID', 'Driver License', 'Passport'].map((type) => (
+                  {['National ID', 'Driver License', 'Passport'].map((type) => (
                     <TouchableOpacity
                       key={type}
                       style={[
@@ -234,14 +287,14 @@ export default function KycScreen() {
                   <View style={styles.fileSuccessBox}>
                     <FileText size={18} color={Colors.dark.primary} style={{ marginRight: 10 }} />
                     <Text style={styles.fileNameText} numberOfLines={1}>{documentName}</Text>
-                    <TouchableOpacity style={styles.retryUploadBtn} onPress={simulateUploadDoc}>
+                    <TouchableOpacity style={styles.retryUploadBtn} onPress={pickAndUploadDocument}>
                       <RefreshCw size={14} color="#64748B" />
                     </TouchableOpacity>
                   </View>
                 ) : (
                   <TouchableOpacity
                     style={styles.uploadBox}
-                    onPress={simulateUploadDoc}
+                    onPress={pickAndUploadDocument}
                     disabled={documentUploading}
                     activeOpacity={0.8}
                   >
@@ -262,14 +315,14 @@ export default function KycScreen() {
                   <View style={styles.fileSuccessBox}>
                     <Camera size={18} color={Colors.dark.primary} style={{ marginRight: 10 }} />
                     <Text style={styles.fileNameText} numberOfLines={1}>{selfieName}</Text>
-                    <TouchableOpacity style={styles.retryUploadBtn} onPress={simulateUploadSelfie}>
+                    <TouchableOpacity style={styles.retryUploadBtn} onPress={pickSelfie}>
                       <RefreshCw size={14} color="#64748B" />
                     </TouchableOpacity>
                   </View>
                 ) : (
                   <TouchableOpacity
                     style={styles.uploadBox}
-                    onPress={simulateUploadSelfie}
+                    onPress={pickSelfie}
                     disabled={selfieUploading}
                     activeOpacity={0.8}
                   >

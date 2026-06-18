@@ -59,8 +59,16 @@ export const authService = {
     const response = await api.put('/auth/profile', data);
     return response.data;
   },
-  uploadProfileImage: async (formData: FormData) => {
+  uploadProfileImage: async (formData: any) => {
     const response = await api.post('/auth/profile/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+  uploadKycDocument: async (formData: any) => {
+    const response = await api.post('/auth/profile/kyc', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

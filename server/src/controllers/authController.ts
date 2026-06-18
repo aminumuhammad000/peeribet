@@ -308,3 +308,28 @@ export const uploadProfileImage = async (req: any, res: Response) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─── Upload KYC Document ─────────────────────────────────────────────────────
+// @route  POST /api/auth/profile/kyc
+export const uploadKycDocument = async (req: any, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No document file uploaded' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.kycDocument = req.file.path; // Cloudinary URL
+    user.kycStatus = 'pending';
+    await user.save();
+
+    res.json({
+      message: 'KYC Document uploaded successfully',
+      kycStatus: user.kycStatus,
+      kycDocument: user.kycDocument,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
