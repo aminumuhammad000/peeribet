@@ -13,9 +13,9 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: '#131C32', // Matches card elevation slate
           borderTopWidth: 0,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
+          height: 52,
+          paddingBottom: 4,
+          paddingTop: 6,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.15,
@@ -23,10 +23,11 @@ export default function TabsLayout() {
           elevation: 8,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '700',
           fontFamily: 'Inter',
-          marginTop: 2,
+          marginTop: -2,
+          marginBottom: 4,
         },
       }}
     >
