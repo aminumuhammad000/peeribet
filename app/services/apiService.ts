@@ -95,6 +95,10 @@ export const authService = {
     const response = await api.post('/auth/verify-reset-otp', data);
     return response.data;
   },
+  checkAvailability: async (data: { email?: string; phone?: string }) => {
+    const response = await api.post('/auth/check-availability', data);
+    return response.data;
+  },
 };
 
 // Transaction endpoints

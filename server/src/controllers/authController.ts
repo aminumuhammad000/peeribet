@@ -146,6 +146,30 @@ export const resendOtp = async (req: Request, res: Response) => {
   }
 };
 
+// ─── Check Availability ──────────────────────────────────────────────────────
+// @route  POST /api/auth/check-availability
+export const checkAvailability = async (req: Request, res: Response) => {
+  try {
+    const { email, phone } = req.body;
+    let query = {};
+    if (email) query = { email };
+    else if (phone) query = { phone };
+    else return res.status(400).json({ message: 'Email or phone is required' });
+
+    const user = await User.findOne(query);
+    if (user) {
+      return res.status(400).json({ 
+        available: false, 
+        message: `${email ? 'Email' : 'Phone number'} is already registered` 
+      });
+    }
+
+    res.json({ available: true });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // ─── Forgot Password ─────────────────────────────────────────────────────────
 // @route  POST /api/auth/forgot-password
 export const forgotPassword = async (req: Request, res: Response) => {

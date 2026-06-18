@@ -9,6 +9,7 @@ import {
   checkResetOtp,
   updateProfile,
   uploadProfileImage,
+  checkAvailability,
 } from '../controllers/authController';
 import { protect } from '../middlewares/authMiddleware';
 import { upload } from '../config/cloudinary';
@@ -19,6 +20,7 @@ router.post('/register', register);
 router.post('/login', login);
 router.post('/verify-otp', verifyOtp);
 router.post('/resend-otp', resendOtp);
+router.post('/check-availability', checkAvailability);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 router.post('/verify-reset-otp', checkResetOtp);

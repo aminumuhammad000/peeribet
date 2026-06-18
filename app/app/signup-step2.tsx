@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,9 +17,8 @@ export default function SignUpStep2Screen() {
   const [phone, setPhone] = useState('');
   const [emailError, setEmailError] = useState('');
   const [phoneError, setPhoneError] = useState('');
-
-  // ── Real-time validators ──────────────────────────────────────────
-  const validateEmail = (value: string) => {
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
     if (!value.trim()) {
       setEmailError('Email address is required');
     } else if (!/\S+@\S+\.\S+/.test(value)) {
@@ -29,7 +28,8 @@ export default function SignUpStep2Screen() {
     }
   };
 
-  const validatePhone = (value: string) => {
+  const handlePhoneChange = (value: string) => {
+    setPhone(value);
     if (!value.trim()) {
       setPhoneError('Phone number is required');
     } else if (value.length < 8) {
@@ -39,15 +39,32 @@ export default function SignUpStep2Screen() {
     }
   };
 
-  const handleEmailChange = (value: string) => {
-    setEmail(value);
-    validateEmail(value);
-  };
+  // Debounced availability checks
+  useEffect(() => {
+    if (!email || emailError) return;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await authService.checkAvailability({ email: email.trim() });
+        if (!res.available) setEmailError(res.message);
+      } catch (err: any) {
+        if (err.response?.status === 400) setEmailError(err.response.data.message);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [email]);
 
-  const handlePhoneChange = (value: string) => {
-    setPhone(value);
-    validatePhone(value);
-  };
+  useEffect(() => {
+    if (!phone || phoneError) return;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await authService.checkAvailability({ phone: phone.trim() });
+        if (!res.available) setPhoneError(res.message);
+      } catch (err: any) {
+        if (err.response?.status === 400) setPhoneError(err.response.data.message);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [phone]);
 
   // Button enabled only when both fields pass
   const isFormValid =
