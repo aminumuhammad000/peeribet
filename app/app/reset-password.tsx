@@ -137,14 +137,14 @@ export default function ResetPasswordScreen() {
                 />
 
                 {/* Password strength bar */}
-                {password.length > 0 && (
+                {password.length > 0 ? (
                   <View style={styles.strengthContainer}>
                     <View style={styles.strengthBarTrack}>
                       <View style={[styles.strengthBarFill, { width: strength.width, backgroundColor: strength.color }]} />
                     </View>
                     <Text style={[styles.strengthLabel, { color: strength.color }]}>{strength.label}</Text>
                   </View>
-                )}
+                ) : null}
 
                 <CustomInput
                   label="Confirm Password :"
