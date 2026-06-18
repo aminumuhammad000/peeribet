@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -62,11 +63,18 @@ export default function KycScreen() {
         
         // Prepare form data
         const formData = new FormData() as any;
-        formData.append('document', {
-          uri: asset.uri,
-          name: asset.uri.split('/').pop() || 'document.jpg',
-          type: 'image/jpeg',
-        });
+        
+        if (Platform.OS === 'web') {
+          const resURL = await fetch(asset.uri);
+          const blob = await resURL.blob();
+          formData.append('document', blob, asset.fileName || 'document.jpg');
+        } else {
+          formData.append('document', {
+            uri: asset.uri,
+            name: asset.uri.split('/').pop() || 'document.jpg',
+            type: 'image/jpeg',
+          });
+        }
 
         const res = await authService.uploadKycDocument(formData);
         
@@ -97,11 +105,18 @@ export default function KycScreen() {
         
         // Prepare form data
         const formData = new FormData() as any;
-        formData.append('document', {
-          uri: asset.uri,
-          name: 'selfie.jpg',
-          type: 'image/jpeg',
-        });
+        
+        if (Platform.OS === 'web') {
+          const resURL = await fetch(asset.uri);
+          const blob = await resURL.blob();
+          formData.append('document', blob, 'selfie.jpg');
+        } else {
+          formData.append('document', {
+            uri: asset.uri,
+            name: 'selfie.jpg',
+            type: 'image/jpeg',
+          });
+        }
 
         // Normally you might have a separate route or same route. Let's reuse it for now.
         await authService.uploadKycDocument(formData);
