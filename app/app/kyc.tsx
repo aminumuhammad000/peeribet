@@ -171,7 +171,7 @@ export default function KycScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/profile')}
             activeOpacity={0.7}
           >
             <ArrowLeft size={22} color="#FFFFFF" />
