@@ -12,6 +12,7 @@ import adminRoutes from './routes/adminRoutes';
 import walletRoutes from './routes/walletRoutes';
 import matchRoutes from './routes/matchRoutes';
 import betRoutes from './routes/betRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 const app: Application = express();
 
@@ -32,6 +33,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/bets', betRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Server is running smoothly' });

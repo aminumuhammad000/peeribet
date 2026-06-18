@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, Settings, Search } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
-import { authService, matchService } from '../../services/apiService';
+import { authService, matchService, notificationService } from '../../services/apiService';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -14,17 +14,20 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [promotedMatches, setPromotedMatches] = useState<any[]>([]);
   const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const fetchData = async () => {
     try {
-      const [userData, promoted, upcoming] = await Promise.all([
+      const [userData, promoted, upcoming, notifData] = await Promise.all([
         authService.getMe(),
         matchService.getMatches({ isPromoted: true }),
-        matchService.getMatches({ status: 'UPCOMING' })
+        matchService.getMatches({ status: 'UPCOMING' }),
+        notificationService.getAll().catch(() => ({ unreadCount: 0 })),
       ]);
       setUser(userData);
       setPromotedMatches(promoted);
       setUpcomingMatches(upcoming);
+      setUnreadNotifications(notifData.unreadCount || 0);
     } catch (error) {
       console.error('Error fetching data for home:', error);
     }
@@ -63,8 +66,15 @@ export default function HomeScreen() {
             <Text style={styles.headerGreeting}>Hey {user?.firstName || 'User'}</Text>
             <Text style={styles.headerSub}>Ready to trade?</Text>
           </View>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/notifications')} activeOpacity={0.7}>
             <Bell size={22} color="#FFFFFF" />
+            {unreadNotifications > 0 ? (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>
+                  {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                </Text>
+              </View>
+            ) : null}
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/security')}>
             <Settings size={22} color="#FFFFFF" />
@@ -89,8 +99,8 @@ export default function HomeScreen() {
             />
           </View>
 
-          {/* Calendar row */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.calendarScroll}>
+          {/* Calendar row - fits all 7 days without scroll */}
+          <View style={styles.calendarRow}>
             {dates.map((item) => {
               const isSelected = selectedDate === item.id;
               return (
@@ -103,9 +113,9 @@ export default function HomeScreen() {
                   <Text style={[styles.calendarDay, isSelected && styles.calendarTextActive]}>{item.day}</Text>
                   <Text style={[styles.calendarNum, isSelected && styles.calendarTextActive]}>{item.num}</Text>
                 </TouchableOpacity>
-              )
+              );
             })}
-          </ScrollView>
+          </View>
 
           {/* Promoted Matches */}
           <View style={styles.promotedContainer}>
@@ -251,6 +261,25 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     marginLeft: 16,
+    position: 'relative',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: 'bold',
+    fontFamily: 'Inter',
   },
   scrollContent: {
     paddingBottom: 24,
@@ -274,17 +303,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter',
   },
-  calendarScroll: {
-    paddingHorizontal: 20,
+  calendarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     marginBottom: 24,
   },
   calendarBox: {
-    width: 52,
-    height: 64,
-    borderRadius: 12,
+    flex: 1,
+    height: 54,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginHorizontal: 3,
+    borderWidth: 1,
+    borderColor: '#1E293B',
   },
   calendarBoxActive: {
     backgroundColor: '#3B82F6',
@@ -312,6 +345,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2E3F6B',
   },
   promotedTop: {
     flexDirection: 'row',
@@ -454,9 +489,13 @@ const styles = StyleSheet.create({
   upcomingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    backgroundColor: '#131C32',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
   },
   dateCol: {
     width: 40,
