@@ -10,6 +10,7 @@ import {
   updateProfile,
   uploadProfileImage,
   checkAvailability,
+  uploadKycDocument,
 } from '../controllers/authController';
 import { protect } from '../middlewares/authMiddleware';
 import { upload } from '../config/cloudinary';
@@ -26,6 +27,7 @@ router.post('/reset-password', resetPassword);
 router.post('/verify-reset-otp', checkResetOtp);
 router.put('/profile', protect, updateProfile);
 router.post('/profile/image', protect, upload.single('image'), uploadProfileImage);
+router.post('/profile/kyc', protect, upload.single('document'), uploadKycDocument);
 router.get('/me', protect, (req: any, res: Response) => {
   res.json(req.user);
 });

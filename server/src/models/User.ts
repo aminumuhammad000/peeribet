@@ -23,6 +23,8 @@ export interface IUser extends Document {
   otp?: string;
   otpExpires?: Date;
   role: 'user' | 'admin';
+  kycStatus: 'none' | 'pending' | 'approved' | 'rejected';
+  kycDocument?: string;
   virtualAccount?: IVirtualAccount;
   createdAt: Date;
   updatedAt: Date;
@@ -43,6 +45,8 @@ const userSchema: Schema = new Schema(
     otp: { type: String },
     otpExpires: { type: Date },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    kycStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+    kycDocument: { type: String },
     virtualAccount: {
       accountNumber: { type: String },
       accountName: { type: String },
