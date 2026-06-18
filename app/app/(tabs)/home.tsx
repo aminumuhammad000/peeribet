@@ -61,11 +61,17 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.headerRow}>
-          <Image source={{ uri: `https://ui-avatars.com/api/?name=${user?.firstName || 'User'}&background=fff&color=000&size=128&rounded=true` }} style={styles.avatar} />
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerGreeting}>Hey {user?.firstName || 'User'}</Text>
-            <Text style={styles.headerSub}>Ready to trade?</Text>
-          </View>
+          <TouchableOpacity 
+            style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }} 
+            onPress={() => router.push('/profile')} 
+            activeOpacity={0.8}
+          >
+            <Image source={{ uri: `https://ui-avatars.com/api/?name=${user?.firstName || 'User'}&background=fff&color=000&size=128&rounded=true` }} style={styles.avatar} />
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerGreeting}>Hey {user?.firstName || 'User'}</Text>
+              <Text style={styles.headerSub}>Ready to trade?</Text>
+            </View>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/notifications')} activeOpacity={0.7}>
             <Bell size={22} color="#FFFFFF" />
             {unreadNotifications > 0 ? (
