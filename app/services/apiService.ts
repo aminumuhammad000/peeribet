@@ -59,6 +59,14 @@ export const authService = {
     const response = await api.put('/auth/profile', data);
     return response.data;
   },
+  updatePin: async (data: { currentPin?: string; newPin: string }) => {
+    const response = await api.put('/auth/profile/pin', data);
+    return response.data;
+  },
+  updatePassword: async (data: { currentPassword?: string; newPassword: string }) => {
+    const response = await api.put('/auth/profile/password', data);
+    return response.data;
+  },
   uploadProfileImage: async (formData: any) => {
     const response = await api.post('/auth/profile/image', formData, {
       headers: {

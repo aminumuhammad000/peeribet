@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,9 +23,29 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
+import { authService } from '../services/apiService';
 
 export default function SecurityScreen() {
   const router = useRouter();
+
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [hasPin, setHasPin] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const userObj = await authService.getMe();
+      setHasPin(userObj.hasPin);
+    } catch (err) {
+      console.log('Failed to fetch user', err);
+    } finally {
+      setLoadingInitial(false);
+    }
+  };
 
   // Collapsible section states
   const [expandedSection, setExpandedSection] = useState<'password' | 'pin' | null>(null);
@@ -38,6 +59,7 @@ export default function SecurityScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   // Transaction PIN states
   const [currentPin, setCurrentPin] = useState('');
@@ -50,8 +72,7 @@ export default function SecurityScreen() {
     setExpandedSection(expandedSection === section ? null : section);
   };
 
-  // Password validation & handler
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     setPasswordError('');
     setPasswordSuccess(false);
 
@@ -68,21 +89,36 @@ export default function SecurityScreen() {
       return;
     }
 
-    // Success simulation
-    setPasswordSuccess(true);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setTimeout(() => setPasswordSuccess(false), 3000);
+    try {
+      setPasswordLoading(true);
+      await authService.updatePassword({
+        currentPassword,
+        newPassword
+      });
+      
+      setPasswordSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(false), 3000);
+    } catch (error: any) {
+      setPasswordError(error.response?.data?.message || 'Failed to update password');
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   // PIN validation & handler
-  const handleUpdatePin = () => {
+  const handleUpdatePin = async () => {
     setPinError('');
     setPinSuccess(false);
 
-    if (currentPin.length !== 4 || newPin.length !== 4 || confirmPin.length !== 4) {
-      setPinError('PINs must be exactly 4 digits.');
+    if (hasPin && currentPin.length !== 4) {
+      setPinError('Please enter your current 4-digit PIN.');
+      return;
+    }
+    if (newPin.length !== 4 || confirmPin.length !== 4) {
+      setPinError('New PINs must be exactly 4 digits.');
       return;
     }
     if (newPin !== confirmPin) {
@@ -90,12 +126,24 @@ export default function SecurityScreen() {
       return;
     }
 
-    // Success simulation
-    setPinSuccess(true);
-    setCurrentPin('');
-    setNewPin('');
-    setConfirmPin('');
-    setTimeout(() => setPinSuccess(false), 3000);
+    try {
+      setPinLoading(true);
+      const res = await authService.updatePin({
+        currentPin: hasPin ? currentPin : undefined,
+        newPin
+      });
+      
+      setPinSuccess(true);
+      setCurrentPin('');
+      setNewPin('');
+      setConfirmPin('');
+      setHasPin(res.hasPin); // Update UI to now require current PIN next time
+      setTimeout(() => setPinSuccess(false), 3000);
+    } catch (error: any) {
+      setPinError(error.response?.data?.message || 'Failed to update PIN');
+    } finally {
+      setPinLoading(false);
+    }
   };
 
   // Password strength calculation
@@ -235,11 +283,12 @@ export default function SecurityScreen() {
                 </View>
 
                 <TouchableOpacity 
-                  style={styles.submitBtn} 
+                  style={[styles.submitBtn, passwordLoading && { opacity: 0.7 }]} 
                   onPress={handleUpdatePassword}
+                  disabled={passwordLoading}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.submitBtnText}>Update Password</Text>
+                  {passwordLoading ? <ActivityIndicator size="small" color="#000000" /> : <Text style={styles.submitBtnText}>Update Password</Text>}
                 </TouchableOpacity>
               </View>
             )}
@@ -254,7 +303,7 @@ export default function SecurityScreen() {
             >
               <View style={styles.cardHeaderIconLabel}>
                 <Shield size={18} color="#3B82F6" style={{ marginRight: 12 }} />
-                <Text style={styles.cardHeaderTitle}>Change Transaction PIN</Text>
+                <Text style={styles.cardHeaderTitle}>{hasPin ? 'Change Transaction PIN' : 'Create Transaction PIN'}</Text>
               </View>
               {expandedSection === 'pin' ? <ChevronUp size={18} color="#64748B" /> : <ChevronDown size={18} color="#64748B" />}
             </TouchableOpacity>
@@ -278,17 +327,21 @@ export default function SecurityScreen() {
                   </View>
                 ) : null}
 
-                <Text style={styles.inputLabel}>Current 4-Digit PIN</Text>
-                <TextInput
-                  placeholder="● ● ● ●"
-                  placeholderTextColor="#64748B"
-                  keyboardType="numeric"
-                  maxLength={4}
-                  secureTextEntry
-                  style={styles.pinInput}
-                  value={currentPin}
-                  onChangeText={setCurrentPin}
-                />
+                {hasPin && (
+                  <>
+                    <Text style={styles.inputLabel}>Current 4-Digit PIN</Text>
+                    <TextInput
+                      placeholder="● ● ● ●"
+                      placeholderTextColor="#64748B"
+                      keyboardType="numeric"
+                      maxLength={4}
+                      secureTextEntry
+                      style={styles.pinInput}
+                      value={currentPin}
+                      onChangeText={setCurrentPin}
+                    />
+                  </>
+                )}
 
                 <Text style={styles.inputLabel}>New 4-Digit PIN</Text>
                 <TextInput
@@ -315,11 +368,12 @@ export default function SecurityScreen() {
                 />
 
                 <TouchableOpacity 
-                  style={[styles.submitBtn, { backgroundColor: '#3B82F6' }]} 
+                  style={[styles.submitBtn, { backgroundColor: '#3B82F6' }, pinLoading && { opacity: 0.7 }]} 
                   onPress={handleUpdatePin}
+                  disabled={pinLoading}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.submitBtnText}>Update PIN</Text>
+                  {pinLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.submitBtnText}>{hasPin ? 'Update PIN' : 'Set PIN'}</Text>}
                 </TouchableOpacity>
               </View>
             )}
