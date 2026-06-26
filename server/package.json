@@ -8,6 +8,9 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "rimraf dist && tsc && npm run seed:admin",
     "seed:admin": "ts-node src/scripts/seedAdmin.ts",
+    "sync:matches": "ts-node src/scripts/syncMatches.ts",
+    "sync:odds": "ts-node src/scripts/syncLiveOdds.ts",
+    "sync:settle": "ts-node src/scripts/syncSettlement.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

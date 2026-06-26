@@ -15,14 +15,20 @@ export interface IMatch extends Document {
     home: number;
     draw: number;
     away: number;
+    over25?: number;
+    under25?: number;
+    bttsYes?: number;
+    bttsNo?: number;
   };
   poolAmount: number;
+  fixtureId?: number; // External API fixture ID
 }
 
 const matchSchema = new Schema(
   {
     homeTeam: { type: String, required: true },
     awayTeam: { type: String, required: true },
+    fixtureId: { type: Number, unique: true, sparse: true },
     homeLogo: { type: String },
     awayLogo: { type: String },
     league: { type: String, required: true },

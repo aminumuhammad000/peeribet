@@ -199,4 +199,15 @@ export const notificationService = {
   },
 };
 
+export const supportService = {
+  getTickets: async () => {
+    const response = await api.get('/support/tickets');
+    return response.data;
+  },
+  createTicket: async (data: { subject: string; category: string; description: string }) => {
+    const response = await api.post('/support/tickets', data);
+    return response.data;
+  },
+};
+
 export default api;

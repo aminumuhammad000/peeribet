@@ -23,11 +23,11 @@ import {
   MessageCircle,
   ExternalLink,
   HelpCircle,
-  AlertCircle,
-  Sparkles
+  AlertCircle
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
+import { supportService } from '../services/apiService';
 
 // Type definitions
 interface FAQItem {
@@ -38,12 +38,12 @@ interface FAQItem {
 }
 
 interface SupportTicket {
-  id: string;
+  _id: string;
   subject: string;
   category: string;
   description: string;
   status: 'Pending' | 'In Progress' | 'Resolved';
-  date: string;
+  createdAt: string;
 }
 
 export default function HelpdeskScreen() {
@@ -58,28 +58,28 @@ export default function HelpdeskScreen() {
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
 
   // Support Tickets States
-  const [tickets, setTickets] = useState<SupportTicket[]>([
-    {
-      id: 'TKT-8291',
-      subject: 'Withdrawal processing time',
-      category: 'Withdrawal',
-      description: 'I requested a withdrawal of ₦5,000 but it is taking longer than 5 minutes.',
-      status: 'Resolved',
-      date: '2026-05-18',
-    },
-    {
-      id: 'TKT-4412',
-      subject: 'KYC Document Verification',
-      category: 'Verification',
-      description: 'Uploaded my NIN document for verification, please review.',
-      status: 'Pending',
-      date: '2026-05-19',
-    },
-  ]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [ticketSubject, setTicketSubject] = useState('');
   const [ticketCategory, setTicketCategory] = useState('Deposit');
   const [ticketDetails, setTicketDetails] = useState('');
   const [ticketSuccess, setTicketSuccess] = useState(false);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+
+  React.useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const fetchTickets = async () => {
+    try {
+      setLoadingTickets(true);
+      const data = await supportService.getTickets();
+      setTickets(data);
+    } catch (err) {
+      console.error('Failed to fetch tickets', err);
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
 
   // FAQ Database
   const faqs: FAQItem[] = [
@@ -166,25 +166,26 @@ export default function HelpdeskScreen() {
   };
 
   // Submit Support Ticket
-  const handleSubmitTicket = () => {
+  const handleSubmitTicket = async () => {
     if (!ticketSubject.trim() || !ticketDetails.trim()) return;
 
-    const newTicket: SupportTicket = {
-      id: `TKT-${Math.floor(1000 + Math.random() * 9000)}`,
-      subject: ticketSubject,
-      category: ticketCategory,
-      description: ticketDetails,
-      status: 'Pending',
-      date: new Date().toISOString().split('T')[0],
-    };
+    try {
+      const response = await supportService.createTicket({
+        subject: ticketSubject,
+        category: ticketCategory,
+        description: ticketDetails
+      });
 
-    setTickets((prev) => [newTicket, ...prev]);
-    setTicketSubject('');
-    setTicketDetails('');
-    setTicketSuccess(true);
+      setTickets((prev) => [response, ...prev]);
+      setTicketSubject('');
+      setTicketDetails('');
+      setTicketSuccess(true);
 
-    // Auto clear success message after 4 seconds
-    setTimeout(() => setTicketSuccess(false), 4000);
+      // Auto clear success message after 4 seconds
+      setTimeout(() => setTicketSuccess(false), 4000);
+    } catch (err) {
+      console.error('Failed to submit ticket', err);
+    }
   };
 
   return (
@@ -321,19 +322,6 @@ export default function HelpdeskScreen() {
               </View>
             )}
 
-            <View style={styles.contactShortcutCard}>
-              <Sparkles size={20} color={Colors.dark.primary} style={{ marginRight: 10 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.shortcutTitle}>Can't find your answer?</Text>
-                <Text style={styles.shortcutSub}>Chat live with official escrow handlers directly or log support tickets.</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.shortcutBtn}
-                onPress={() => setActiveTab('support')}
-              >
-                <Text style={styles.shortcutBtnText}>Live Chat</Text>
-              </TouchableOpacity>
-            </View>
           </ScrollView>
         )}
 
@@ -471,10 +459,10 @@ export default function HelpdeskScreen() {
             <Text style={styles.supportSectionSub}>Track and check state of all your logged tickets</Text>
 
             {tickets.map((tkt) => (
-              <View key={tkt.id} style={styles.ticketLogCard}>
+              <View key={tkt._id} style={styles.ticketLogCard}>
                 <View style={styles.tktHeader}>
                   <View>
-                    <Text style={styles.tktId}>{tkt.id}</Text>
+                    <Text style={styles.tktId}>TKT-{tkt._id.substring(tkt._id.length - 4).toUpperCase()}</Text>
                     <Text style={styles.tktSubject}>{tkt.subject}</Text>
                   </View>
                   <View
@@ -508,7 +496,7 @@ export default function HelpdeskScreen() {
 
                 <View style={styles.tktFooter}>
                   <Text style={styles.tktMeta}>Category: <Text style={{ color: '#FFFFFF' }}>{tkt.category}</Text></Text>
-                  <Text style={styles.tktMeta}>Date: <Text style={{ color: '#FFFFFF' }}>{tkt.date}</Text></Text>
+                  <Text style={styles.tktMeta}>Date: <Text style={{ color: '#FFFFFF' }}>{new Date(tkt.createdAt).toLocaleDateString()}</Text></Text>
                 </View>
               </View>
             ))}
@@ -743,26 +731,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    fontFamily: 'Inter',
-  },
-  shortcutSub: {
-    fontSize: 10,
-    color: '#94A3B8',
-    fontFamily: 'Inter',
-    marginTop: 2,
-    lineHeight: 14,
-    paddingRight: 6,
-  },
-  shortcutBtn: {
-    backgroundColor: Colors.dark.primary,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  shortcutBtnText: {
-    color: '#000000',
-    fontSize: 11,
-    fontWeight: 'bold',
     fontFamily: 'Inter',
   },
   supportSectionTitle: {
