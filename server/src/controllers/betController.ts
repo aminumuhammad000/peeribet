@@ -28,6 +28,10 @@ export const placeBet = async (req: AuthRequest, res: Response) => {
     if (selection === 'HOME') odds = match.odds.home;
     else if (selection === 'DRAW') odds = match.odds.draw;
     else if (selection === 'AWAY') odds = match.odds.away;
+    else if (selection === 'OVER_25') odds = match.odds.over25 || 1.0;
+    else if (selection === 'UNDER_25') odds = match.odds.under25 || 1.0;
+    else if (selection === 'BTTS_YES') odds = match.odds.bttsYes || 1.0;
+    else if (selection === 'BTTS_NO') odds = match.odds.bttsNo || 1.0;
 
     const potentialPayout = amount * odds;
 

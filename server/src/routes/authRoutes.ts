@@ -16,6 +16,7 @@ import {
 } from '../controllers/authController';
 import { protect } from '../middlewares/authMiddleware';
 import { upload } from '../config/cloudinary';
+import User from '../models/User';
 
 const router = express.Router();
 
@@ -32,9 +33,13 @@ router.post('/profile/image', protect, upload.single('image'), uploadProfileImag
 router.post('/profile/kyc', protect, upload.single('document'), uploadKycDocument);
 router.put('/profile/pin', protect, updatePin);
 router.put('/profile/password', protect, changePassword);
-router.get('/me', protect, (req: any, res: Response) => {
-  const userObj = { ...req.user.toJSON() };
-  userObj.hasPin = !!req.user.pin;
+router.get('/me', protect, async (req: any, res: Response) => {
+  // Fetch user again to include pin (since it's select: false)
+  const user = await User.findById(req.user._id).select('+pin');
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  
+  const userObj = { ...user.toJSON() };
+  userObj.hasPin = !!user.pin;
   delete userObj.pin; // Ensure pin is never sent to the client
   res.json(userObj);
 });

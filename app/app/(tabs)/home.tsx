@@ -66,7 +66,10 @@ export default function HomeScreen() {
             onPress={() => router.push('/profile')} 
             activeOpacity={0.8}
           >
-            <Image source={{ uri: `https://ui-avatars.com/api/?name=${user?.firstName || 'User'}&background=fff&color=000&size=128&rounded=true` }} style={styles.avatar} />
+            <Image 
+              source={{ uri: user?.profileImage || `https://ui-avatars.com/api/?name=${user?.firstName || 'User'}&background=fff&color=000&size=128&rounded=true` }} 
+              style={styles.avatar} 
+            />
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerGreeting}>Hey {user?.firstName || 'User'}</Text>
               <Text style={styles.headerSub}>Ready to trade?</Text>
@@ -81,9 +84,6 @@ export default function HomeScreen() {
                 </Text>
               </View>
             ) : null}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/security')}>
-            <Settings size={22} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 

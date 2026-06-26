@@ -192,7 +192,12 @@ export const getAllTrades = async (req: Request, res: Response) => {
 export const changeAdminPassword = async (req: Request, res: Response) => {
   try {
     const { oldPassword, newPassword } = req.body;
-    const adminUser = await User.findById((req as any).user._id);
+    
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ message: 'Please provide old and new password' });
+    }
+
+    const adminUser = await User.findById((req as any).user._id).select('+password');
     if (!adminUser) return res.status(404).json({ message: 'Admin not found' });
 
     const isMatch = await bcrypt.compare(oldPassword, adminUser.password);
@@ -202,7 +207,8 @@ export const changeAdminPassword = async (req: Request, res: Response) => {
     await adminUser.save();
     res.json({ message: 'Password updated successfully' });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    console.error('Change admin password error:', error);
+    res.status(500).json({ message: error.message || 'Internal server error while changing admin password' });
   }
 };
 

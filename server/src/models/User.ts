@@ -41,8 +41,8 @@ const userSchema: Schema = new Schema(
     profileImage: { type: String },
     email: { type: String, required: true, unique: true, lowercase: true },
     phone: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    pin: { type: String },
+    password: { type: String, required: true, select: false },
+    pin: { type: String, select: false },
     balance: { type: Number, default: 0 },
     isVerified: { type: Boolean, default: false },
     otp: { type: String },
@@ -65,7 +65,7 @@ const userSchema: Schema = new Schema(
 );
 
 // Hash password and pin before saving
-userSchema.pre<IUser>('save', async function (next) {
+userSchema.pre<IUser>('save', async function () {
   if (this.isModified('password')) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -74,7 +74,6 @@ userSchema.pre<IUser>('save', async function (next) {
     const salt = await bcrypt.genSalt(10);
     this.pin = await bcrypt.hash(this.pin, salt);
   }
-  next();
 });
 
 // Compare password

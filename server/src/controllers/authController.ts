@@ -56,7 +56,7 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+password');
 
     if (user && (await user.comparePassword(password))) {
       res.json({
@@ -344,7 +344,7 @@ export const updatePin = async (req: any, res: Response) => {
       return res.status(400).json({ message: 'New PIN must be exactly 4 digits' });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select('+pin');
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     // If user already has a PIN, verify currentPin
@@ -363,7 +363,8 @@ export const updatePin = async (req: any, res: Response) => {
 
     res.json({ message: 'PIN updated successfully', hasPin: true });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    console.error('Update PIN error:', error);
+    res.status(500).json({ message: error.message || 'Internal server error while updating PIN' });
   }
 };
 
@@ -377,7 +378,12 @@ export const changePassword = async (req: any, res: Response) => {
       return res.status(400).json({ message: 'Please provide current and new password' });
     }
 
-    const user = await User.findById(req.user._id);
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+    }
+
+    // Explicitly select password to ensure it's available for comparison
+    const user = await User.findById(req.user._id).select('+password');
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const isMatch = await user.comparePassword(currentPassword);
@@ -390,6 +396,7 @@ export const changePassword = async (req: any, res: Response) => {
 
     res.json({ message: 'Password updated successfully' });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    console.error('Change password error:', error);
+    res.status(500).json({ message: error.message || 'Internal server error while changing password' });
   }
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,25 +24,38 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
+import { authService, betService } from '../services/apiService';
 
 export default function EnterAmountScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
   // Route parameters with fallback values
-  const matchTitle = params.matchTitle || 'Chelsea vs Arsenal';
-  const startTime = params.startTime || 'Start in 3hrs';
-  const marketName = params.marketName || 'Over 2.5 Goals';
-  const outcome = params.outcome || 'Over 2.5 (Long)';
-  const odds = parseFloat(params.odds as string) || 1.85;
+  const matchId = params.matchId as string;
+  const matchTitle = params.matchTitle || 'Match Detail';
+  const startTime = params.startTime || 'Upcoming';
+  const marketName = params.marketName || 'Trade Market';
+  const outcome = params.outcome as string || 'Select Outcome';
+  const odds = parseFloat(params.odds as string) || 1.0;
 
   const [stake, setStake] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [userBalance, setUserBalance] = useState(0);
 
-  const availableBalance = 18050; // Mock balance matching Wallet page
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const user = await authService.getMe();
+        setUserBalance(user.balance);
+      } catch (err) {
+        console.error('Error fetching balance:', err);
+      }
+    };
+    fetchBalance();
+  }, []);
 
-  const handleLockTrade = () => {
+  const handleLockTrade = async () => {
     setError('');
     const parsedStake = parseFloat(stake) || 0;
 
@@ -54,22 +69,41 @@ export default function EnterAmountScreen() {
       return;
     }
 
-    if (parsedStake > 50000) {
-      setError('Maximum trade stake is ₦50,000');
-      return;
-    }
-
-    if (parsedStake > availableBalance) {
-      setError('Insufficient funds. Please fund your escrow wallet.');
+    if (parsedStake > userBalance) {
+      setError(`Insufficient funds. Your available balance is ₦${userBalance.toLocaleString()}`);
       return;
     }
 
     setLoading(true);
-    // Simulate smart-contract escrow security locking
-    setTimeout(() => {
+    try {
+      // Map outcome text to enum values
+      let selection: any = 'HOME';
+      if (outcome.includes('Draw')) selection = 'DRAW';
+      else if (outcome.includes('(Short)') && !outcome.includes('Draw')) {
+        // Simple logic for away in basic winner market
+        if (marketName === 'Match Outcome') selection = 'AWAY';
+        else if (marketName.includes('Over 2.5')) selection = 'UNDER_25';
+        else if (marketName.includes('Both Teams')) selection = 'BTTS_NO';
+      } else {
+        if (marketName === 'Match Outcome') selection = 'HOME';
+        else if (marketName.includes('Over 2.5')) selection = 'OVER_25';
+        else if (marketName.includes('Both Teams')) selection = 'BTTS_YES';
+      }
+
+      await betService.placeBet({
+        matchId,
+        selection,
+        amount: parsedStake
+      });
+
+      Alert.alert('Success', 'Trade locked in escrow successfully!', [
+        { text: 'View Trades', onPress: () => router.replace('/(tabs)/trades') }
+      ]);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to place trade. Try again.');
+    } finally {
       setLoading(false);
-      router.replace('/(tabs)/trades');
-    }, 1500);
+    }
   };
 
   return (
