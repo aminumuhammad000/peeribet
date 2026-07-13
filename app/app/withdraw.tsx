@@ -38,8 +38,10 @@ export default function WithdrawScreen() {
         ]);
         setUser(u);
         setBanks(b.data || b);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to init withdrawal:', err);
+        const message = err.response?.data?.message || err.message || 'Failed to load withdrawal data.';
+        Alert.alert('Error', message);
       }
     };
     init();

@@ -42,12 +42,13 @@ export default function EnterAmountScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userBalance, setUserBalance] = useState(0);
+  const [potentialPayout, setPotentialPayout] = useState(0);
 
   useEffect(() => {
     const fetchBalance = async () => {
       try {
         const user = await authService.getMe();
-        setUserBalance(user.balance);
+        setUserBalance(user.balance || 0);
       } catch (err) {
         console.error('Error fetching balance:', err);
       }
@@ -55,8 +56,18 @@ export default function EnterAmountScreen() {
     fetchBalance();
   }, []);
 
+  useEffect(() => {
+    const parsedStake = parseFloat(stake) || 0;
+    setPotentialPayout(parsedStake * odds);
+  }, [stake, odds]);
+
   const handleLockTrade = async () => {
     setError('');
+    if (!matchId) {
+      setError('Please select a valid match before placing a trade.');
+      return;
+    }
+
     const parsedStake = parseFloat(stake) || 0;
 
     if (parsedStake <= 0) {
@@ -96,7 +107,10 @@ export default function EnterAmountScreen() {
         amount: parsedStake
       });
 
-      Alert.alert('Success', 'Trade locked in escrow successfully!', [
+      const refreshedUser = await authService.getMe();
+      setUserBalance(refreshedUser.balance || 0);
+
+      Alert.alert('Success', `Trade locked in escrow successfully!\nStake: ₦${parsedStake.toLocaleString()}\nPotential payout: ₦${potentialPayout.toLocaleString()}`, [
         { text: 'View Trades', onPress: () => router.replace('/(tabs)/trades') }
       ]);
     } catch (err: any) {
@@ -166,6 +180,21 @@ export default function EnterAmountScreen() {
 
               {/* Error messages if any */}
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              <View style={styles.summaryBox}>
+                <Text style={styles.summaryLabel}>Odds</Text>
+                <Text style={styles.summaryValue}>{odds.toFixed(2)}</Text>
+              </View>
+
+              <View style={styles.summaryBox}>
+                <Text style={styles.summaryLabel}>Potential payout</Text>
+                <Text style={styles.summaryValue}>₦{potentialPayout.toLocaleString()}</Text>
+              </View>
+
+              <View style={styles.summaryBox}>
+                <Text style={styles.summaryLabel}>Available balance</Text>
+                <Text style={styles.summaryValue}>₦{userBalance.toLocaleString()}</Text>
+              </View>
 
               {/* Limit subtext */}
               <Text style={styles.limitsText}>
@@ -345,6 +374,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     marginBottom: 10,
     textAlign: 'center',
+  },
+  summaryBox: {
+    width: '100%',
+    backgroundColor: '#172033',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontFamily: 'Inter',
+  },
+  summaryValue: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: 'Inter',
+    fontWeight: 'bold',
   },
   limitsText: {
     fontSize: 11,

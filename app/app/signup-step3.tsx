@@ -62,7 +62,7 @@ export default function SignUpStep3Screen() {
   };
 
   // Password strength helpers
-  const getPasswordStrength = (): { label: string; color: string; width: string } => {
+  const getPasswordStrength = (): { label: string; color: string; width: `${number}%` } => {
     if (!password) return { label: '', color: 'transparent', width: '0%' };
     let score = 0;
     if (password.length >= 6) score++;

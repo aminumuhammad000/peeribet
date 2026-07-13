@@ -16,11 +16,28 @@ import notificationRoutes from './routes/notificationRoutes';
 import supportRoutes from './routes/supportRoutes';
 
 const app: Application = express();
+const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').filter(Boolean);
 
 // Middleware
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
+app.use(express.json({
+  verify: (req: any, res, buf) => {
+    // Preserve raw body for VTStack webhook signature validation
+    if (req.originalUrl && req.originalUrl.startsWith('/api/wallet/webhook/vtstack')) {
+      req.rawBody = buf.toString();
+    }
+  },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 if (process.env.NODE_ENV === 'development') {

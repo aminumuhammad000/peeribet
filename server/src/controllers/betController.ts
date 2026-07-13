@@ -19,7 +19,12 @@ export const placeBet = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Market for this match is closed' });
     }
 
-    if (user.balance < amount) {
+    const parsedAmount = Number(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ message: 'A valid positive stake is required' });
+    }
+
+    if (user.balance < parsedAmount) {
       return res.status(400).json({ message: 'Insufficient balance' });
     }
 
@@ -33,28 +38,28 @@ export const placeBet = async (req: AuthRequest, res: Response) => {
     else if (selection === 'BTTS_YES') odds = match.odds.bttsYes || 1.0;
     else if (selection === 'BTTS_NO') odds = match.odds.bttsNo || 1.0;
 
-    const potentialPayout = amount * odds;
+    const potentialPayout = parsedAmount * odds;
 
     // 1. Create Bet
     const bet = await Bet.create({
       user: user._id,
       match: match._id,
       selection,
-      amount,
+      amount: parsedAmount,
       odds,
       potentialPayout,
       status: 'PENDING'
     });
 
     // 2. Deduct from User Balance
-    user.balance -= amount;
+    user.balance -= parsedAmount;
     await user.save();
 
     // 3. Log Transaction
     await Transaction.create({
       user: user._id,
       type: 'bet_placed',
-      amount,
+      amount: parsedAmount,
       status: 'completed',
       reference: bet._id.toString(),
       description: `Bet placed on ${match.homeTeam} vs ${match.awayTeam} (${selection})`

@@ -212,7 +212,12 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
       transaction.status = 'failed';
       await transaction.save();
 
-      const errMsg = payoutError.response?.data?.message || 'Payout service unavailable';
+      const errMsg =
+        payoutError.response?.data?.message ||
+        payoutError.response?.data?.error ||
+        (typeof payoutError.response?.data === 'string' ? payoutError.response?.data : undefined) ||
+        payoutError.message ||
+        'Payout service unavailable';
       res.status(500).json({ message: errMsg });
     }
   } catch (error: any) {

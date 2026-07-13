@@ -15,32 +15,39 @@ export const getTransactionHistory = async (req: AuthRequest, res: Response) => 
   }
 };
 
-// @desc    Create a deposit transaction (Mock)
+// @desc    Create a deposit transaction
 // @route   POST /api/transactions/deposit
 // @access  Private
 export const deposit = async (req: AuthRequest, res: Response) => {
   try {
     const { amount, reference } = req.body;
+    const parsedAmount = Number(amount);
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ message: 'A valid positive amount is required' });
+    }
+
+    const existing = await Transaction.findOne({ reference });
+    if (existing) {
+      return res.status(409).json({ message: 'This reference has already been used' });
+    }
+
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     const transaction = await Transaction.create({
-      user: req.user?._id,
+      user: user._id,
       type: 'deposit',
-      amount,
-      status: 'completed', // For demo/mock purposes
+      amount: parsedAmount,
+      status: 'completed',
       reference,
       description: 'Wallet deposit',
     });
 
-    // Update user balance
-    if (req.user) {
-      const user = await User.findById(req.user._id);
-      if (user) {
-        user.balance += Number(amount);
-        await user.save();
-      }
-    }
+    user.balance += parsedAmount;
+    await user.save();
 
-    res.status(201).json(transaction);
+    res.status(201).json({ message: 'Deposit completed successfully', transaction, balance: user.balance });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -52,30 +59,32 @@ export const deposit = async (req: AuthRequest, res: Response) => {
 export const withdraw = async (req: AuthRequest, res: Response) => {
   try {
     const { amount } = req.body;
+    const parsedAmount = Number(amount);
 
-    if (req.user && req.user.balance < amount) {
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ message: 'A valid positive amount is required' });
+    }
+
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (user.balance < parsedAmount) {
       return res.status(400).json({ message: 'Insufficient balance' });
     }
 
     const transaction = await Transaction.create({
-      user: req.user?._id,
+      user: user._id,
       type: 'withdrawal',
-      amount,
+      amount: parsedAmount,
       status: 'pending',
       reference: `WITH-${Date.now()}`,
       description: 'Wallet withdrawal',
     });
 
-    // Deduct from balance
-    if (req.user) {
-      const user = await User.findById(req.user._id);
-      if (user) {
-        user.balance -= Number(amount);
-        await user.save();
-      }
-    }
+    user.balance -= parsedAmount;
+    await user.save();
 
-    res.status(201).json(transaction);
+    res.status(201).json({ message: 'Withdrawal request received', transaction, balance: user.balance });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

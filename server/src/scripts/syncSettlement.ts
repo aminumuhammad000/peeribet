@@ -8,24 +8,31 @@ import Transaction from '../models/Transaction';
 dotenv.config();
 
 const settleBets = async () => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/peeritrade';
-    await mongoose.connect(mongoUri);
+    await mongoose.connect(mongoUri, {
+      retryWrites: false,
+    });
     console.log('Connected to MongoDB');
 
-    // 1. Get all pending matches that are now FINISHED
-    const finishedMatches = await Match.find({ 
-      status: 'FINISHED'
-    });
+    let session: mongoose.ClientSession | null = null;
+    const isReplicaSet = mongoUri.includes('replicaSet') || process.env.MONGODB_REPLICA_SET === 'true';
+    if (isReplicaSet) {
+      session = await mongoose.startSession();
+      session.startTransaction();
+    }
+
+    try {
+      // 1. Get all pending matches that are now FINISHED
+      const finishedMatches = await Match.find({ 
+        status: 'FINISHED'
+      });
 
     console.log(`Processing settlement for ${finishedMatches.length} finished matches...`);
 
     for (const match of finishedMatches) {
       const pendingBets = await Bet.find({ 
-        match: match._id, 
+        match: match._id as any,
         status: 'PENDING' 
       });
 
@@ -67,39 +74,67 @@ const settleBets = async () => {
         if (isWon) {
           // Payout logic
           bet.status = 'WON';
-          await bet.save({ session });
+          if (session) {
+            await bet.save({ session });
+          } else {
+            await bet.save();
+          }
 
           // Credit user wallet
-          const user = await User.findById(bet.user).session(session);
+          const user = session ? await User.findById(bet.user).session(session) : await User.findById(bet.user);
           if (user) {
             user.balance += bet.potentialPayout;
-            await user.save({ session });
+            if (session) {
+              await user.save({ session });
+            } else {
+              await user.save();
+            }
 
-            // Create credit transaction
-            await Transaction.create([{
+            const transactionData = {
               user: user._id,
-              type: 'bet_won',
+              type: 'bet_won' as const,
               amount: bet.potentialPayout,
-              status: 'completed',
+              status: 'completed' as const,
+              reference: `bet_won_${bet._id}`,
               description: `Won trade: ${match.homeTeam} vs ${match.awayTeam} (${bet.selection})`
-            }], { session });
+            };
+            if (session) {
+              await Transaction.create([transactionData], { session });
+            } else {
+              await Transaction.create(transactionData);
+            }
           }
         } else {
           bet.status = 'LOST';
-          await bet.save({ session });
+          if (session) {
+            await bet.save({ session });
+          } else {
+            await bet.save();
+          }
         }
       }
     }
 
-    await session.commitTransaction();
-    console.log('Settlement cycle completed successfully.');
-    process.exit(0);
+      if (session) {
+        await session.commitTransaction();
+      }
+      console.log('Settlement cycle completed successfully.');
+      process.exit(0);
+    } catch (error) {
+      if (session) {
+        await session.abortTransaction();
+      }
+      console.error('Settlement cycle failed:', error);
+      process.exit(1);
+    } finally {
+      if (session) {
+        session.endSession();
+      }
+      await mongoose.disconnect();
+    }
   } catch (error) {
-    await session.abortTransaction();
-    console.error('Settlement cycle failed:', error);
+    console.error('Settlement setup failed:', error);
     process.exit(1);
-  } finally {
-    session.endSession();
   }
 };
 

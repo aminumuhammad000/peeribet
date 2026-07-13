@@ -38,8 +38,7 @@ router.get('/me', protect, async (req: any, res: Response) => {
   const user = await User.findById(req.user._id).select('+pin');
   if (!user) return res.status(404).json({ message: 'User not found' });
   
-  const userObj = { ...user.toJSON() };
-  userObj.hasPin = !!user.pin;
+  const userObj = { ...user.toJSON(), hasPin: !!user.pin } as Record<string, any>;
   delete userObj.pin; // Ensure pin is never sent to the client
   res.json(userObj);
 });

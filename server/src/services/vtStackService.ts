@@ -4,6 +4,12 @@ import crypto from 'crypto';
 const VTSTACK_BASE = 'https://api.vtstack.com.ng/api';
 const API_KEY = process.env.VTSTACK_API_KEY || '';
 
+const requireApiKey = () => {
+  if (!API_KEY) {
+    throw new Error('VTStack API key is not configured. Set VTSTACK_API_KEY in environment variables.');
+  }
+};
+
 // ─── Create Virtual Account ──────────────────────────────────────────────────
 export const createVirtualAccount = async (payload: {
   firstName: string;
@@ -13,6 +19,8 @@ export const createVirtualAccount = async (payload: {
   bvn: string;
   reference: string;
 }) => {
+  requireApiKey();
+
   const { data } = await axios.post(`${VTSTACK_BASE}/virtual-accounts`, payload, {
     headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
   });
@@ -21,6 +29,7 @@ export const createVirtualAccount = async (payload: {
 
 // ─── Get Virtual Account by Reference ───────────────────────────────────────
 export const getVirtualAccounts = async () => {
+  requireApiKey();
   const { data } = await axios.get(`${VTSTACK_BASE}/virtual-accounts`, {
     headers: { 'x-api-key': API_KEY },
   });
@@ -29,6 +38,7 @@ export const getVirtualAccounts = async () => {
 
 // ─── List Supported Banks ───────────────────────────────────────────────────
 export const getBanks = async () => {
+  requireApiKey();
   const { data } = await axios.get(`${VTSTACK_BASE}/banks`, {
     headers: { 'x-api-key': API_KEY },
   });
@@ -37,6 +47,7 @@ export const getBanks = async () => {
 
 // ─── Verify Bank Account (Name Enquiry) ──────────────────────────────────────
 export const verifyBankAccount = async (bankCode: string, accountNumber: string) => {
+  requireApiKey();
   const { data } = await axios.get(`${VTSTACK_BASE}/banks/verify`, {
     params: { bankCode, accountNumber },
     headers: { 'x-api-key': API_KEY },
@@ -53,7 +64,11 @@ export const sendPayout = async (payload: {
   narration: string;
 }) => {
   const PAYOUT_KEY = process.env.VTSTACK_PAYOUT_KEY || '';
-  const endpoint = `${VTSTACK_BASE}/v1/payout/secure/request`;
+  if (!PAYOUT_KEY) {
+    throw new Error('VTStack payout key is not configured. Set VTSTACK_PAYOUT_KEY in environment variables.');
+  }
+
+  const endpoint = `${VTSTACK_BASE}/v1/payouts/request`;
   const timestamp = Date.now().toString();
   const idempotencyKey = crypto.randomBytes(16).toString('hex');
   const bodyString = JSON.stringify(payload);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Modal, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Wallet, Copy, ArrowUpRight, ArrowDownLeft, Check, X, ShieldCheck } from 'lucide-react-native';
@@ -16,6 +16,8 @@ export default function WalletScreen() {
   const [virtualAccount, setVirtualAccount] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [autoPrompted, setAutoPrompted] = useState(false);
   
   // Provisioning state
   const [showBvnModal, setShowBvnModal] = useState(false);
@@ -32,15 +34,35 @@ export default function WalletScreen() {
       ]);
       setUser(userData);
       setTransactions(txHistory);
-      setVirtualAccount(vaData.data);
-    } catch (error) {
+      const account = vaData?.data;
+      setVirtualAccount(account?.accountNumber ? account : null);
+    } catch (error: any) {
       console.error('Error fetching wallet data:', error);
+      const message = error.response?.data?.message || error.message || 'Failed to load wallet data.';
+      Alert.alert('Error', message);
+      setVirtualAccount(null);
+    } finally {
+      setHasLoaded(true);
     }
   };
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(() => {
+      fetchData();
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
+
+  const hasVirtualAccount = Boolean(virtualAccount?.accountNumber);
+
+  useEffect(() => {
+    if (hasLoaded && user && !hasVirtualAccount && !autoPrompted) {
+      setShowBvnModal(true);
+      setAutoPrompted(true);
+    }
+  }, [hasLoaded, user, hasVirtualAccount, autoPrompted]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -64,7 +86,8 @@ export default function WalletScreen() {
     setBvnError('');
     try {
       const res = await walletService.provisionVirtualAccount(bvn);
-      setVirtualAccount(res.data);
+      const accountData = res?.data ?? res;
+      setVirtualAccount(accountData);
       setShowBvnModal(false);
       setBvn('');
       Alert.alert('Success', 'Your virtual account has been created successfully!');
@@ -122,7 +145,7 @@ export default function WalletScreen() {
           {/* Action Row */}
           <View style={styles.actionsRow}>
             <TouchableOpacity
-              onPress={() => !virtualAccount ? setShowBvnModal(true) : {}}
+              onPress={() => !hasVirtualAccount ? setShowBvnModal(true) : {}}
               activeOpacity={0.8}
               style={[styles.actionButton, { marginRight: 12 }]}
             >
@@ -143,7 +166,7 @@ export default function WalletScreen() {
           {/* Bank transfer payment detail boxes */}
           <Text style={styles.sectionTitle}>Escrow Fund Deposit</Text>
           
-          {virtualAccount ? (
+          {hasVirtualAccount ? (
             <View style={styles.virtualAccountCard}>
               <View style={styles.vaHeader}>
                 <Text style={styles.vaTitle}>Virtual Funding Details</Text>

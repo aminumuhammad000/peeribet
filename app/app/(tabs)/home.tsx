@@ -9,24 +9,50 @@ import { authService, matchService, notificationService } from '../../services/a
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [selectedDate, setSelectedDate] = useState('24');
   const [user, setUser] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [promotedMatches, setPromotedMatches] = useState<any[]>([]);
-  const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
+  const [allMatches, setAllMatches] = useState<any[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [searchText, setSearchText] = useState('');
+  const [selectedDateNum, setSelectedDateNum] = useState<number | null>(null);
+
+  // Generate 7 days starting from today
+  const generateDates = () => {
+    const days = [];
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() + i);
+      const dayNum = date.getDate();
+      const dayName = date.toLocaleDateString([], { weekday: 'short' });
+      days.push({
+        id: dayNum.toString(),
+        day: dayName,
+        num: dayNum.toString(),
+        fullDate: new Date(date.getFullYear(), date.getMonth(), dayNum),
+      });
+    }
+    return days;
+  };
+
+  const dates = generateDates();
+
+  // Set initial selected date to today
+  useEffect(() => {
+    if (selectedDateNum === null) {
+      setSelectedDateNum(new Date().getDate());
+    }
+  }, []);
 
   const fetchData = async () => {
     try {
-      const [userData, promoted, upcoming, notifData] = await Promise.all([
+      const [userData, allMatchesData, notifData] = await Promise.all([
         authService.getMe(),
-        matchService.getMatches({ isPromoted: true }),
-        matchService.getMatches({ status: 'UPCOMING' }),
+        matchService.getMatches({}),
         notificationService.getAll().catch(() => ({ unreadCount: 0 })),
       ]);
       setUser(userData);
-      setPromotedMatches(promoted);
-      setUpcomingMatches(upcoming);
+      setAllMatches(allMatchesData);
       setUnreadNotifications(notifData.unreadCount || 0);
     } catch (error) {
       console.error('Error fetching data for home:', error);
@@ -43,15 +69,39 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const dates = [
-    { id: '21', day: 'Sun', num: '21' },
-    { id: '22', day: 'Mon', num: '22' },
-    { id: '23', day: 'Tue', num: '23' },
-    { id: '24', day: 'Wed', num: '24' },
-    { id: '25', day: 'Thu', num: '25' },
-    { id: '26', day: 'Fri', num: '26' },
-    { id: '27', day: 'Sat', num: '27' },
-  ];
+  // Filter matches by date and search
+  const filterMatches = (matches: any[]) => {
+    let filtered = matches;
+
+    // Filter by search text first
+    if (searchText.trim()) {
+      const searchLower = searchText.toLowerCase();
+      filtered = filtered.filter((match) => {
+        const homeTeam = match.homeTeam?.toLowerCase() || '';
+        const awayTeam = match.awayTeam?.toLowerCase() || '';
+        return homeTeam.includes(searchLower) || awayTeam.includes(searchLower);
+      });
+    }
+
+    // Filter by date - show matches from selected date onwards, within a week
+    if (selectedDateNum !== null && filtered.length > 0) {
+      // Find the minimum date number (could wrap around month)
+      const minDate = selectedDateNum;
+      const maxDate = selectedDateNum + 6; // Show up to 6 days ahead
+
+      return filtered.filter((match) => {
+        const matchDate = new Date(match.startTime);
+        const matchDateNum = matchDate.getDate();
+        // Show matches from selected date onwards
+        return matchDateNum >= minDate && matchDateNum <= maxDate;
+      });
+    }
+
+    return filtered;
+  };
+
+  const promotedMatches = filterMatches(allMatches).filter((m) => m.isPromoted && (m.status === 'LIVE' || m.status === 'UPCOMING'));
+  const upcomingMatches = filterMatches(allMatches).filter((m) => m.status === 'UPCOMING' && !m.isPromoted);
 
   return (
     <LinearGradient
@@ -102,17 +152,19 @@ export default function HomeScreen() {
               placeholder="Browse matches...." 
               placeholderTextColor="#64748B" 
               style={styles.searchInput}
+              value={searchText}
+              onChangeText={setSearchText}
             />
           </View>
 
           {/* Calendar row - fits all 7 days without scroll */}
           <View style={styles.calendarRow}>
             {dates.map((item) => {
-              const isSelected = selectedDate === item.id;
+              const isSelected = selectedDateNum === parseInt(item.id);
               return (
                 <TouchableOpacity
                   key={item.id}
-                  onPress={() => setSelectedDate(item.id)}
+                  onPress={() => setSelectedDateNum(parseInt(item.id))}
                   activeOpacity={0.8}
                   style={[styles.calendarBox, isSelected && styles.calendarBoxActive]}
                 >

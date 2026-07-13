@@ -1,8 +1,8 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IBet extends Document {
-  user: mongoose.Schema.Types.ObjectId;
-  match: mongoose.Schema.Types.ObjectId;
+  user: Types.ObjectId;
+  match: Types.ObjectId;
   selection: 'HOME' | 'DRAW' | 'AWAY' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO';
   amount: number;
   potentialPayout: number;

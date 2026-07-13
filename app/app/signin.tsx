@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { authService } from '../services/apiService';
+import { authService, getApiErrorMessage } from '../services/apiService';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -46,7 +46,7 @@ export default function SignInScreen() {
         router.replace({ pathname: '/welcome-user', params: { type: 'login' } });
       } catch (err: any) {
         setLoading(false);
-        const errorMsg = err.response?.data?.message || 'Invalid email or password';
+        const errorMsg = getApiErrorMessage(err, 'Invalid email or password');
         Alert.alert('Login Failed', errorMsg);
       }
     }
