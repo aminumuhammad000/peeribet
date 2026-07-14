@@ -193,22 +193,32 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
         narration: `Peeribet Withdrawal - ${user.firstName}`,
       });
 
-      // Update transaction with status from VTStack if available
-      transaction.status = 'completed'; // Assuming instant for this demo
+      if (payoutRes?.status === 'pending') {
+        transaction.status = 'pending';
+        await transaction.save();
+        return res.status(200).json({
+          message: payoutRes.message || 'Withdrawal request received and is being reviewed.',
+          transaction,
+          balance: user.balance,
+          pending: true,
+        });
+      }
+
+      transaction.status = 'completed';
       await transaction.save();
 
-      res.status(200).json({ 
-        message: 'Withdrawal successful', 
+      return res.status(200).json({
+        message: 'Withdrawal successful',
         transaction,
-        balance: user.balance 
+        balance: user.balance,
       });
     } catch (payoutError: any) {
       console.error('[Payout Error]', payoutError.response?.data || payoutError.message);
-      
+
       // Rollback balance on failure
       user.balance += Number(amount);
       await user.save();
-      
+
       transaction.status = 'failed';
       await transaction.save();
 
@@ -218,7 +228,7 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
         (typeof payoutError.response?.data === 'string' ? payoutError.response?.data : undefined) ||
         payoutError.message ||
         'Payout service unavailable';
-      res.status(500).json({ message: errMsg });
+      return res.status(500).json({ message: errMsg });
     }
   } catch (error: any) {
     res.status(500).json({ message: error.message });

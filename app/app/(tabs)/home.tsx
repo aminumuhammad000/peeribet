@@ -52,7 +52,7 @@ export default function HomeScreen() {
         notificationService.getAll().catch(() => ({ unreadCount: 0 })),
       ]);
       setUser(userData);
-      setAllMatches(allMatchesData);
+      setAllMatches(Array.isArray(allMatchesData) ? allMatchesData : (allMatchesData?.data || []));
       setUnreadNotifications(notifData.unreadCount || 0);
     } catch (error) {
       console.error('Error fetching data for home:', error);
@@ -61,6 +61,12 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchData();
+
+    const interval = setInterval(() => {
+      fetchData();
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const onRefresh = async () => {
@@ -83,18 +89,25 @@ export default function HomeScreen() {
       });
     }
 
-    // Filter by date - show matches from selected date onwards, within a week
+    // Filter by date - show matches from the selected day onward, within a week.
+    // If that date range has no matches, fall back to the already filtered list so the UI stays populated.
     if (selectedDateNum !== null && filtered.length > 0) {
-      // Find the minimum date number (could wrap around month)
-      const minDate = selectedDateNum;
-      const maxDate = selectedDateNum + 6; // Show up to 6 days ahead
+      const selectedDate = new Date();
+      selectedDate.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDateNum);
+      selectedDate.setHours(0, 0, 0, 0);
 
-      return filtered.filter((match) => {
+      const endDate = new Date(selectedDate);
+      endDate.setDate(endDate.getDate() + 6);
+
+      const dateFiltered = filtered.filter((match) => {
         const matchDate = new Date(match.startTime);
-        const matchDateNum = matchDate.getDate();
-        // Show matches from selected date onwards
-        return matchDateNum >= minDate && matchDateNum <= maxDate;
+        matchDate.setHours(0, 0, 0, 0);
+        return matchDate >= selectedDate && matchDate <= endDate;
       });
+
+      if (dateFiltered.length > 0) {
+        return dateFiltered;
+      }
     }
 
     return filtered;

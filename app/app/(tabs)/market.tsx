@@ -16,7 +16,7 @@ export default function MarketScreen() {
   const fetchMatches = async () => {
     try {
       const data = await matchService.getMatches();
-      setMatches(data);
+      setMatches(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching matches for market:', error);
     }
@@ -24,6 +24,12 @@ export default function MarketScreen() {
 
   useEffect(() => {
     fetchMatches();
+
+    const interval = setInterval(() => {
+      fetchMatches();
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const onRefresh = async () => {

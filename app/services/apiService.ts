@@ -261,7 +261,17 @@ export const walletService = {
 export const matchService = {
   getMatches: async (params?: { status?: string; isPromoted?: boolean }) => {
     const response = await apiRequest(api.get('/matches', { params }));
-    return response.data;
+    const payload = response.data;
+
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+
+    if (payload && Array.isArray(payload.data)) {
+      return payload.data;
+    }
+
+    return [];
   },
   getMatchById: async (id: string) => {
     const response = await apiRequest(api.get(`/matches/${id}`));
