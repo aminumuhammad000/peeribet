@@ -1,9 +1,7 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  body {
-    @apply bg-gray-900 text-gray-100 antialiased;
-  }
+body {
+  background-color: #111827;
+  color: #f3f4f6;
+  -webkit-font-smoothing: antialiased;
 }
