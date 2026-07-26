@@ -23,7 +23,11 @@ app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    if (
+      allowedOrigins.length === 0 ||
+      allowedOrigins.includes('*') ||
+      allowedOrigins.includes(origin)
+    ) {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
