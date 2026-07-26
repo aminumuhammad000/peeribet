@@ -12,14 +12,14 @@ export default function Login() {
     try {
       const { data } = await api.post('/auth/login', { email, password });
       
-      // We should really check if data.user.role === 'admin', but let's assume if it succeeds we check role
-      if (data.user?.role !== 'admin') {
-        alert('You are not an admin!');
+      const role = data.role || data.user?.role;
+      if (role !== 'admin') {
+        alert('Access denied: You are not an administrator.');
         return;
       }
       
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('user', JSON.stringify(data));
       navigate('/');
     } catch (err: any) {
       alert(err.response?.data?.message || 'Login failed');
