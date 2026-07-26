@@ -3,11 +3,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform } from 'react-native';
 
 const getDefaultApiUrl = () => {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return `${window.location.origin}/api`;
+    }
+  }
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:5001/api';
   }
 
-  return 'http://localhost:5001/api';
+  return 'http://2.24.138.115/api';
 };
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || getDefaultApiUrl()).replace(/\/$/, '');
