@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Modal, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Wallet, Copy, ArrowUpRight, ArrowDownLeft, Check, X, ShieldCheck } from 'lucide-react-native';
@@ -14,7 +14,13 @@ export default function WalletScreen() {
   const [copied, setCopied] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [virtualAccount, setVirtualAccount] = useState<any>(null);
+  
+  // Pagination State
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
   const [refreshing, setRefreshing] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [autoPrompted, setAutoPrompted] = useState(false);
@@ -25,15 +31,23 @@ export default function WalletScreen() {
   const [bvnError, setBvnError] = useState('');
   const [provisioning, setProvisioning] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = async (pageNum = 1) => {
     try {
       const [userData, txHistory, vaData] = await Promise.all([
         authService.getMe(),
-        transactionService.getHistory(),
+        transactionService.getHistory({ page: pageNum, limit: 15 }),
         walletService.getVirtualAccount()
       ]);
       setUser(userData);
-      setTransactions(txHistory);
+      
+      if (pageNum === 1) {
+        setTransactions(txHistory.transactions || []);
+      } else {
+        setTransactions(prev => [...prev, ...(txHistory.transactions || [])]);
+      }
+      setTotalPages(txHistory.totalPages || 1);
+      setPage(pageNum);
+
       const account = vaData?.data;
       setVirtualAccount(account?.accountNumber ? account : null);
     } catch (error: any) {
@@ -47,13 +61,20 @@ export default function WalletScreen() {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(1);
     const interval = setInterval(() => {
-      fetchData();
+      fetchData(1);
     }, 15000);
 
     return () => clearInterval(interval);
   }, []);
+
+  const loadMoreTransactions = async () => {
+    if (page >= totalPages || loadingMore || refreshing) return;
+    setLoadingMore(true);
+    await fetchData(page + 1);
+    setLoadingMore(false);
+  };
 
   const hasVirtualAccount = Boolean(virtualAccount?.accountNumber);
 
@@ -66,7 +87,7 @@ export default function WalletScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchData();
+    await fetchData(1);
     setRefreshing(false);
   };
 
@@ -91,7 +112,7 @@ export default function WalletScreen() {
       setShowBvnModal(false);
       setBvn('');
       Alert.alert('Success', 'Your virtual account has been created successfully!');
-      fetchData(); // Refresh all data
+      fetchData(1); // Refresh all data
     } catch (error: any) {
       const msg = error.response?.data?.message || 'Failed to create virtual account';
       setBvnError(msg);
@@ -99,6 +120,114 @@ export default function WalletScreen() {
       setProvisioning(false);
     }
   };
+
+  const renderHeader = () => (
+    <View style={{ paddingBottom: 10 }}>
+      {/* Balance Card display */}
+      <LinearGradient
+        colors={['#00D285', '#009F65']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.balanceCard}
+      >
+        <Text style={styles.balanceLabel}>Total Value Portfolio</Text>
+        <Text style={styles.balanceNum}>₦{(user?.balance || 0).toLocaleString()}</Text>
+
+        <View style={styles.balanceSplitRow}>
+          <View>
+            <Text style={styles.splitLabel}>Available Funds</Text>
+            <Text style={styles.splitNum}>₦{(user?.balance || 0).toLocaleString()}</Text>
+          </View>
+          <View style={styles.dividerVertical} />
+          <View>
+            <Text style={styles.splitLabel}>P2P Escrow Locked</Text>
+            <Text style={styles.splitNum}>₦0.00</Text>
+          </View>
+        </View>
+      </LinearGradient>
+
+      {/* Action Row */}
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          onPress={() => !hasVirtualAccount ? setShowBvnModal(true) : {}}
+          activeOpacity={0.8}
+          style={[styles.actionButton, { marginRight: 12 }]}
+        >
+          <ArrowDownLeft size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+          <Text style={styles.actionButtonText}>Quick Deposit</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => router.push('/withdraw')}
+          activeOpacity={0.8}
+          style={[styles.actionButton, { backgroundColor: '#131C32', borderWidth: 1, borderColor: '#1E293B' }]}
+        >
+          <ArrowUpRight size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+          <Text style={styles.actionButtonText}>Withdraw</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Bank transfer payment detail boxes */}
+      <Text style={styles.sectionTitle}>Escrow Fund Deposit</Text>
+      
+      {hasVirtualAccount ? (
+        <View style={styles.virtualAccountCard}>
+          <View style={styles.vaHeader}>
+            <Text style={styles.vaTitle}>Virtual Funding Details</Text>
+            <Text style={styles.vaSubtitle}>Transfer to instant credit your trading escrow wallet</Text>
+          </View>
+
+          <View style={styles.vaDetails}>
+            <View style={styles.vaRow}>
+              <Text style={styles.vaLabel}>Bank Name :</Text>
+              <Text style={styles.vaValBold}>{virtualAccount.bankName}</Text>
+            </View>
+
+            <View style={styles.vaRow}>
+              <Text style={styles.vaLabel}>Account Name :</Text>
+              <Text style={styles.vaVal}>{virtualAccount.accountName}</Text>
+            </View>
+
+            <View style={[styles.vaRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.vaLabel}>Account Number :</Text>
+                <Text style={styles.vaAccountNum}>{virtualAccount.accountNumber}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={copyToClipboard}
+                activeOpacity={0.7}
+                style={styles.copyButton}
+              >
+                {copied ? (
+                  <Check size={16} color={Colors.dark.primary} />
+                ) : (
+                  <Copy size={16} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity 
+          onPress={() => setShowBvnModal(true)}
+          activeOpacity={0.9} 
+          style={styles.noAccountCard}
+        >
+          <View style={styles.noAccountIcon}>
+            <ShieldCheck size={28} color={Colors.dark.primary} />
+          </View>
+          <Text style={styles.noAccountTitle}>Generate Virtual Account</Text>
+          <Text style={styles.noAccountSub}>Securely fund your wallet by generating a dedicated bank account for your trades.</Text>
+          <View style={styles.generateBtnInline}>
+             <Text style={styles.generateBtnText}>Get Started</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* History Transactions lists */}
+      <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 12 }]}>Recent Ledger Entries</Text>
+    </View>
+  );
 
   return (
     <LinearGradient
@@ -112,141 +241,48 @@ export default function WalletScreen() {
           <Wallet size={22} color={Colors.dark.primary} />
         </View>
 
-        <ScrollView 
-          showsVerticalScrollIndicator={false} 
+        <FlatList
+          data={transactions}
+          keyExtractor={(item) => item._id.toString()}
           contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderHeader}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
           }
-        >
-          {/* Balance Card display */}
-          <LinearGradient
-            colors={['#00D285', '#009F65']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.balanceCard}
-          >
-            <Text style={styles.balanceLabel}>Total Value Portfolio</Text>
-            <Text style={styles.balanceNum}>₦{(user?.balance || 0).toLocaleString()}</Text>
-
-            <View style={styles.balanceSplitRow}>
-              <View>
-                <Text style={styles.splitLabel}>Available Funds</Text>
-                <Text style={styles.splitNum}>₦{(user?.balance || 0).toLocaleString()}</Text>
-              </View>
-              <View style={styles.dividerVertical} />
-              <View>
-                <Text style={styles.splitLabel}>P2P Escrow Locked</Text>
-                <Text style={styles.splitNum}>₦0.00</Text>
-              </View>
-            </View>
-          </LinearGradient>
-
-          {/* Action Row */}
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              onPress={() => !hasVirtualAccount ? setShowBvnModal(true) : {}}
-              activeOpacity={0.8}
-              style={[styles.actionButton, { marginRight: 12 }]}
-            >
-              <ArrowDownLeft size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={styles.actionButtonText}>Quick Deposit</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push('/withdraw')}
-              activeOpacity={0.8}
-              style={[styles.actionButton, { backgroundColor: '#131C32', borderWidth: 1, borderColor: '#1E293B' }]}
-            >
-              <ArrowUpRight size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={styles.actionButtonText}>Withdraw</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Bank transfer payment detail boxes */}
-          <Text style={styles.sectionTitle}>Escrow Fund Deposit</Text>
-          
-          {hasVirtualAccount ? (
-            <View style={styles.virtualAccountCard}>
-              <View style={styles.vaHeader}>
-                <Text style={styles.vaTitle}>Virtual Funding Details</Text>
-                <Text style={styles.vaSubtitle}>Transfer to instant credit your trading escrow wallet</Text>
-              </View>
-
-              <View style={styles.vaDetails}>
-                <View style={styles.vaRow}>
-                  <Text style={styles.vaLabel}>Bank Name :</Text>
-                  <Text style={styles.vaValBold}>{virtualAccount.bankName}</Text>
-                </View>
-
-                <View style={styles.vaRow}>
-                  <Text style={styles.vaLabel}>Account Name :</Text>
-                  <Text style={styles.vaVal}>{virtualAccount.accountName}</Text>
-                </View>
-
-                <View style={[styles.vaRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.vaLabel}>Account Number :</Text>
-                    <Text style={styles.vaAccountNum}>{virtualAccount.accountNumber}</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={copyToClipboard}
-                    activeOpacity={0.7}
-                    style={styles.copyButton}
-                  >
-                    {copied ? (
-                      <Check size={16} color={Colors.dark.primary} />
-                    ) : (
-                      <Copy size={16} color="#FFFFFF" />
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity 
-              onPress={() => setShowBvnModal(true)}
-              activeOpacity={0.9} 
-              style={styles.noAccountCard}
-            >
-              <View style={styles.noAccountIcon}>
-                <ShieldCheck size={28} color={Colors.dark.primary} />
-              </View>
-              <Text style={styles.noAccountTitle}>Generate Virtual Account</Text>
-              <Text style={styles.noAccountSub}>Securely fund your wallet by generating a dedicated bank account for your trades.</Text>
-              <View style={styles.generateBtnInline}>
-                 <Text style={styles.generateBtnText}>Get Started</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-
-          {/* History Transactions lists */}
-          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Recent Ledger Entries</Text>
-          {transactions.length > 0 ? (
-            transactions.map((tx) => (
-              <View key={tx._id} style={styles.txCard}>
-                <View style={[styles.txIconBox, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txIconBoxCredit : styles.txIconBoxDebit]}>
-                  {tx.type === 'deposit' || tx.type === 'bet_won' ? (
-                    <ArrowDownLeft size={16} color={Colors.dark.primary} />
-                  ) : (
-                    <ArrowUpRight size={16} color={Colors.dark.red} />
-                  )}
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.txType}>{tx.type.replace('_', ' ').toUpperCase()}</Text>
-                  <Text style={styles.txMeta}>{tx.status} • {new Date(tx.createdAt).toLocaleDateString()}</Text>
-                </View>
-                <Text style={[styles.txAmount, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txAmountCredit : styles.txAmountDebit]}>
-                  {tx.type === 'deposit' || tx.type === 'bet_won' ? '+' : '-'}₦{tx.amount.toLocaleString()}
-                </Text>
-              </View>
-            ))
-          ) : (
+          onEndReached={loadMoreTransactions}
+          onEndReachedThreshold={0.3}
+          ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>No transactions found yet.</Text>
             </View>
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size="small" color={Colors.dark.primary} />
+              </View>
+            ) : null
+          }
+          renderItem={({ item: tx }) => (
+            <View style={styles.txCard}>
+              <View style={[styles.txIconBox, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txIconBoxCredit : styles.txIconBoxDebit]}>
+                {tx.type === 'deposit' || tx.type === 'bet_won' ? (
+                  <ArrowDownLeft size={16} color={Colors.dark.primary} />
+                ) : (
+                  <ArrowUpRight size={16} color={Colors.dark.red} />
+                )}
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.txType}>{tx.type.replace('_', ' ').toUpperCase()}</Text>
+                <Text style={styles.txMeta}>{tx.status} • {new Date(tx.createdAt).toLocaleDateString()}</Text>
+              </View>
+              <Text style={[styles.txAmount, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txAmountCredit : styles.txAmountDebit]}>
+                {tx.type === 'deposit' || tx.type === 'bet_won' ? '+' : '-'}₦{tx.amount.toLocaleString()}
+              </Text>
+            </View>
           )}
-        </ScrollView>
+        />
 
         {/* BVN Modal */}
         <Modal

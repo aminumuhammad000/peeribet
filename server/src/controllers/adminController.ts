@@ -48,8 +48,35 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const users = await User.find({ role: 'user' }).select('-password');
-    res.json(users);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const skip = (page - 1) * limit;
+    
+    const total = await User.countDocuments({ role: 'user' });
+    const users = await User.find({ role: 'user' })
+      .select('-password -pin')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+      
+    res.json({
+      users,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getUserById = async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password -pin');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json(user);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -77,8 +104,54 @@ export const updateKycStatus = async (req: Request, res: Response) => {
     } else {
         user.isVerified = false;
     }
+    user.kycStatus = status.toLowerCase() as any;
     await user.save();
     res.json({ message: `KYC status updated to ${status}` });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getPendingKyc = async (req: Request, res: Response) => {
+  try {
+    const users = await User.find({ kycStatus: 'pending' }).select('-password -pin');
+    res.json(users);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+import { settlePendingBetsForMatch } from '../services/settlementService';
+
+export const triggerSettlement = async (req: Request, res: Response) => {
+  try {
+    const result = await settlePendingBetsForMatch();
+    res.json({ message: 'Settlement triggered', result });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const bootstrapAdmin = async (req: Request, res: Response) => {
+  try {
+    const { email, secret } = req.body;
+    
+    // Using a hardcoded fallback just in case env is not set, but env should be preferred
+    const adminSecret = process.env.ADMIN_SECRET || 'peeribet_super_secret';
+    
+    if (secret !== adminSecret) {
+      return res.status(403).json({ message: 'Invalid admin secret' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.role = 'admin';
+    await user.save();
+
+    res.json({ message: 'User elevated to admin successfully', user });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

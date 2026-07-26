@@ -2,10 +2,26 @@ import Match from '../models/Match';
 import Bet from '../models/Bet';
 import User from '../models/User';
 import Transaction from '../models/Transaction';
+import { footballApiService } from './footballApiService';
 
 let isSettling = false;
 let settlementTimer: NodeJS.Timeout | null = null;
+let liveRefreshTimer: NodeJS.Timeout | null = null;
 
+const statusMap: Record<string, 'UPCOMING' | 'LIVE' | 'FINISHED' | 'SUSPENDED'> = {
+  NS: 'UPCOMING',
+  '1H': 'LIVE',
+  HT: 'LIVE',
+  '2H': 'LIVE',
+  ET: 'LIVE',
+  P: 'LIVE',
+  FT: 'FINISHED',
+  AET: 'FINISHED',
+  PEN: 'FINISHED',
+  SUSP: 'SUSPENDED',
+};
+
+import { refreshMatchesFromProvider } from '../controllers/matchController';
 export const settlePendingBetsForMatch = async (matchId?: string) => {
   if (isSettling) {
     console.log('[Settlement] Settlement already in progress; skipping duplicate run.');
@@ -77,10 +93,26 @@ export const settlePendingBetsForMatch = async (matchId?: string) => {
               reference: `bet_won_${bet._id}`,
               description: `Won trade: ${match.homeTeam} vs ${match.awayTeam} (${bet.selection})`,
             });
+            
+            const { createNotification } = require('./notificationService');
+            await createNotification(
+              (user._id as any).toString(),
+              'Trade Won! 🎉',
+              `Congratulations! Your trade on ${match.homeTeam} vs ${match.awayTeam} (${bet.selection}) won. ₦${bet.potentialPayout} has been credited.`,
+              'bet'
+            );
           }
         } else {
           bet.status = 'LOST';
           await bet.save();
+
+          const { createNotification } = require('./notificationService');
+          await createNotification(
+            (bet.user as any).toString(),
+            'Trade Lost 😢',
+            `Your trade on ${match.homeTeam} vs ${match.awayTeam} (${bet.selection}) did not win. Better luck next time!`,
+            'bet'
+          );
         }
 
         settled += 1;
@@ -96,13 +128,14 @@ export const settlePendingBetsForMatch = async (matchId?: string) => {
   }
 };
 
-export const startLiveSettlementScheduler = (intervalMs = 30000) => {
+export const startLiveSettlementScheduler = (intervalMs = 60000) => {
   if (settlementTimer) {
     return settlementTimer;
   }
 
   const run = async () => {
     try {
+      await refreshMatchesFromProvider();
       const result = await settlePendingBetsForMatch();
       if (result.settled > 0) {
         console.log(`[Settlement] Auto-settled ${result.settled} bets for ${result.matches} finished match(es).`);
@@ -118,4 +151,26 @@ export const startLiveSettlementScheduler = (intervalMs = 30000) => {
   }, intervalMs);
 
   return settlementTimer;
+};
+
+export const startLiveRefreshScheduler = (intervalMs = 120000) => {
+  if (liveRefreshTimer) {
+    return liveRefreshTimer;
+  }
+
+  const run = async () => {
+    try {
+      // Disabled calling it twice to save rate limits
+      // await refreshMatchesFromProvider();
+    } catch (error: any) {
+      console.error('[Live Refresh] Scheduler run failed:', error.message);
+    }
+  };
+
+  void run();
+  liveRefreshTimer = setInterval(() => {
+    void run();
+  }, intervalMs);
+
+  return liveRefreshTimer;
 };

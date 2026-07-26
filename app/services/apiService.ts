@@ -4,10 +4,10 @@ import { Alert, Platform } from 'react-native';
 
 const getDefaultApiUrl = () => {
   if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000/api';
+    return 'http://10.0.2.2:5001/api';
   }
 
-  return 'http://localhost:5000/api';
+  return 'http://localhost:5001/api';
 };
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || getDefaultApiUrl()).replace(/\/$/, '');
@@ -183,6 +183,10 @@ export const authService = {
     }));
     return response.data;
   },
+  getLeaderboard: async () => {
+    const response = await apiRequest(api.get('/auth/leaderboard'));
+    return response.data;
+  },
   logout: async () => {
     await AsyncStorage.removeItem('userToken');
     await AsyncStorage.removeItem('userData');
@@ -220,8 +224,8 @@ export const authService = {
 
 // Transaction endpoints
 export const transactionService = {
-  getHistory: async () => {
-    const response = await apiRequest(api.get('/transactions'));
+  getHistory: async (params?: { page?: number; limit?: number }) => {
+    const response = await apiRequest(api.get('/transactions', { params }));
     return response.data;
   },
   deposit: async (data: { amount: number; reference: string }) => {
@@ -259,19 +263,9 @@ export const walletService = {
 };
 
 export const matchService = {
-  getMatches: async (params?: { status?: string; isPromoted?: boolean }) => {
+  getMatches: async (params?: { status?: string; isPromoted?: boolean; sport?: string; page?: number; limit?: number }) => {
     const response = await apiRequest(api.get('/matches', { params }));
-    const payload = response.data;
-
-    if (Array.isArray(payload)) {
-      return payload;
-    }
-
-    if (payload && Array.isArray(payload.data)) {
-      return payload.data;
-    }
-
-    return [];
+    return response.data;
   },
   getMatchById: async (id: string) => {
     const response = await apiRequest(api.get(`/matches/${id}`));
@@ -284,8 +278,8 @@ export const betService = {
     const response = await apiRequest(api.post('/bets', data));
     return response.data;
   },
-  getMyBets: async () => {
-    const response = await apiRequest(api.get('/bets/my-bets'));
+  getMyBets: async (params?: { page?: number; limit?: number; status?: string }) => {
+    const response = await apiRequest(api.get('/bets/my-bets', { params }));
     return response.data;
   },
 };

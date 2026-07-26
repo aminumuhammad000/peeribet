@@ -400,3 +400,26 @@ export const changePassword = async (req: any, res: Response) => {
     res.status(500).json({ message: error.message || 'Internal server error while changing password' });
   }
 };
+
+// ─── Update Push Token ───────────────────────────────────────────────────────
+// @route  POST /api/auth/profile/push-token
+export const updatePushToken = async (req: any, res: Response) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ message: 'Push token is required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.pushToken = token;
+    await user.save();
+
+    res.json({ message: 'Push token updated successfully' });
+  } catch (error: any) {
+    console.error('Update push token error:', error);
+    res.status(500).json({ message: error.message || 'Failed to update push token' });
+  }
+};
+

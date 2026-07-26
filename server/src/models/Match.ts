@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IMatch extends Document {
+  sport?: string;
   homeTeam: string;
   awayTeam: string;
   homeLogo?: string;
@@ -26,6 +27,7 @@ export interface IMatch extends Document {
 
 const matchSchema = new Schema(
   {
+    sport: { type: String, default: 'Football' },
     homeTeam: { type: String, required: true },
     awayTeam: { type: String, required: true },
     fixtureId: { type: Number, unique: true, sparse: true },

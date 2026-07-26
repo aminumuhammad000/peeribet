@@ -8,8 +8,22 @@ import { AuthRequest } from '../middlewares/authMiddleware';
 // @access  Private
 export const getTransactionHistory = async (req: AuthRequest, res: Response) => {
   try {
-    const transactions = await Transaction.find({ user: req.user?._id }).sort({ createdAt: -1 });
-    res.json(transactions);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const skip = (page - 1) * limit;
+
+    const total = await Transaction.countDocuments({ user: req.user?._id });
+    const transactions = await Transaction.find({ user: req.user?._id })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      transactions,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

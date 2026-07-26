@@ -34,6 +34,20 @@ export const footballApiService = {
     }
   },
 
+  // Get a single fixture by id
+  getFixtureById: async (fixtureId: number) => {
+    try {
+      const response = await apiClient.get(`/fixtures?id=${fixtureId}`);
+      if (response.data.errors && Object.keys(response.data.errors).length > 0) {
+        return null;
+      }
+      return response.data.response?.[0] || null;
+    } catch (error: any) {
+      console.error('Error fetching fixture by id:', error);
+      return null;
+    }
+  },
+
   // Get live odds
   getLiveOdds: async (leagueId?: number) => {
     try {

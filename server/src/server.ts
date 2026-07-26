@@ -1,7 +1,8 @@
 import app from './app';
 import connectDB from './config/db';
 import dotenv from 'dotenv';
-import { startLiveSettlementScheduler } from './services/settlementService';
+import { startLiveRefreshScheduler, startLiveSettlementScheduler } from './services/settlementService';
+import { initSocket } from './services/socketService';
 
 dotenv.config();
 
@@ -12,7 +13,9 @@ connectDB();
 
 const server = app.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  initSocket(server);
   startLiveSettlementScheduler();
+  startLiveRefreshScheduler();
 });
 
 // Handle unhandled promise rejections

@@ -75,7 +75,8 @@ export const getVirtualAccount = async (req: AuthRequest, res: Response) => {
 export const vtStackWebhook = async (req: Request, res: Response) => {
   try {
     const signature = req.headers['x-vtstack-signature'] as string;
-    const rawBody = JSON.stringify(req.body);
+    // Use the raw body buffer saved by express middleware for accurate signature verification
+    const rawBody = (req as any).rawBody || JSON.stringify(req.body);
 
     // Verify webhook authenticity
     if (signature && !verifyWebhookSignature(rawBody, signature)) {
@@ -112,6 +113,15 @@ export const vtStackWebhook = async (req: Request, res: Response) => {
         reference,
         description: `VTStack wallet funding via PalmPay`,
       });
+
+      // Notify user about deposit
+      const { createNotification } = require('../services/notificationService');
+      await createNotification(
+        (user._id as any).toString(),
+        'Deposit Successful 💰',
+        `Your wallet has been credited with ₦${amount} via virtual account transfer.`,
+        'wallet'
+      );
 
       // Credit user balance instantly
       user.balance += Number(amount);

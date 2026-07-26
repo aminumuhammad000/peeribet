@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { ActivityIndicator, Modal, View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, CheckCircle, Lock, TrendingUp, TrendingDown, PlayCircle } from 'lucide-react-native';
@@ -9,8 +9,13 @@ import { betService, matchService } from '../../services/apiService';
 export default function TradesScreen() {
   const router = useRouter();
   const [currentMatch, setCurrentMatch] = useState<any>(null);
+  
   const [myBets, setMyBets] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [loadingBets, setLoadingBets] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
   const [betError, setBetError] = useState('');
   const [filter, setFilter] = useState<'ALL' | 'WIN' | 'LOSS' | 'ONGOING' | 'LIVE'>('ALL');
   const [selectedBet, setSelectedBet] = useState<any>(null);
@@ -18,8 +23,8 @@ export default function TradesScreen() {
 
   const loadCurrentMatch = async () => {
     try {
-      const data = await matchService.getMatches();
-      const matches = Array.isArray(data) ? data.filter((item: any) => item?.status === 'LIVE' || item?.status === 'UPCOMING') : [];
+      const data = await matchService.getMatches({ limit: 10 });
+      const matches = Array.isArray(data.matches) ? data.matches.filter((item: any) => item?.status === 'LIVE' || item?.status === 'UPCOMING') : [];
 
       const sortedMatches = [...matches].sort((a: any, b: any) => {
         const aTime = new Date(a?.startTime || 0).getTime();
@@ -35,35 +40,50 @@ export default function TradesScreen() {
     }
   };
 
-  const loadMyBets = async () => {
-    setLoadingBets(true);
+  const loadMyBets = async (pageNum = 1, currentFilter = filter) => {
+    if (pageNum === 1) setLoadingBets(true);
     setBetError('');
     try {
-      const data = await betService.getMyBets();
-      setMyBets(Array.isArray(data) ? data : []);
+      const data = await betService.getMyBets({ page: pageNum, limit: 15, status: currentFilter });
+      
+      if (pageNum === 1) {
+        setMyBets(data.bets || []);
+      } else {
+        setMyBets(prev => [...prev, ...(data.bets || [])]);
+      }
+      
+      setTotalPages(data.totalPages || 1);
+      setPage(pageNum);
     } catch (error: any) {
       setBetError(error.response?.data?.message || 'Failed to load trade history.');
     } finally {
       setLoadingBets(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
     loadCurrentMatch();
-    loadMyBets();
+    loadMyBets(1, filter);
 
     const interval = setInterval(() => {
       loadCurrentMatch();
-      loadMyBets();
+      loadMyBets(1, filter); // Poll first page to keep it updated
     }, 15000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [filter]);
+
+  const loadMoreBets = () => {
+    if (page >= totalPages || loadingMore || refreshing) return;
+    setLoadingMore(true);
+    loadMyBets(page + 1, filter);
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadMyBets();
+    await loadMyBets(1, filter);
   };
 
   const handleSelectOutcome = (marketName: string, outcomeName: string, oddsVal: number) => {
@@ -87,22 +107,14 @@ export default function TradesScreen() {
 
   const formatSelection = (selection: string) => {
     switch (selection) {
-      case 'HOME':
-        return 'Home';
-      case 'DRAW':
-        return 'Draw';
-      case 'AWAY':
-        return 'Away';
-      case 'OVER_25':
-        return 'Over 2.5';
-      case 'UNDER_25':
-        return 'Under 2.5';
-      case 'BTTS_YES':
-        return 'BTTS Yes';
-      case 'BTTS_NO':
-        return 'BTTS No';
-      default:
-        return selection;
+      case 'HOME': return 'Home';
+      case 'DRAW': return 'Draw';
+      case 'AWAY': return 'Away';
+      case 'OVER_25': return 'Over 2.5';
+      case 'UNDER_25': return 'Under 2.5';
+      case 'BTTS_YES': return 'BTTS Yes';
+      case 'BTTS_NO': return 'BTTS No';
+      default: return selection;
     }
   };
 
@@ -111,6 +123,7 @@ export default function TradesScreen() {
     if (bet.status === 'WON') return { label: 'Win', color: '#00D285' };
     if (bet.status === 'LOST') return { label: 'Loss', color: '#F87171' };
     if (matchStatus === 'LIVE') return { label: 'Live', color: '#3B82F6' };
+    if (matchStatus === 'FINISHED') return { label: 'Settled', color: '#94A3B8' };
     if (bet.status === 'PENDING') return { label: 'Ongoing', color: '#FBBF24' };
     return { label: bet.status, color: '#94A3B8' };
   };
@@ -124,21 +137,138 @@ export default function TradesScreen() {
     return 'Live market available';
   };
 
-  const filteredBets = myBets.filter((bet) => {
-    const statusMeta = getBetStatusMeta(bet);
-    switch (filter) {
-      case 'WIN':
-        return bet.status === 'WON';
-      case 'LOSS':
-        return bet.status === 'LOST';
-      case 'ONGOING':
-        return bet.status === 'PENDING' && bet.match?.status !== 'LIVE';
-      case 'LIVE':
-        return bet.match?.status === 'LIVE' || statusMeta.label === 'Live';
-      default:
-        return true;
-    }
-  });
+  // We do frontend filtering for LIVE since the backend query is complex
+  const displayBets = filter === 'LIVE' ? myBets.filter((bet) => getBetStatusMeta(bet).label === 'Live') : myBets;
+
+  const renderHeader = () => (
+    <View style={{ paddingBottom: 10 }}>
+      {/* Subheader Status */}
+      <View style={styles.statusRow}>
+        <CheckCircle size={14} color="#00D285" />
+        <Text style={styles.statusText}>{getMatchStatusText()}</Text>
+      </View>
+
+      <View style={styles.historyCard}>
+        <View style={styles.historyHeader}>
+          <Text style={styles.historyTitle}>My Trade History</Text>
+          {loadingBets && !loadingMore ? (
+            <ActivityIndicator size="small" color="#00D285" />
+          ) : null}
+        </View>
+
+        <View style={styles.filterRow}>
+          {(['ALL','WIN','LOSS','ONGOING','LIVE'] as const).map((item) => (
+            <TouchableOpacity
+              key={item}
+              onPress={() => setFilter(item)}
+              style={[styles.filterChip, filter === item && styles.filterChipActive]}
+            >
+              <Text style={[styles.filterChipText, filter === item && styles.filterChipTextActive]}>{item === 'ALL' ? 'All' : item}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {betError ? <Text style={styles.errorText}>{betError}</Text> : null}
+      </View>
+
+      {/* Card 1: Match Outcome */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Match Outcome</Text>
+        </View>
+        <View style={styles.cardBody}>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity 
+              activeOpacity={0.85} 
+              style={styles.buttonWrapper}
+              onPress={() => handleSelectOutcome('Match Outcome', 'Yes', Number(currentMatch?.odds?.home || 1.85))}
+            >
+              <LinearGradient colors={['#00D285', '#009B62']} style={styles.buttonInner}>
+                <Text style={styles.buttonTitle}>Yes</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              activeOpacity={0.85} 
+              style={styles.buttonWrapper}
+              onPress={() => handleSelectOutcome('Match Outcome', 'No', Number(currentMatch?.odds?.away || 2.15))}
+            >
+              <LinearGradient colors={['#31426B', '#1C2742']} style={styles.buttonInner}>
+                <Text style={styles.buttonTitle}>No</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* Card 2: Over/Under 2.5 */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Over/Under 2.5</Text>
+        </View>
+        <View style={styles.cardBody}>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity 
+              activeOpacity={0.85} 
+              style={styles.buttonWrapper}
+              onPress={() => handleSelectOutcome('Over 2.5 Goals', 'Yes', Number(currentMatch?.odds?.over25 || 1.95))}
+            >
+              <LinearGradient colors={['#00D285', '#009B62']} style={styles.buttonInner}>
+                <Text style={styles.buttonTitle}>Yes</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              activeOpacity={0.85} 
+              style={styles.buttonWrapper}
+              onPress={() => handleSelectOutcome('Over 2.5 Goals', 'No', Number(currentMatch?.odds?.under25 || 1.80))}
+            >
+              <LinearGradient colors={['#31426B', '#1C2742']} style={styles.buttonInner}>
+                <Text style={styles.buttonTitle}>No</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.cardFooter}>
+          <Text style={styles.footerText}>Pool . <Text style={styles.footerHighlight}>₦85,00</Text></Text>
+        </View>
+      </View>
+
+      {/* Card 3: BTTS */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>BTTS(Both Teams to Score)</Text>
+        </View>
+        <View style={styles.cardBody}>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity 
+              activeOpacity={0.85} 
+              style={styles.buttonWrapper}
+              onPress={() => handleSelectOutcome('Both Teams to Score', 'Yes', Number(currentMatch?.odds?.bttsYes || 1.75))}
+            >
+              <LinearGradient colors={['#00D285', '#009B62']} style={styles.buttonInner}>
+                <Text style={styles.buttonTitle}>Yes</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity activeOpacity={0.9} style={styles.buttonWrapper} onPress={() => handleSelectOutcome('Both Teams to Score', 'No', Number(currentMatch?.odds?.bttsNo || 1.70))}>
+              <LinearGradient colors={['#24304D', '#151D33']} style={[styles.buttonInner, { opacity: 0.8 }]}>
+                <View style={styles.lockedRow}>
+                  <Lock size={16} color="#94A3B8" style={{ marginRight: 8 }} />
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={styles.buttonTitle}>No</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.cardFooter}>
+          <Text style={styles.footerTextLocked}>Temporarily Locked (High imbalance)</Text>
+        </View>
+      </View>
+    </View>
+  );
 
   return (
     <LinearGradient
@@ -158,166 +288,47 @@ export default function TradesScreen() {
           <Text style={styles.headerTitle}>{currentMatch?.homeTeam || 'Live Match'} vs {currentMatch?.awayTeam || 'Live Match'}</Text>
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
+        <FlatList
+          data={displayBets}
+          keyExtractor={(item) => item._id.toString()}
           contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderHeader}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
           }
-        >
-          {/* Subheader Status */}
-          <View style={styles.statusRow}>
-            <CheckCircle size={14} color="#00D285" />
-            <Text style={styles.statusText}>{getMatchStatusText()}</Text>
-          </View>
-
-          <View style={styles.historyCard}>
-            <View style={styles.historyHeader}>
-              <Text style={styles.historyTitle}>My Trade History</Text>
-              {loadingBets ? (
+          onEndReached={loadMoreBets}
+          onEndReachedThreshold={0.3}
+          ListEmptyComponent={
+            !loadingBets && !betError ? (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={styles.emptyText}>No trades for this view yet.</Text>
+              </View>
+            ) : null
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ paddingVertical: 20 }}>
                 <ActivityIndicator size="small" color="#00D285" />
-              ) : null}
-            </View>
-
-            <View style={styles.filterRow}>
-              {(['ALL','WIN','LOSS','ONGOING','LIVE'] as const).map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  onPress={() => setFilter(item)}
-                  style={[styles.filterChip, filter === item && styles.filterChipActive]}
-                >
-                  <Text style={[styles.filterChipText, filter === item && styles.filterChipTextActive]}>{item === 'ALL' ? 'All' : item}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {betError ? <Text style={styles.errorText}>{betError}</Text> : null}
-
-            {filteredBets.length === 0 && !loadingBets && !betError ? (
-              <Text style={styles.emptyText}>No trades for this view yet.</Text>
-            ) : null}
-
-            {filteredBets.map((bet) => {
-              const statusMeta = getBetStatusMeta(bet);
-              return (
-                <TouchableOpacity key={bet._id} style={styles.betRow} onPress={() => setSelectedBet(bet)}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.betMatch}>{bet.match?.homeTeam} vs {bet.match?.awayTeam}</Text>
-                    <Text style={styles.betMeta}>{formatSelection(bet.selection)} • ₦{Number(bet.amount).toLocaleString()}</Text>
-                  </View>
-                  <View style={styles.betRight}>
-                    <Text style={[styles.betStatus, { color: statusMeta.color }]}>{statusMeta.label}</Text>
-                    <Text style={styles.betOdds}>Odds {Number(bet.odds).toFixed(2)}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Card 1: Match Outcome */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Match Outcome</Text>
-            </View>
-            <View style={styles.cardBody}>
-              <View style={styles.buttonRow}>
-                <TouchableOpacity 
-                  activeOpacity={0.85} 
-                  style={styles.buttonWrapper}
-                  onPress={() => handleSelectOutcome('Match Outcome', `${currentMatch?.homeTeam || 'Home'} (Long)`, Number(currentMatch?.odds?.home || 1.85))}
-                >
-                  <LinearGradient colors={['#00D285', '#009B62']} style={styles.buttonInner}>
-                    <Text style={styles.buttonTitle}>{currentMatch?.homeTeam || 'Home'}</Text>
-                    <Text style={styles.buttonSub}>(Long)</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  activeOpacity={0.85} 
-                  style={styles.buttonWrapper}
-                  onPress={() => handleSelectOutcome('Match Outcome', `${currentMatch?.awayTeam || 'Away'} (Short)`, Number(currentMatch?.odds?.away || 2.15))}
-                >
-                  <LinearGradient colors={['#31426B', '#1C2742']} style={styles.buttonInner}>
-                    <Text style={styles.buttonTitle}>{currentMatch?.awayTeam || 'Away'}</Text>
-                    <Text style={styles.buttonSub}>(Short)</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
               </View>
-            </View>
-          </View>
-
-          {/* Card 2: Over/Under 2.5 */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Over/Under 2.5</Text>
-            </View>
-            <View style={styles.cardBody}>
-              <View style={styles.buttonRow}>
-                <TouchableOpacity 
-                  activeOpacity={0.85} 
-                  style={styles.buttonWrapper}
-                  onPress={() => handleSelectOutcome('Over 2.5 Goals', 'Over 2.5 (Long)', Number(currentMatch?.odds?.over25 || 1.95))}
-                >
-                  <LinearGradient colors={['#00D285', '#009B62']} style={styles.buttonInner}>
-                    <Text style={styles.buttonTitle}>Over</Text>
-                    <Text style={styles.buttonSub}>(Long)</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  activeOpacity={0.85} 
-                  style={styles.buttonWrapper}
-                  onPress={() => handleSelectOutcome('Over 2.5 Goals', 'Under 2.5 (Short)', Number(currentMatch?.odds?.under25 || 1.80))}
-                >
-                  <LinearGradient colors={['#31426B', '#1C2742']} style={styles.buttonInner}>
-                    <Text style={styles.buttonTitle}>Under 2.5</Text>
-                    <Text style={styles.buttonSub}>(Short)</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View style={styles.cardFooter}>
-              <Text style={styles.footerText}>Pool . <Text style={styles.footerHighlight}>₦85,00</Text></Text>
-            </View>
-          </View>
-
-          {/* Card 3: BTTS */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>BTTS(Both Teams to Score)</Text>
-            </View>
-            <View style={styles.cardBody}>
-              <View style={styles.buttonRow}>
-                <TouchableOpacity 
-                  activeOpacity={0.85} 
-                  style={styles.buttonWrapper}
-                  onPress={() => handleSelectOutcome('Both Teams to Score', 'BTTS Yes (Long)', Number(currentMatch?.odds?.bttsYes || 1.75))}
-                >
-                  <LinearGradient colors={['#00D285', '#009B62']} style={styles.buttonInner}>
-                    <Text style={styles.buttonTitle}>Yes</Text>
-                    <Text style={styles.buttonSub}>(Long)</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                <TouchableOpacity activeOpacity={0.9} style={styles.buttonWrapper} onPress={() => handleSelectOutcome('Both Teams to Score', 'BTTS No (Short)', Number(currentMatch?.odds?.bttsNo || 1.70))}>
-                  <LinearGradient colors={['#24304D', '#151D33']} style={[styles.buttonInner, { opacity: 0.8 }]}>
-                    <View style={styles.lockedRow}>
-                      <Lock size={16} color="#94A3B8" style={{ marginRight: 8 }} />
-                      <View style={{ alignItems: 'center' }}>
-                        <Text style={styles.buttonTitle}>No</Text>
-                        <Text style={styles.buttonSub}>(Short)</Text>
-                      </View>
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <View style={styles.cardFooter}>
-              <Text style={styles.footerTextLocked}>Temporarily Locked (High imbalance)</Text>
-            </View>
-          </View>
-
-        </ScrollView>
+            ) : null
+          }
+          renderItem={({ item: bet }) => {
+            const statusMeta = getBetStatusMeta(bet);
+            return (
+              <TouchableOpacity style={styles.betRow} onPress={() => setSelectedBet(bet)}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.betMatch}>{bet.match?.homeTeam} vs {bet.match?.awayTeam}</Text>
+                  <Text style={styles.betMeta}>{formatSelection(bet.selection)} • ₦{Number(bet.amount).toLocaleString()}</Text>
+                </View>
+                <View style={styles.betRight}>
+                  <Text style={[styles.betStatus, { color: statusMeta.color }]}>{statusMeta.label}</Text>
+                  <Text style={styles.betOdds}>Odds {Number(bet.odds).toFixed(2)}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+        />
         <Modal
           visible={Boolean(selectedBet)}
           transparent

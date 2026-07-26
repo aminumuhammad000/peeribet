@@ -18,7 +18,11 @@ import {
   updateTransactionStatus,
   getVaultBalances,
   updateVaultBalances,
-  creditUser
+  creditUser,
+  getUserById,
+  getPendingKyc,
+  triggerSettlement,
+  bootstrapAdmin
 } from '../controllers/adminController';
 
 
@@ -26,16 +30,22 @@ import { protect, admin } from '../middlewares/authMiddleware';
 
 const router = express.Router();
 
+// Unprotected route for first-time setup
+router.post('/bootstrap', bootstrapAdmin);
+
 // All admin routes are protected and require admin role
 router.use(protect);
 router.use(admin);
 
 router.get('/stats', getDashboardStats);
 router.get('/users', getAllUsers);
+router.get('/users/:id', getUserById);
 router.post('/users/credit', creditUser);
 router.get('/transactions', getAllTransactions);
 router.post('/transactions/status', updateTransactionStatus);
 router.post('/kyc-verify', updateKycStatus);
+router.get('/kyc/pending', getPendingKyc);
+router.post('/settlement/trigger', triggerSettlement);
 
 
 router.get('/settings', getSettings);

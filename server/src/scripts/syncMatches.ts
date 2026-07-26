@@ -79,17 +79,22 @@ const syncMatches = async () => {
       };
 
       const matchStatus = statusMap[fixture.status.short] || 'UPCOMING';
+      const now = new Date();
+      const fixtureStartTime = new Date(fixture.date);
+      const shouldBeLive = fixtureStartTime <= now && matchStatus === 'UPCOMING';
+      const resolvedStatus = shouldBeLive ? 'LIVE' : matchStatus;
 
       await Match.findOneAndUpdate(
         { fixtureId: fixture.id },
         {
+          sport: 'Football',
           homeTeam: teams.home.name,
           awayTeam: teams.away.name,
           homeLogo: teams.home.logo,
           awayLogo: teams.away.logo,
           league: league.name,
           startTime: new Date(fixture.date),
-          status: matchStatus,
+          status: resolvedStatus,
           scoreHome: goals.home || 0,
           scoreAway: goals.away || 0,
           fixtureId: fixture.id,
@@ -99,7 +104,7 @@ const syncMatches = async () => {
             isPromoted: league.id === 39 // Promote Premier League by default
           }
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     }
 

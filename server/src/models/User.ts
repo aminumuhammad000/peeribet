@@ -26,6 +26,7 @@ export interface IUser extends Document {
   role: 'user' | 'admin';
   kycStatus: 'none' | 'pending' | 'approved' | 'rejected';
   kycDocument?: string;
+  pushToken?: string;
   virtualAccount?: IVirtualAccount;
   createdAt: Date;
   updatedAt: Date;
@@ -50,6 +51,7 @@ const userSchema: Schema = new Schema(
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     kycStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
     kycDocument: { type: String },
+    pushToken: { type: String },
     virtualAccount: {
       accountNumber: { type: String },
       accountName: { type: String },

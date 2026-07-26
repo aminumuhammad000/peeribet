@@ -4,6 +4,7 @@ import User from '../models/User';
 import Match from '../models/Match';
 import Transaction from '../models/Transaction';
 import { AuthRequest } from '../middlewares/authMiddleware';
+import { settlePendingBetsForMatch } from '../services/settlementService';
 
 // @route  POST /api/bets
 // @access Private
@@ -75,10 +76,39 @@ export const placeBet = async (req: AuthRequest, res: Response) => {
 // @access Private
 export const getMyBets = async (req: AuthRequest, res: Response) => {
   try {
-    const bets = await Bet.find({ user: req.user?._id })
+    await settlePendingBetsForMatch();
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const skip = (page - 1) * limit;
+    const statusFilter = req.query.status as string;
+
+    const query: any = { user: req.user?._id };
+    if (statusFilter && statusFilter !== 'ALL') {
+      if (statusFilter === 'ONGOING') {
+        query.status = 'PENDING';
+      } else if (statusFilter === 'WIN') {
+        query.status = 'WON';
+      } else if (statusFilter === 'LOSS') {
+        query.status = 'LOST';
+      }
+      // Note: LIVE filtering is tricky because it depends on the match status.
+      // We'll leave LIVE filtering to the frontend or implement a complex aggregate.
+    }
+
+    const total = await Bet.countDocuments(query);
+    const bets = await Bet.find(query)
       .populate('match')
-      .sort({ createdAt: -1 });
-    res.json(bets);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      bets,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

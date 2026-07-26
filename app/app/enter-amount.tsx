@@ -89,9 +89,7 @@ export default function EnterAmountScreen() {
     try {
       // Map outcome text to enum values
       let selection: any = 'HOME';
-      if (outcome.includes('Draw')) selection = 'DRAW';
-      else if (outcome.includes('(Short)') && !outcome.includes('Draw')) {
-        // Simple logic for away in basic winner market
+      if (outcome === 'No') {
         if (marketName === 'Match Outcome') selection = 'AWAY';
         else if (marketName.includes('Over 2.5')) selection = 'UNDER_25';
         else if (marketName.includes('Both Teams')) selection = 'BTTS_NO';
@@ -217,7 +215,7 @@ export default function EnterAmountScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Mock Bottom Tab Bar */}
+        {/* Bottom Tab Bar */}
         <View style={styles.tabBar}>
           <TouchableOpacity
             style={styles.tabItem}

@@ -40,7 +40,7 @@ export default function KycScreen() {
   const [idType, setIdType] = useState(data?.idType || 'National ID');
   const [idNumber, setIdNumber] = useState(data?.idNumber || '');
   
-  // Document Mock States
+  // Document Upload States
   const [documentUploading, setDocumentUploading] = useState(false);
   const [documentName, setDocumentName] = useState(data?.documentName || '');
   const [selfieUploading, setSelfieUploading] = useState(false);

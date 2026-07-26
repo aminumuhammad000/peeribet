@@ -6,6 +6,7 @@ import { Bell, Settings, Search } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
 import { authService, matchService, notificationService } from '../../services/apiService';
+import { getSocket } from '../../services/socketService';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -48,11 +49,11 @@ export default function HomeScreen() {
     try {
       const [userData, allMatchesData, notifData] = await Promise.all([
         authService.getMe(),
-        matchService.getMatches({}),
+        matchService.getMatches({ limit: 50 }),
         notificationService.getAll().catch(() => ({ unreadCount: 0 })),
       ]);
       setUser(userData);
-      setAllMatches(Array.isArray(allMatchesData) ? allMatchesData : (allMatchesData?.data || []));
+      setAllMatches(allMatchesData?.matches || []);
       setUnreadNotifications(notifData.unreadCount || 0);
     } catch (error) {
       console.error('Error fetching data for home:', error);
@@ -62,17 +63,31 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchData();
 
-    const interval = setInterval(() => {
+    const socket = getSocket();
+    socket.on('matches_updated', () => {
+      console.log('Matches updated via WebSocket, fetching fresh data...');
       fetchData();
-    }, 15000);
+    });
 
-    return () => clearInterval(interval);
+    return () => {
+      socket.off('matches_updated');
+    };
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchData();
     setRefreshing(false);
+  };
+
+  const formatOddsValue = (value: number | undefined | null) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+    return value.toFixed(1);
+  };
+
+  const formatMatchTime = (value: string | Date) => {
+    const date = new Date(value);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
   // Filter matches by date and search
@@ -89,25 +104,18 @@ export default function HomeScreen() {
       });
     }
 
-    // Filter by date - show matches from the selected day onward, within a week.
-    // If that date range has no matches, fall back to the already filtered list so the UI stays populated.
+    // Filter by date - show matches from selected date onwards, within a week
     if (selectedDateNum !== null && filtered.length > 0) {
-      const selectedDate = new Date();
-      selectedDate.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDateNum);
-      selectedDate.setHours(0, 0, 0, 0);
+      // Find the minimum date number (could wrap around month)
+      const minDate = selectedDateNum;
+      const maxDate = selectedDateNum + 6; // Show up to 6 days ahead
 
-      const endDate = new Date(selectedDate);
-      endDate.setDate(endDate.getDate() + 6);
-
-      const dateFiltered = filtered.filter((match) => {
+      return filtered.filter((match) => {
         const matchDate = new Date(match.startTime);
-        matchDate.setHours(0, 0, 0, 0);
-        return matchDate >= selectedDate && matchDate <= endDate;
+        const matchDateNum = matchDate.getDate();
+        // Show matches from selected date onwards
+        return matchDateNum >= minDate && matchDateNum <= maxDate;
       });
-
-      if (dateFiltered.length > 0) {
-        return dateFiltered;
-      }
     }
 
     return filtered;
@@ -118,7 +126,7 @@ export default function HomeScreen() {
 
   return (
     <LinearGradient
-      colors={['#0A1124', '#050811']}
+      colors={[Colors.dark.backgroundGradStart, Colors.dark.backgroundGradEnd]}
       style={styles.background}
     >
       <SafeAreaView style={styles.container}>
@@ -154,23 +162,20 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false} 
           contentContainerStyle={styles.scrollContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.dark.secondary} />
           }
         >
-          
-          {/* Search Bar */}
           <View style={styles.searchContainer}>
-            <Search size={18} color="#64748B" />
-            <TextInput 
-              placeholder="Browse matches...." 
-              placeholderTextColor="#64748B" 
+            <Search size={18} color={Colors.dark.placeholder} />
+            <TextInput
+              placeholder="Search match"
+              placeholderTextColor={Colors.dark.placeholder}
               style={styles.searchInput}
               value={searchText}
               onChangeText={setSearchText}
             />
           </View>
 
-          {/* Calendar row - fits all 7 days without scroll */}
           <View style={styles.calendarRow}>
             {dates.map((item) => {
               const isSelected = selectedDateNum === parseInt(item.id);
@@ -188,69 +193,79 @@ export default function HomeScreen() {
             })}
           </View>
 
-          {/* Promoted Matches */}
-          <View style={styles.promotedContainer}>
-            {promotedMatches.map((match) => (
-              <View key={match._id} style={styles.promotedCard}>
-                <View style={styles.promotedTop}>
-                  <View style={styles.liveTag}>
-                    <Text style={styles.liveTagText}>{match.status === 'LIVE' ? 'LIVE NOW' : `LIVE @ ${new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}</Text>
-                  </View>
-                  <Text style={styles.dots}>•••</Text>
-                </View>
-                
-                <View style={styles.promotedTitleRow}>
-                  <View>
-                    <Text style={styles.promotedMatchTitle}>{match.homeTeam} vs {match.awayTeam}</Text>
-                    <Text style={styles.promotedSub}>Market Match Outcome</Text>
-                  </View>
-                  <Text style={styles.promotedPrice}>{match.odds.home.toFixed(2)}x</Text>
-                </View>
-
-                <View style={styles.bulletsRow}>
-                  <View style={styles.bulletItem}><View style={styles.bulletDot}/><Text style={styles.bulletText}>Match Outcome</Text></View>
-                  <View style={styles.bulletItem}><View style={styles.bulletDot}/><Text style={styles.bulletText}>Over/Under</Text></View>
-                  <View style={styles.bulletItem}><View style={styles.bulletDot}/><Text style={styles.bulletText}>BTS</Text></View>
-                </View>
-
-                <TouchableOpacity 
-                  onPress={() => router.push({
-                    pathname: '/match-detail',
-                    params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
-                  })}
-                  activeOpacity={0.85}
+          <View style={styles.featuredSection}>
+            {promotedMatches.length > 0 ? promotedMatches.slice(0, 1).map((match) => (
+              <TouchableOpacity
+                key={match._id}
+                activeOpacity={0.9}
+                onPress={() => router.push({ pathname: '/match-detail', params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam } })}
+              >
+                <LinearGradient
+                  colors={[Colors.dark.cardBackground, '#08111F']}
+                  style={styles.featuredCard}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
                 >
-                  <LinearGradient
-                    colors={['#00D285', '#00A368']}
-                    style={styles.enterButton}
-                  >
-                    <Text style={styles.enterButtonText}>Enter Match</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                  <View style={styles.featuredTopRow}>
+                    <View style={styles.liveTag}>
+                      <Text style={styles.liveTagText}>{match.status === 'LIVE' ? 'LIVE NOW' : `START ${formatMatchTime(match.startTime)}`}</Text>
+                    </View>
+                    <Text style={styles.venueText}>{(match.leagueName || match.competition || 'PREMIUM MATCH').toUpperCase()}</Text>
+                  </View>
 
-                <Text style={styles.poolText}>Pool . <Text style={styles.poolAmount}>₦{(match.poolAmount || 0).toLocaleString()}</Text></Text>
+                  <View style={styles.featuredTeamsRow}>
+                    <View style={styles.featuredTeamColumn}>
+                      <View style={styles.teamBadge}>
+                        <Text style={styles.teamBadgeText}>{(match.homeTeam || 'H').slice(0, 2).toUpperCase()}</Text>
+                      </View>
+                      <Text style={styles.featuredTeamName}>{match.homeTeam}</Text>
+                      <Text style={styles.featuredTeamLabel}>HOME</Text>
+                    </View>
+
+                    <View style={styles.featuredCenterBadge}>
+                      <Text style={styles.centerBadgeText}>VS</Text>
+                      <Text style={styles.centerBadgeLabel}>ODDS</Text>
+                    </View>
+
+                    <View style={styles.featuredTeamColumn}>
+                      <View style={styles.teamBadge}>
+                        <Text style={styles.teamBadgeText}>{(match.awayTeam || 'A').slice(0, 2).toUpperCase()}</Text>
+                      </View>
+                      <Text style={styles.featuredTeamName}>{match.awayTeam}</Text>
+                      <Text style={styles.featuredTeamLabel}>AWAY</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.oddsRow}>
+                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>HOME</Text><Text style={styles.oddsValue}>{formatOddsValue(match.odds?.home)}</Text></View>
+                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>DRAW</Text><Text style={styles.oddsValue}>{formatOddsValue(match.odds?.draw)}</Text></View>
+                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>AWAY</Text><Text style={styles.oddsValue}>{formatOddsValue(match.odds?.away)}</Text></View>
+                  </View>
+
+                  <View style={styles.featuredFooter}>
+                    <View>
+                      <Text style={styles.footerLabel}>POOL</Text>
+                      <Text style={styles.footerValue}>₦{(match.poolAmount || 0).toLocaleString()}</Text>
+                    </View>
+                    <LinearGradient colors={[Colors.dark.primary, Colors.dark.electricBlue]} style={styles.enterButton}>
+                      <Text style={styles.enterButtonText}>ENTER</Text>
+                    </LinearGradient>
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            )) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateTitle}>No featured match yet</Text>
+                <Text style={styles.emptyStateText}>Live football cards will appear here when the feed is ready.</Text>
               </View>
-            ))}
+            )}
           </View>
 
-          {/* Upcoming Matches Header */}
-          <View style={styles.upcomingHeaderRow}>
-            <Text style={styles.upcomingTitle}>Up Coming <Text style={styles.upcomingTitleLight}>Matches</Text></Text>
-            <View style={styles.allFootballBtn}>
-              <Text style={styles.allFootballText}>All Football</Text>
-            </View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Upcoming Matches</Text>
+            <Text style={styles.sectionChip}>Today</Text>
           </View>
 
-          {/* Table Header */}
-          <View style={styles.tableHeader}>
-            <Text style={[styles.thText, { width: 40 }]}>Date</Text>
-            <Text style={[styles.thText, { flex: 1, paddingLeft: 10 }]}>Stats</Text>
-            <Text style={[styles.thText, { width: 90, textAlign: 'center' }]}>Draw</Text>
-            <Text style={[styles.thText, { flex: 1 }]}></Text>
-            <Text style={[styles.thText, { width: 40, textAlign: 'right' }]}>Market</Text>
-          </View>
-
-          {/* Upcoming List */}
           <View style={styles.upcomingList}>
             {upcomingMatches.map((match) => (
               <TouchableOpacity 
@@ -262,26 +277,19 @@ export default function HomeScreen() {
                 })}
               >
                 <View style={styles.dateCol}>
-                  <Text style={styles.upcomingTime}>{new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</Text>
+                  <Text style={styles.upcomingTime}>{formatMatchTime(match.startTime)}</Text>
                   <Text style={styles.upcomingDay}>{new Date(match.startTime).toLocaleDateString([], { weekday: 'short' })}</Text>
                 </View>
 
-                <View style={styles.teamColLeft}>
+                <View style={styles.teamsCompact}>
                   <Text style={styles.teamTextLeft} numberOfLines={1}>{match.homeTeam}</Text>
+                  <Text style={styles.teamTextRight} numberOfLines={1}>{match.awayTeam}</Text>
                 </View>
-                
-                <Image source={{ uri: match.homeLogo || `https://ui-avatars.com/api/?name=${match.homeTeam}&background=random` }} style={styles.rowLogo} />
 
                 <View style={styles.oddsContainer}>
-                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{match.odds.home.toFixed(1)}</Text></View>
-                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{match.odds.draw.toFixed(1)}</Text></View>
-                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{match.odds.away.toFixed(1)}</Text></View>
-                </View>
-
-                <Image source={{ uri: match.awayLogo || `https://ui-avatars.com/api/?name=${match.awayTeam}&background=random` }} style={styles.rowLogo} />
-                
-                <View style={styles.teamColRight}>
-                  <Text style={styles.teamTextRight} numberOfLines={1}>{match.awayTeam}</Text>
+                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.home)}</Text></View>
+                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.draw)}</Text></View>
+                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.away)}</Text></View>
                 </View>
 
                 <Text style={styles.marketText}>₦{(match.poolAmount || 0).toLocaleString()}</Text>
@@ -307,7 +315,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 16,
+    paddingBottom: 12,
   },
   avatar: {
     width: 44,
@@ -358,14 +366,19 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#131C32', // slightly lighter than bg
+    backgroundColor: 'rgba(19, 28, 50, 0.95)',
     marginHorizontal: 20,
-    height: 48,
-    borderRadius: 24,
+    height: 50,
+    borderRadius: 999,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#1E293B',
-    marginBottom: 20,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
   },
   searchInput: {
     flex: 1,
@@ -378,181 +391,257 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 18,
   },
   calendarBox: {
     flex: 1,
-    height: 54,
-    borderRadius: 10,
+    height: 60,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 3,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(19, 28, 50, 0.8)',
   },
   calendarBoxActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: Colors.dark.electricBlue,
+    borderColor: Colors.dark.primary,
   },
   calendarDay: {
-    fontSize: 12,
-    color: '#94A3B8',
+    fontSize: 11,
+    color: '#8FA2C7',
     fontFamily: 'Inter',
     marginBottom: 4,
+    textTransform: 'uppercase',
   },
   calendarNum: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#94A3B8',
+    fontWeight: '700',
+    color: '#FFFFFF',
     fontFamily: 'Inter',
   },
   calendarTextActive: {
     color: '#FFFFFF',
   },
-  promotedContainer: {
+  featuredSection: {
     paddingHorizontal: 20,
+    marginBottom: 14,
   },
-  promotedCard: {
-    backgroundColor: '#1E294B',
-    borderRadius: 16,
+  featuredCard: {
+    borderRadius: 24,
     padding: 16,
-    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#2E3F6B',
+    borderColor: 'rgba(0, 210, 133, 0.32)',
+    shadowColor: '#000',
+    shadowOpacity: 0.34,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 6,
+    backgroundColor: 'rgba(19, 28, 50, 0.96)',
   },
-  promotedTop: {
+  featuredTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   liveTag: {
-    backgroundColor: 'rgba(0, 210, 133, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    backgroundColor: 'rgba(0, 210, 133, 0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.25)',
   },
   liveTagText: {
     color: '#00D285',
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontFamily: 'Inter',
+    textTransform: 'uppercase',
   },
-  dots: {
-    color: '#00D285',
-    fontSize: 18,
-    letterSpacing: 2,
-    fontWeight: 'bold',
+  venueText: {
+    color: '#8FA2C7',
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: 'Inter',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  promotedTitleRow: {
+  featuredTeamsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  promotedMatchTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  featuredTeamColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  teamBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  teamBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  featuredTeamName: {
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: 'Inter',
+    textAlign: 'center',
+    marginBottom: 3,
+  },
+  featuredTeamLabel: {
+    fontSize: 11,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  featuredCenterBadge: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.36)',
+    backgroundColor: 'rgba(0, 210, 133, 0.09)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+  },
+  centerBadgeText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  centerBadgeLabel: {
+    fontSize: 9,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  oddsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  oddsPill: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    marginHorizontal: 3,
+    alignItems: 'center',
+    minHeight: 56,
+    justifyContent: 'center',
+  },
+  oddsLabel: {
+    fontSize: 10,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+    textTransform: 'uppercase',
     marginBottom: 4,
   },
-  promotedSub: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontFamily: 'Inter',
-  },
-  promotedPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  oddsValue: {
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: 'Inter',
   },
-  bulletsRow: {
+  featuredFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
   },
-  bulletItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
+  footerLabel: {
+    fontSize: 11,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
-  bulletDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#00D285',
-    marginRight: 6,
-  },
-  bulletText: {
-    fontSize: 12,
-    color: '#E2E8F0',
+  footerValue: {
+    color: '#00D285',
+    fontWeight: '700',
+    fontSize: 16,
     fontFamily: 'Inter',
   },
   enterButton: {
-    height: 48,
-    borderRadius: 12,
+    height: 44,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    paddingHorizontal: 18,
   },
   enterButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '700',
     fontFamily: 'Inter',
+    textTransform: 'uppercase',
   },
-  poolText: {
+  emptyState: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderRadius: 18,
+    backgroundColor: 'rgba(19, 28, 50, 0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  emptyStateTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+    marginBottom: 4,
+  },
+  emptyStateText: {
+    color: '#8FA2C7',
     fontSize: 12,
-    color: '#94A3B8',
-    textAlign: 'center',
     fontFamily: 'Inter',
+    textAlign: 'center',
   },
-  poolAmount: {
-    color: '#00D285',
-    fontWeight: 'bold',
-  },
-  upcomingHeaderRow: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 12,
+    marginBottom: 10,
+    marginTop: 4,
   },
-  upcomingTitle: {
+  sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: 'Inter',
   },
-  upcomingTitleLight: {
-    color: '#94A3B8',
-    fontWeight: 'normal',
-  },
-  allFootballBtn: {
-    backgroundColor: '#302b28', // Dark yellowish-brown for the button as seen in image
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  allFootballText: {
-    fontSize: 12,
-    color: '#BDB3A6',
-    fontFamily: 'Inter',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#2A3441', // Dark grey banner
-    paddingVertical: 6,
-    paddingHorizontal: 20,
-    marginBottom: 8,
-  },
-  thText: {
+  sectionChip: {
+    backgroundColor: 'rgba(0, 210, 133, 0.14)',
+    color: '#00D285',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
     fontSize: 11,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontFamily: 'Inter',
+    textTransform: 'uppercase',
   },
   upcomingList: {
     paddingHorizontal: 20,
@@ -560,82 +649,78 @@ const styles = StyleSheet.create({
   upcomingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 11,
     paddingHorizontal: 12,
     marginBottom: 8,
-    backgroundColor: '#131C32',
-    borderRadius: 14,
+    backgroundColor: 'rgba(19, 28, 50, 0.92)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: 'rgba(255,255,255,0.08)',
+    shadowColor: '#000',
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
   dateCol: {
-    width: 40,
+    width: 48,
   },
   upcomingTime: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#00D285',
     fontFamily: 'Inter',
     marginBottom: 2,
+    fontWeight: '700',
   },
   upcomingDay: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: '#8FA2C7',
     fontFamily: 'Inter',
   },
-  teamColLeft: {
+  teamsCompact: {
     flex: 1,
-    alignItems: 'flex-end',
-    paddingRight: 8,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
   },
   teamTextLeft: {
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#FFFFFF',
     fontFamily: 'Inter',
-    textAlign: 'right',
+    marginBottom: 2,
   },
-  rowLogo: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  teamTextRight: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
   },
   oddsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 8,
+    marginHorizontal: 6,
   },
   oddsBox: {
-    width: 28,
-    height: 22,
+    width: 32,
+    height: 24,
     backgroundColor: '#FFFFFF',
-    borderRadius: 4,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 3,
   },
   oddsText: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#000000',
     fontFamily: 'Inter',
   },
-  teamColRight: {
-    flex: 1,
-    alignItems: 'flex-start',
-    paddingLeft: 8,
-  },
-  teamTextRight: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-  },
   marketText: {
-    width: 40,
+    width: 56,
     textAlign: 'right',
     fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: '#00D285',
+    fontWeight: '700',
     fontFamily: 'Inter',
   },
 });

@@ -355,6 +355,21 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Leaderboard Banner */}
+          <View style={[styles.balanceBanner, { marginTop: 0, backgroundColor: '#3B82F615', borderColor: '#3B82F640' }]}>
+            <View>
+              <Text style={[styles.bbLabel, { color: '#3B82F6' }]}>Top Traders</Text>
+              <Text style={styles.bbNum}>Leaderboard</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push('/leaderboard')}
+              activeOpacity={0.8}
+              style={[styles.bbButton, { backgroundColor: '#3B82F6' }]}
+            >
+              <Text style={styles.bbButtonText}>View Rank</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Configuration Lists */}
           <Text style={styles.sectionTitle}>Account Settings</Text>
 
