@@ -8,11 +8,8 @@ const getDefaultApiUrl = () => {
       return `${window.location.origin}/api`;
     }
   }
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5001/api';
-  }
-
-  return 'http://2.24.138.115/api';
+  // Use production server for all platforms by default
+  return 'https://api.peeritrade.com/api';
 };
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || getDefaultApiUrl()).replace(/\/$/, '');
