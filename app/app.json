@@ -43,8 +43,10 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "YOUR-EAS-PROJECT-ID"
-      }
-    }
+        "projectId": "ba22922b-e90f-410f-88c7-ae890c23650c"
+      },
+      "router": {}
+    },
+    "owner": "mrbuildeer"
   }
 }
