@@ -11,13 +11,17 @@ async function seedAdmin() {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/peeritrade');
     console.log('Connected to MongoDB');
 
+    const adminUsername = 'peeritrade.com';
     const adminEmail = 'admin@peeritrade.com';
-    const adminPassword = 'Admin@12345';
+    const adminPassword = 'Admin@123456';
 
-    const existingAdmin = await User.findOne({ email: adminEmail });
+    const existingAdmin = await User.findOne({
+      $or: [{ username: adminUsername }, { email: adminEmail }, { email: adminUsername }]
+    });
     
     if (existingAdmin) {
-      console.log('Admin already exists. Updating password and role...');
+      console.log('Admin already exists. Updating username, email, password and role...');
+      existingAdmin.username = adminUsername;
       existingAdmin.password = adminPassword; // Pre-save hook will hash this
       existingAdmin.role = 'admin';
       existingAdmin.isVerified = true;
@@ -26,8 +30,9 @@ async function seedAdmin() {
     } else {
       console.log('Creating new admin...');
       await User.create({
-        firstName: 'System',
-        lastName: 'Administrator',
+        firstName: 'Peeritrade',
+        lastName: 'Admin',
+        username: adminUsername,
         email: adminEmail,
         phone: '08000000000',
         password: adminPassword, // Pre-save hook will hash this

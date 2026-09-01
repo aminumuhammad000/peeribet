@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 
 // Define the backend URL directly or use an env variable
-const BACKEND_URL = 'http://192.168.1.100:5000'; // Change this to your local IP or production URL
+const BACKEND_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:5000';
 
 let socket: Socket | null = null;
 

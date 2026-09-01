@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Square, CheckSquare } from 'lucide-react-native';
+import { ArrowLeft, Square, CheckSquare, X, FileText, ShieldCheck, ExternalLink, CheckCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
@@ -17,6 +17,7 @@ export default function SignUpStep3Screen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
 
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
@@ -176,19 +177,30 @@ export default function SignUpStep3Screen() {
               </View>
 
               {/* Custom terms & condition selection row */}
-              <TouchableOpacity
-                onPress={() => setAgreeTerms(!agreeTerms)}
-                activeOpacity={0.7}
-                style={styles.checkboxContainer}
-              >
-                {agreeTerms ? (
-                  <CheckSquare size={22} color={Colors.dark.primary} />
-                ) : (
-                  <Square size={22} color="#64748B" />
-                )}<Text style={styles.checkboxText}>
-                  Agree with <Text style={styles.termsText}>Terms & Condition</Text>
+              <View style={styles.checkboxContainer}>
+                <TouchableOpacity
+                  onPress={() => setAgreeTerms(!agreeTerms)}
+                  activeOpacity={0.7}
+                  style={styles.checkboxTouchBox}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  {agreeTerms ? (
+                    <CheckSquare size={22} color={Colors.dark.primary} />
+                  ) : (
+                    <Square size={22} color="#64748B" />
+                  )}
+                </TouchableOpacity>
+
+                <Text style={styles.checkboxText}>
+                  Agree with{' '}
+                  <Text
+                    style={styles.termsText}
+                    onPress={() => setIsTermsModalOpen(true)}
+                  >
+                    Terms & Condition
+                  </Text>
                 </Text>
-              </TouchableOpacity>
+              </View>
 
               {/* SignUp Trigger */}
               <CustomButton
@@ -203,12 +215,109 @@ export default function SignUpStep3Screen() {
 
             {/* Footer redirect */}
             <View style={styles.footerContainer}>
-              <Text style={styles.footerText}>Already have an account? </Text><TouchableOpacity onPress={() => router.push('/signin')} activeOpacity={0.7}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/signin')} activeOpacity={0.7}>
                 <Text style={styles.footerLink}>Sign In</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+
+        {/* Terms & Conditions Modal */}
+        <Modal
+          visible={isTermsModalOpen}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsTermsModalOpen(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <FileText size={20} color="#00D285" />
+                  <Text style={styles.modalTitle}>Terms & Conditions</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setIsTermsModalOpen(false)}
+                  style={styles.modalCloseBtn}
+                  activeOpacity={0.7}
+                >
+                  <X size={20} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Scrollable Terms Content */}
+              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={true}>
+                <View style={styles.termBlock}>
+                  <View style={styles.termBlockHeader}>
+                    <ShieldCheck size={16} color="#00D285" />
+                    <Text style={styles.termBlockTitle}>1. Peer-to-Peer Trading & Escrow</Text>
+                  </View>
+                  <Text style={styles.termBlockBody}>
+                    Peeritrade is a decentralized sports outcome and club share exchange. All bets and trades are executed peer-to-peer between counterparties and secured by automated escrow contracts until verified match conclusion.
+                  </Text>
+                </View>
+
+                <View style={styles.termBlock}>
+                  <View style={styles.termBlockHeader}>
+                    <CheckCircle size={16} color="#3B82F6" />
+                    <Text style={styles.termBlockTitle}>2. User Eligibility (18+)</Text>
+                  </View>
+                  <Text style={styles.termBlockBody}>
+                    You must be at least 18 years of age to register and transact. You agree to provide accurate identification data during KYC verification and comply with Nigerian financial guidelines.
+                  </Text>
+                </View>
+
+                <View style={styles.termBlock}>
+                  <View style={styles.termBlockHeader}>
+                    <ShieldCheck size={16} color="#F59E0B" />
+                    <Text style={styles.termBlockTitle}>3. Fair Market & Anti-Fraud</Text>
+                  </View>
+                  <Text style={styles.termBlockBody}>
+                    Collusive trading, spoofing, and multi-account abuses are strictly prohibited. Escrow deposits are held in audited reserve vaults and protected from unauthorized cancellation once matched.
+                  </Text>
+                </View>
+
+                <View style={styles.termBlock}>
+                  <View style={styles.termBlockHeader}>
+                    <CheckCircle size={16} color="#10B981" />
+                    <Text style={styles.termBlockTitle}>4. Payouts & Settlements</Text>
+                  </View>
+                  <Text style={styles.termBlockBody}>
+                    Settlements are calculated automatically following verified official football data feeds. Winnings can be withdrawn immediately to your verified Nigerian bank account.
+                  </Text>
+                </View>
+              </ScrollView>
+
+              {/* Modal Actions */}
+              <View style={styles.modalActionRow}>
+                <TouchableOpacity
+                  style={styles.modalAcceptBtn}
+                  onPress={() => {
+                    setAgreeTerms(true);
+                    setIsTermsModalOpen(false);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalAcceptBtnText}>I Agree & Accept</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.modalLegalBtn}
+                  onPress={() => {
+                    setIsTermsModalOpen(false);
+                    router.push('/legal');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.modalLegalBtnText}>Full Legal Page</Text>
+                  <ExternalLink size={14} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -324,16 +433,21 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     paddingVertical: 4,
   },
+  checkboxTouchBox: {
+    padding: 2,
+    marginRight: 8,
+  },
   checkboxText: {
     color: '#FFFFFF',
     fontSize: 14,
-    marginLeft: 10,
     fontWeight: '500',
     fontFamily: 'Inter',
+    flex: 1,
   },
   termsText: {
-    color: '#3B82F6',
+    color: '#00D285',
     fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   submitButton: {
     marginTop: 16,
@@ -355,6 +469,120 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  // Modal styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 8, 17, 0.82)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '82%',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 15,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  modalCloseBtn: {
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  modalScroll: {
+    padding: 20,
+    maxHeight: 380,
+  },
+  termBlock: {
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  termBlockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  termBlockTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#F8FAFC',
+    fontFamily: 'Inter',
+  },
+  termBlockBody: {
+    fontSize: 12.5,
+    color: '#94A3B8',
+    lineHeight: 18,
+    fontFamily: 'Inter',
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#1E293B',
+    backgroundColor: '#0A1124',
+  },
+  modalAcceptBtn: {
+    flex: 1.4,
+    backgroundColor: '#00D285',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalAcceptBtnText: {
+    color: '#050811',
+    fontWeight: '700',
+    fontSize: 14,
+    fontFamily: 'Inter',
+  },
+  modalLegalBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  modalLegalBtnText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '600',
     fontFamily: 'Inter',
   },
 });

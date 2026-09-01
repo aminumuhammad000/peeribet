@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { PeeritradeLogo } from '../components/PeeritradeLogo';
 import { Colors } from '../constants/Colors';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services/apiService';
 
 export default function SplashScreen() {
@@ -21,15 +22,27 @@ export default function SplashScreen() {
 
     // Auto routing check
     const checkStatus = async () => {
-      const isAuthenticated = await authService.isAuthenticated();
-      
-      setTimeout(() => {
-        if (isAuthenticated) {
-          router.replace('/(tabs)/home');
-        } else {
-          router.replace('/welcome');
-        }
-      }, 2000);
+      try {
+        const [isAuthenticated, hasSeenOnboarding] = await Promise.all([
+          authService.isAuthenticated(),
+          AsyncStorage.getItem('hasSeenOnboarding'),
+        ]);
+        
+        setTimeout(() => {
+          if (isAuthenticated) {
+            router.replace('/(tabs)/home');
+          } else if (!hasSeenOnboarding) {
+            // First time user visit: show onboarding process
+            router.replace('/onboarding');
+          } else {
+            router.replace('/welcome');
+          }
+        }, 1800);
+      } catch {
+        setTimeout(() => {
+          router.replace('/onboarding');
+        }, 1800);
+      }
     };
 
     checkStatus();

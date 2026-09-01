@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
-import { Stack, SplashScreen } from 'expo-router';
+import { Stack, SplashScreen, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import api, { authService } from '../services/apiService';
+import api, { authService, setOnUnauthorizedCallback } from '../services/apiService';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
@@ -78,7 +78,10 @@ async function registerForPushNotificationsAsync() {
   return token;
 }
 
+import { GlobalToast } from '../components/Toast';
+
 export default function RootLayout() {
+  const router = useRouter();
   const [loaded, error] = useFonts({
     Inter: Inter_400Regular,
     'Inter-Medium': Inter_500Medium,
@@ -87,6 +90,12 @@ export default function RootLayout() {
     'Inter-ExtraBold': Inter_800ExtraBold,
     'Inter-Black': Inter_900Black,
   });
+
+  useEffect(() => {
+    setOnUnauthorizedCallback(() => {
+      router.replace('/signin');
+    });
+  }, [router]);
 
   useEffect(() => {
     if (loaded || error) {
@@ -110,6 +119,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" />
+        <Stack.Screen name="onboarding" />
         <Stack.Screen name="welcome" />
         <Stack.Screen name="signin" />
         <Stack.Screen name="signup-step1" />
@@ -125,6 +135,7 @@ export default function RootLayout() {
         <Stack.Screen name="kyc" />
         <Stack.Screen name="legal" />
       </Stack>
+      <GlobalToast />
     </SafeAreaProvider>
   );
 }

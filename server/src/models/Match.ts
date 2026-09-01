@@ -1,5 +1,24 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface IMatchPool {
+  totalPot: number;
+  homePot: number;
+  drawPot: number;
+  awayPot: number;
+  over25Pot?: number;
+  under25Pot?: number;
+  bttsYesPot?: number;
+  bttsNoPot?: number;
+  houseFeeCollected?: number;
+  surplusCollected?: number;
+}
+
+export interface IMatchP2PStats {
+  totalSharesTraded: number;
+  openShares: number;
+  matchedShares: number;
+}
+
 export interface IMatch extends Document {
   sport?: string;
   homeTeam: string;
@@ -22,6 +41,9 @@ export interface IMatch extends Document {
     bttsNo?: number;
   };
   poolAmount: number;
+  pool: IMatchPool;
+  p2pStats: IMatchP2PStats;
+  bridgeTriggered: boolean;
   fixtureId?: number; // External API fixture ID
 }
 
@@ -53,6 +75,24 @@ const matchSchema = new Schema(
       bttsNo: { type: Number, default: 1.0 },
     },
     poolAmount: { type: Number, default: 0 },
+    pool: {
+      totalPot: { type: Number, default: 0 },
+      homePot: { type: Number, default: 0 },
+      drawPot: { type: Number, default: 0 },
+      awayPot: { type: Number, default: 0 },
+      over25Pot: { type: Number, default: 0 },
+      under25Pot: { type: Number, default: 0 },
+      bttsYesPot: { type: Number, default: 0 },
+      bttsNoPot: { type: Number, default: 0 },
+      houseFeeCollected: { type: Number, default: 0 },
+      surplusCollected: { type: Number, default: 0 },
+    },
+    p2pStats: {
+      totalSharesTraded: { type: Number, default: 0 },
+      openShares: { type: Number, default: 0 },
+      matchedShares: { type: Number, default: 0 },
+    },
+    bridgeTriggered: { type: Boolean, default: false },
   },
   {
     timestamps: true,

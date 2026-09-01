@@ -4,15 +4,24 @@ import { Alert, Platform } from 'react-native';
 
 const getDefaultApiUrl = () => {
   if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return `${window.location.origin}/api`;
-    }
+    return 'http://localhost:5000/api';
   }
-  // Use production server for all platforms by default
-  return 'https://api.peeritrade.com/api';
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:5000/api';
+  }
+  // iOS simulator or default local
+  return 'http://localhost:5000/api';
 };
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || getDefaultApiUrl()).replace(/\/$/, '');
+
+// Unauthorized / Session Expiration handler callback
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export const setOnUnauthorizedCallback = (handler: UnauthorizedHandler | null) => {
+  unauthorizedHandler = handler;
+};
 
 const api = axios.create({
   baseURL: API_URL,
@@ -54,24 +63,8 @@ api.interceptors.request.use(
   }
 );
 
-const isWeb = Platform.OS === 'web';
-
-const showAlert = (title: string, message: string) => {
-  if (!message) return;
-  if (isWeb && typeof window !== 'undefined' && typeof window.alert === 'function') {
-    window.alert(`${title}: ${message}`);
-  } else {
-    Alert.alert(title, message);
-  }
-};
-
-const showErrorAlert = (message: string) => {
-  showAlert('Error', message);
-};
-
-const showSuccessAlert = (message: string) => {
-  showAlert('Success', message);
-};
+import { showToast } from '../components/Toast';
+export { showToast };
 
 api.interceptors.response.use(
   (response) => {
@@ -84,17 +77,9 @@ api.interceptors.response.use(
       });
     }
 
-    const successMethods = ['post', 'put', 'patch', 'delete'];
-    if (successMethods.includes(response.config.method || '')) {
-      const message = response.data?.message || 'Action completed successfully.';
-      if (message) {
-        showSuccessAlert(message);
-      }
-    }
-
     return response;
   },
-  (error) => {
+  async (error) => {
     if (process.env.NODE_ENV !== 'production') {
       console.debug('API Response Error:', {
         method: error.config?.method,
@@ -104,8 +89,41 @@ api.interceptors.response.use(
       });
     }
 
+    // Check for 401 Unauthorized (Session Expired)
+    if (error.response?.status === 401) {
+      const url = error.config?.url || '';
+      const isPublicAuthRoute =
+        url.includes('/auth/login') ||
+        url.includes('/auth/register') ||
+        url.includes('/auth/verify-otp') ||
+        url.includes('/auth/resend-otp') ||
+        url.includes('/auth/forgot-password') ||
+        url.includes('/auth/reset-password') ||
+        url.includes('/auth/verify-reset-otp') ||
+        url.includes('/auth/check-availability');
+
+      if (!isPublicAuthRoute) {
+        try {
+          await AsyncStorage.multiRemove([
+            'userToken',
+            'userData',
+            'user',
+            'kycStatus',
+            'isLoggedIn',
+            'token'
+          ]);
+        } catch (storageErr) {
+          console.warn('Failed to clear storage on 401:', storageErr);
+        }
+
+        if (unauthorizedHandler) {
+          unauthorizedHandler();
+        }
+      }
+    }
+
     const message = getApiErrorMessage(error, 'Request failed. Please try again.');
-    showErrorAlert(message);
+    showToast(message, 'error');
     return Promise.reject(error);
   }
 );
@@ -190,8 +208,18 @@ export const authService = {
     return response.data;
   },
   logout: async () => {
-    await AsyncStorage.removeItem('userToken');
-    await AsyncStorage.removeItem('userData');
+    try {
+      await AsyncStorage.multiRemove([
+        'userToken',
+        'userData',
+        'user',
+        'kycStatus',
+        'isLoggedIn',
+        'token'
+      ]);
+    } catch (error) {
+      console.warn('Error clearing storage on logout:', error);
+    }
   },
   isAuthenticated: async () => {
     try {
@@ -282,6 +310,64 @@ export const betService = {
   },
   getMyBets: async (params?: { page?: number; limit?: number; status?: string }) => {
     const response = await apiRequest(api.get('/bets/my-bets', { params }));
+    return response.data;
+  },
+};
+
+// P2P Flow Trading Service (Atomized Shares ₦1,000 = 1 Share)
+export const p2pService = {
+  placeOrder: async (data: {
+    matchId: string;
+    market?: 'MATCH_OUTCOME' | 'OVER_UNDER_25' | 'BTTS';
+    selection: 'HOME' | 'DRAW' | 'AWAY' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO';
+    shares: number;
+  }) => {
+    const response = await apiRequest(api.post('/p2p/orders', data));
+    return response.data;
+  },
+  getOrderBook: async (matchId: string, market = 'MATCH_OUTCOME') => {
+    const response = await apiRequest(api.get(`/p2p/orderbook/${matchId}`, { params: { market } }));
+    return response.data;
+  },
+  getMyOrders: async (params?: { page?: number; limit?: number; status?: string }) => {
+    const response = await apiRequest(api.get('/p2p/my-orders', { params }));
+    return response.data;
+  },
+  cancelOrder: async (orderId: string) => {
+    const response = await apiRequest(api.post(`/p2p/cancel/${orderId}`));
+    return response.data;
+  },
+};
+
+// Pool Jackpot Pro-Rata Service
+export const poolService = {
+  enterPool: async (data: {
+    matchId: string;
+    market?: 'MATCH_OUTCOME' | 'OVER_UNDER_25' | 'BTTS';
+    selection: 'HOME' | 'DRAW' | 'AWAY' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO';
+    amount: number;
+  }) => {
+    const response = await apiRequest(api.post('/pool/enter', data));
+    return response.data;
+  },
+  getPoolBreakdown: async (matchId: string, market = 'MATCH_OUTCOME') => {
+    const response = await apiRequest(api.get(`/pool/${matchId}`, { params: { market } }));
+    return response.data;
+  },
+  getMyPoolContracts: async (params?: { page?: number; limit?: number; isBridged?: boolean }) => {
+    const response = await apiRequest(api.get('/pool/my-contracts', { params }));
+    return response.data;
+  },
+};
+
+// Bridge Protocol Service (Convert Unmatched P2P Liquidity to Pool)
+export const bridgeService = {
+  getPendingOffers: async () => {
+    const response = await apiRequest(api.get('/bridge/pending-offers'));
+    return response.data;
+  },
+  acceptOffer: async (orderId: string) => {
+    const response = await apiRequest(api.post(`/bridge/accept/${orderId}`));
     return response.data;
   },
 };

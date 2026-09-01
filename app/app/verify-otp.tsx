@@ -6,7 +6,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { authService } from '../services/apiService';
+import { authService, showToast } from '../services/apiService';
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
@@ -18,6 +18,7 @@ export default function VerifyOtpScreen() {
   const [timer, setTimer] = useState(59);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   const inputs = useRef<Array<TextInput | null>>([]);
 
@@ -70,25 +71,31 @@ export default function VerifyOtpScreen() {
       setLoading(false);
       const errorMsg = err.response?.data?.message || 'Invalid or expired OTP';
       setError(errorMsg);
-      Alert.alert('Verification Failed', errorMsg);
+      showToast(errorMsg, 'error');
     }
   };
 
   const handleResend = async () => {
-    if (timer === 0) {
-      try {
-        if (context === 'reset_password') {
-          await authService.forgotPassword(email);
-        } else {
-          await authService.resendOtp(email);
-        }
-      } catch (err) {
-        console.warn('Resend OTP failed:', err);
+    if (isResending || timer > 0) return;
+    setIsResending(true);
+    try {
+      if (context === 'reset_password') {
+        const res = await authService.forgotPassword(email);
+        showToast(res?.message || 'Password reset OTP resent to your email.', 'success');
+      } else {
+        const res = await authService.resendOtp(email);
+        showToast(res?.message || 'Verification OTP resent to your email.', 'success');
       }
       setTimer(59);
       setOtp(['', '', '', '', '', '']);
       setError('');
       inputs.current[0]?.focus();
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || 'Failed to resend OTP. Please try again.';
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -138,7 +145,7 @@ export default function VerifyOtpScreen() {
                   />
                 ))}
               </View>
-              {error && <Text style={styles.errorText}>{error}</Text>}
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
             </View>
 
             {/* Timer or Resend link */}
@@ -148,8 +155,14 @@ export default function VerifyOtpScreen() {
                   Resend code in <Text style={styles.timerAccent}>{timer}s</Text>
                 </Text>
               ) : (
-                <TouchableOpacity onPress={handleResend} activeOpacity={0.7}>
-                  <Text style={styles.resendLink}>Resend Code</Text>
+                <TouchableOpacity
+                  onPress={handleResend}
+                  activeOpacity={0.7}
+                  disabled={isResending}
+                >
+                  <Text style={[styles.resendLink, isResending && { opacity: 0.6 }]}>
+                    {isResending ? 'Resending Code...' : 'Resend Code'}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>

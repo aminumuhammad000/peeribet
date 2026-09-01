@@ -48,6 +48,15 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
+import path from 'path';
+
+// Static uploads serving (for local upload fallback)
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+import p2pRoutes from './routes/p2pRoutes';
+import poolRoutes from './routes/poolRoutes';
+import bridgeRoutes from './routes/bridgeRoutes';
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
@@ -55,6 +64,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/bets', betRoutes);
+app.use('/api/p2p', p2pRoutes);
+app.use('/api/pool', poolRoutes);
+app.use('/api/bridge', bridgeRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/support', supportRoutes);
 

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, Activity, DollarSign, Wallet, RefreshCw } from 'lucide-react';
 import api from '../services/api';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [settling, setSettling] = useState(false);
@@ -38,10 +40,10 @@ export default function Dashboard() {
   if (loading) return <div className="p-8">Loading stats...</div>;
 
   const statCards = [
-    { name: 'Total Users', value: stats?.users || 0, icon: Users, color: 'text-blue-500' },
-    { name: 'Active Trades', value: stats?.activeTrades || 0, icon: Activity, color: 'text-green-500' },
-    { name: 'Total Volume', value: `₦${(stats?.volume || 0).toLocaleString()}`, icon: DollarSign, color: 'text-purple-500' },
-    { name: 'In Escrow', value: `₦${(stats?.inEscrow || 0).toLocaleString()}`, icon: Wallet, color: 'text-yellow-500' },
+    { name: 'Total Users', value: stats?.users || 0, icon: Users, color: 'text-blue-500', path: '/users', description: 'View user list & status' },
+    { name: 'Active Trades', value: stats?.activeTrades || 0, icon: Activity, color: 'text-green-500', path: '/users', description: 'View active trade users' },
+    { name: 'Total Volume', value: `₦${(stats?.volume || 0).toLocaleString()}`, icon: DollarSign, color: 'text-purple-500', path: '/users', description: 'View user balances & volume' },
+    { name: 'In Escrow', value: `₦${(stats?.inEscrow || 0).toLocaleString()}`, icon: Wallet, color: 'text-yellow-500', path: '/kyc', description: 'View KYC & verification' },
   ];
 
   return (
@@ -52,7 +54,7 @@ export default function Dashboard() {
         <button
           onClick={triggerSettlement}
           disabled={settling}
-          className="flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+          className="flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 cursor-pointer"
         >
           <RefreshCw className={`w-5 h-5 mr-2 ${settling ? 'animate-spin' : ''}`} />
           Force Settlement
@@ -63,7 +65,19 @@ export default function Dashboard() {
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.name} className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-sm">
+            <div
+              key={stat.name}
+              onClick={() => stat.path && navigate(stat.path)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  if (stat.path) navigate(stat.path);
+                }
+              }}
+              title={stat.description}
+              className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-sm cursor-pointer hover:border-green-500/50 hover:bg-gray-750 transition-all transform hover:-translate-y-0.5 select-none"
+            >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-gray-400 font-medium">{stat.name}</h3>
                 <div className={`p-2 bg-gray-900 rounded-lg ${stat.color}`}>

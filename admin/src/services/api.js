@@ -18,4 +18,19 @@ api.interceptors.request.use(
   }
 );
 
+// Add a response interceptor to handle session expiration
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('adminUser');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth:expired'));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

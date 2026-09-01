@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl, Image, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, ShieldCheck, Key, Settings, HelpCircle, FileText, LogOut, ChevronRight, Edit2, Check, X, Lock, Camera } from 'lucide-react-native';
+import { User, ShieldCheck, Key, Settings, HelpCircle, FileText, LogOut, ChevronRight, Edit2, Check, X, Lock, Camera, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../constants/Colors';
 import { useKyc } from '../../constants/KycStore';
-import { authService } from '../../services/apiService';
+import { authService, showToast } from '../../services/apiService';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -28,13 +28,19 @@ export default function ProfileScreen() {
 
   const fetchUser = async () => {
     try {
+      setLoading(true);
       const userData = await authService.getMe();
-      setUser(userData);
-      setProfileName(`${userData.firstName} ${userData.lastName}`);
-      setProfileUsername(userData.username || userData.email.split('@')[0]);
-      setProfileImage(userData.profileImage || null);
+      if (userData) {
+        setUser(userData);
+        const name = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User';
+        setProfileName(name);
+        setProfileUsername(userData.username || 'user');
+        setProfileImage(userData.profileImage || null);
+      }
     } catch (error) {
-      console.error('Error fetching user for profile:', error);
+      console.error('Failed to fetch user in profile:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -49,21 +55,25 @@ export default function ProfileScreen() {
   };
 
   const handlePickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'We need camera roll permissions to change your profile picture.');
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'We need camera roll permissions to change your profile picture.');
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled) {
-      handleUploadImage(result.assets[0].uri);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await handleUploadImage(result.assets[0].uri);
+      }
+    } catch (err: any) {
+      console.error('Pick image error:', err);
     }
   };
 
@@ -71,19 +81,27 @@ export default function ProfileScreen() {
     setUploading(true);
     try {
       const formData = new FormData();
-      const filename = uri.split('/').pop() || 'profile.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : `image/jpg`;
-
-      // @ts-ignore
-      formData.append('image', { uri, name: filename, type });
+      if (Platform.OS === 'web') {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        formData.append('image', blob, 'profile.jpg');
+      } else {
+        const filename = uri.split('/').pop() || 'profile.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+        // @ts-ignore
+        formData.append('image', { uri, name: filename, type });
+      }
 
       const res = await authService.uploadProfileImage(formData);
-      setProfileImage(res.profileImage);
-      Alert.alert('Success', 'Profile image updated successfully');
+      if (res?.profileImage) {
+        setProfileImage(res.profileImage);
+        setUser((prev: any) => ({ ...prev, profileImage: res.profileImage }));
+        showToast('Profile image updated successfully', 'success');
+      }
     } catch (error: any) {
       console.error('Upload error:', error);
-      Alert.alert('Error', 'Failed to upload image. Please try again.');
+      showToast('Failed to upload image. Please verify server or Cloudinary configuration.', 'error');
     } finally {
       setUploading(false);
     }
@@ -147,21 +165,34 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
-          style: 'destructive',
-          onPress: async () => {
-            await authService.logout();
-            router.replace('/welcome');
-          }
-        },
-      ]
-    );
+    const doLogout = async () => {
+      try {
+        await authService.logout();
+      } catch (e) {
+        console.error('Logout error:', e);
+      } finally {
+        router.replace('/signin');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Are you sure you want to log out of your account?')) {
+        await doLogout();
+      }
+    } else {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Logout', 
+            style: 'destructive',
+            onPress: doLogout
+          },
+        ]
+      );
+    }
   };
 
   const getKycBadge = () => {
@@ -204,6 +235,13 @@ export default function ProfileScreen() {
       title: 'Security Settings',
       sub: 'Change password & Transaction PIN',
       icon: <Key size={20} color="#3B82F6" />,
+      badge: null,
+    },
+    {
+      id: '6',
+      title: 'How It Works (Tour)',
+      sub: 'Replay platform trading overview',
+      icon: <Sparkles size={20} color="#8B5CF6" />,
       badge: null,
     },
     {
@@ -383,6 +421,8 @@ export default function ProfileScreen() {
                   router.push('/kyc');
                 } else if (item.id === '2') {
                   router.push('/security');
+                } else if (item.id === '6') {
+                  router.push('/onboarding');
                 } else if (item.id === '4') {
                   router.push('/helpdesk');
                 } else if (item.id === '5') {

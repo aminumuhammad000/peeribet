@@ -72,8 +72,29 @@ export default function App() {
   // Navigation tabs
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Mobile sidebar state
+  // Sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
+    localStorage.getItem('admin_sidebar_collapsed') === 'true'
+  );
+
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('admin_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
+  // Listen for session expiration events
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setIsLoggedIn(false);
+      showToast('Your session has expired. Please log in again.', 'warning');
+    };
+    window.addEventListener('auth:expired', handleAuthExpired);
+    return () => window.removeEventListener('auth:expired', handleAuthExpired);
+  }, []);
 
   // Theme state
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
@@ -157,6 +178,10 @@ export default function App() {
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Transactions list state
   const [txnStatusFilter, setTxnStatusFilter] = useState('ALL');
@@ -259,12 +284,13 @@ export default function App() {
     try {
       const { data } = await api.get('/admin/users');
       // Map server users to userBalances structure
-      const mappedUsers = data.map(u => ({
+      const list = Array.isArray(data) ? data : (data?.users || []);
+      const mappedUsers = list.map(u => ({
         id: u._id,
-        name: `${u.firstName} ${u.lastName}`,
-        email: u.email,
-        phone: u.phone,
-        balance: u.balance,
+        name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
+        email: u.email || 'N/A',
+        phone: u.phone || 'N/A',
+        balance: u.balance || 0,
         status: u.isVerified ? 'Healthy' : 'Unverified'
       }));
       setUserBalances(mappedUsers);
@@ -276,15 +302,16 @@ export default function App() {
   const fetchTransactions = async () => {
     try {
       const { data } = await api.get('/admin/transactions');
-      const mappedTxns = data.map(t => ({
-        hash: t.reference,
-        type: t.type.toUpperCase(),
-        amount: t.amount,
+      const list = Array.isArray(data) ? data : (data?.transactions || []);
+      const mappedTxns = list.map(t => ({
+        hash: t.reference || t.hash || t._id,
+        type: (t.type || 'TRANSACTION').toUpperCase(),
+        amount: t.amount || 0,
         fromTo: t.type === 'deposit' ? `Bank -> ${t.user?.firstName || 'User'}` : `${t.user?.firstName || 'User'} -> Bank`,
-        userName: t.user ? `${t.user.firstName} ${t.user.lastName}` : 'Unknown',
+        userName: t.user ? `${t.user.firstName || ''} ${t.user.lastName || ''}`.trim() : 'Unknown',
         userEmail: t.user?.email || 'N/A',
         userPhone: t.user?.phone || 'N/A',
-        time: new Date(t.createdAt).toLocaleString(),
+        time: new Date(t.createdAt || Date.now()).toLocaleString(),
         status: t.status === 'completed' ? 'SUCCESS' : t.status === 'pending' ? 'PENDING' : 'FAILED'
       }));
       setTransactions(mappedTxns);
@@ -296,16 +323,17 @@ export default function App() {
   const fetchTrades = async () => {
     try {
       const { data } = await api.get('/admin/trades');
-      const mappedTrades = data.map(t => ({
-        id: t._id,
-        partyA: t.initiator ? `${t.initiator.firstName} ${t.initiator.lastName}` : 'System',
-        partyB: t.responder ? `${t.responder.firstName} ${t.responder.lastName}` : 'Unpaired',
+      const list = Array.isArray(data) ? data : (data?.trades || []);
+      const mappedTrades = list.map(t => ({
+        id: t._id || t.id,
+        partyA: t.initiator ? `${t.initiator.firstName || ''} ${t.initiator.lastName || ''}`.trim() : 'System',
+        partyB: t.responder ? `${t.responder.firstName || ''} ${t.responder.lastName || ''}`.trim() : 'Unpaired',
         avatarA: avatarList[Math.floor(Math.random() * avatarList.length)],
         avatarB: avatarList[Math.floor(Math.random() * avatarList.length)],
         asset: 'NGN',
-        amount: t.amount,
-        time: new Date(t.createdAt).toLocaleTimeString(),
-        status: t.status
+        amount: t.amount || 0,
+        time: new Date(t.createdAt || Date.now()).toLocaleTimeString(),
+        status: t.status || 'PENDING'
       }));
       setTrades(mappedTrades);
     } catch (error) {
@@ -316,8 +344,9 @@ export default function App() {
   const fetchMarkets = async () => {
     try {
       const { data } = await api.get('/admin/markets');
-      setMarkets(data.map(m => ({
-        id: m._id,
+      const list = Array.isArray(data) ? data : (data?.markets || []);
+      setMarkets(list.map(m => ({
+        id: m._id || m.id,
         pair: m.pair,
         rate: m.rate,
         change: m.change,
@@ -332,13 +361,15 @@ export default function App() {
   const fetchSettings = async () => {
     try {
       const { data } = await api.get('/admin/settings');
-      setPlatformFee(data.platformFee);
-      setSettlementMode(data.settlementMode);
-      setComplianceThreshold(data.complianceThreshold);
+      if (data) {
+        setPlatformFee(data.platformFee ?? 0);
+        setSettlementMode(data.settlementMode || 'AUTOMATED');
+        setComplianceThreshold(data.complianceThreshold ?? 0);
 
-      setEditFee(data.platformFee);
-      setEditMode(data.settlementMode);
-      setEditThreshold(data.complianceThreshold);
+        setEditFee(data.platformFee ?? 0);
+        setEditMode(data.settlementMode || 'AUTOMATED');
+        setEditThreshold(data.complianceThreshold ?? 0);
+      }
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
@@ -347,13 +378,14 @@ export default function App() {
   const fetchSecurityLogs = async () => {
     try {
       const { data } = await api.get('/admin/security-logs');
-      setAuditLogs(data.map(l => ({
-        id: l._id,
-        type: l.type,
-        text: l.text,
-        meta: l.meta,
-        icon: l.icon,
-        time: new Date(l.createdAt).toLocaleString()
+      const list = Array.isArray(data) ? data : (data?.logs || []);
+      setAuditLogs(list.map(l => ({
+        id: l._id || l.id,
+        type: l.type || 'info',
+        text: l.text || '',
+        meta: l.meta || '',
+        icon: l.icon || 'shield',
+        time: new Date(l.createdAt || Date.now()).toLocaleString()
       })));
     } catch (error) {
       console.error('Error fetching security logs:', error);
@@ -540,21 +572,41 @@ export default function App() {
   // Handle Change Password Form
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    if (!oldPassword || !newPassword || !confirmPassword) return;
+    if (!oldPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
+      showToast('Please complete all password fields.', 'error');
+      return;
+    }
+    if (newPassword.length < 6) {
+      showToast('New password must be at least 6 characters long.', 'error');
+      return;
+    }
     if (newPassword !== confirmPassword) {
-      showToast('New passwords do not match sequential signature.', 'error');
+      showToast('New password and confirm password do not match.', 'error');
+      return;
+    }
+    if (oldPassword === newPassword) {
+      showToast('New password cannot be the same as current password.', 'error');
       return;
     }
 
     try {
-      await api.post('/admin/change-password', { oldPassword, newPassword });
-      showToast('Administrative credentials updated successfully.', 'success');
+      setIsChangingPassword(true);
+      const res = await api.post('/admin/change-password', {
+        oldPassword: oldPassword.trim(),
+        newPassword: newPassword.trim()
+      });
+      showToast(res.data?.message || 'Administrative credentials updated successfully.', 'success');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      logSecurityEvent('success', 'Admin master access token updated', `Operator: ${adminName}`, 'key');
+      setShowOldPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+      logSecurityEvent('success', 'Admin account password updated', `Operator: ${adminName}`, 'key');
     } catch (error) {
-      showToast(error.response?.data?.message || 'Failed to update credentials.', 'error');
+      showToast(error.response?.data?.message || 'Failed to update credentials. Please check current password.', 'error');
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -751,7 +803,10 @@ export default function App() {
   // Log out administrative session
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('adminUser');
     setIsLoggedIn(false);
+    setIsSidebarOpen(false);
+    showToast('Logged out of admin terminal successfully.', 'info');
   };
 
   // Filtered and searched records
@@ -797,8 +852,8 @@ export default function App() {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
-            <div className="login-logo-wrap" style={{ padding: '0', background: 'transparent', border: 'none' }}>
-              <img src={logo} alt="Logo" style={{ width: '48px', height: '48px' }} />
+            <div className="login-logo-wrap">
+              <img src={logo} alt="Peeritrade Logo" className="login-logo-img" />
             </div>
             <h1 className="login-title">Peeritrade</h1>
             <span className="login-subtitle">Admin Access Portal</span>
@@ -806,13 +861,15 @@ export default function App() {
 
           <form onSubmit={handleLogin} className="login-form">
             <div className="login-input-group">
-              <label htmlFor="login-email">Username Email</label>
+              <label htmlFor="login-email">Username / Email</label>
               <input
-                type="email"
+                type="text"
                 id="login-email"
                 className="login-input"
+                placeholder="peeritrade.com"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
+                autoComplete="username"
                 required
               />
             </div>
@@ -824,9 +881,11 @@ export default function App() {
                   type={showPassword ? "text" : "password"}
                   id="login-password"
                   className="login-input"
+                  placeholder="Enter your access password"
                   style={{ width: '100%', paddingRight: '40px' }}
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
+                  autoComplete="current-password"
                   required
                 />
                 <button
@@ -895,15 +954,30 @@ export default function App() {
       />
 
       {/* Sticky Left Sidebar Navigation */}
-      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+      <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-logo-icon" style={{ padding: '0', background: 'transparent', border: 'none' }}>
-            <img src={logo} alt="Logo" style={{ width: '32px', height: '32px' }} />
+          <div
+            className="sidebar-logo-icon"
+            onClick={toggleSidebarCollapse}
+            style={{ cursor: 'pointer' }}
+            title={isSidebarCollapsed ? "Click to Expand Sidebar" : "Peeritrade Terminal"}
+          >
+            <img src={logo} alt="Peeritrade Logo" />
           </div>
-          <div className="logo-text-container">
-            <h1 className="logo-title">Peeritrade</h1>
-            <span className="logo-subtitle">Admin Terminal</span>
-          </div>
+          {!isSidebarCollapsed && (
+            <div className="logo-text-container">
+              <h1 className="logo-title">Peeritrade</h1>
+              <span className="logo-subtitle">Admin Terminal</span>
+            </div>
+          )}
+          <button
+            type="button"
+            className="sidebar-collapse-toggle-btn"
+            onClick={toggleSidebarCollapse}
+            title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
         </div>
 
         <ul className="sidebar-menu">
@@ -914,6 +988,7 @@ export default function App() {
                 setIsSidebarOpen(false);
               }}
               className={`menu-item-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+              title="Dashboard Overview"
             >
               <LayoutDashboard className="menu-icon" size={16} />
               <span>Dashboard</span>
@@ -927,6 +1002,7 @@ export default function App() {
                 setIsSidebarOpen(false);
               }}
               className={`menu-item-btn ${activeTab === 'users' ? 'active' : ''}`}
+              title="Users Management & KYC"
             >
               <Users className="menu-icon" size={16} />
               <span>Users</span>
@@ -939,6 +1015,7 @@ export default function App() {
                 setIsSidebarOpen(false);
               }}
               className={`menu-item-btn ${activeTab === 'markets' ? 'active' : ''}`}
+              title="Live Club Markets"
             >
               <TrendingUp className="menu-icon" size={16} />
               <span>Live Markets</span>
@@ -951,6 +1028,7 @@ export default function App() {
                 setIsSidebarOpen(false);
               }}
               className={`menu-item-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
+              title="Vaults & Reserves Portfolio"
             >
               <Briefcase className="menu-icon" size={16} />
               <span>Portfolio</span>
@@ -963,6 +1041,7 @@ export default function App() {
                 setIsSidebarOpen(false);
               }}
               className={`menu-item-btn ${activeTab === 'transactions' ? 'active' : ''}`}
+              title="Transactions Ledger"
             >
               <ArrowLeftRight className="menu-icon" size={16} />
               <span>Transactions</span>
@@ -975,6 +1054,7 @@ export default function App() {
                 setIsSidebarOpen(false);
               }}
               className={`menu-item-btn ${activeTab === 'security' ? 'active' : ''}`}
+              title="Security & Password Controls"
             >
               <ShieldCheck className="menu-icon" size={16} />
               <span>Security</span>
@@ -988,6 +1068,7 @@ export default function App() {
             className="logout-item-btn"
             onClick={handleLogout}
             id="btn-admin-logout"
+            title="Log Out Account"
           >
             <LogOut className="menu-icon" size={16} />
             <span>Log Out</span>
@@ -1001,9 +1082,16 @@ export default function App() {
         <header className="top-bar">
           <button
             className="menu-toggle-btn"
-            onClick={() => setIsSidebarOpen(true)}
+            onClick={() => {
+              if (window.innerWidth <= 768) {
+                setIsSidebarOpen(!isSidebarOpen);
+              } else {
+                toggleSidebarCollapse();
+              }
+            }}
+            title="Toggle Sidebar"
           >
-            <Menu size={20} />
+            <Menu size={18} />
           </button>
           <div className="search-box-container">
             <Search className="search-icon" size={16} />
@@ -1093,8 +1181,23 @@ export default function App() {
 
             {/* Metrics cards grid */}
             <section className="metrics-grid">
-              {/* Metric 1 */}
-              <div className="metric-card">
+              {/* Metric 1: Total Users -> Users Tab */}
+              <div
+                className="metric-card"
+                onClick={() => {
+                  setActiveTab('users');
+                  setCurrentPage(1);
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setActiveTab('users');
+                    setCurrentPage(1);
+                  }
+                }}
+                title="Click to view User Management"
+              >
                 <div className="metric-top">
                   <div className="metric-icon-box">
                     <Users size={16} color="#00D285" />
@@ -1105,8 +1208,23 @@ export default function App() {
                 <span className="metric-value">{metrics.users}</span>
               </div>
 
-              {/* Metric 2 */}
-              <div className="metric-card">
+              {/* Metric 2: Active Trades -> Transactions Tab */}
+              <div
+                className="metric-card"
+                onClick={() => {
+                  setActiveTab('transactions');
+                  setCurrentPage(1);
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setActiveTab('transactions');
+                    setCurrentPage(1);
+                  }
+                }}
+                title="Click to view Active Transactions & Trades"
+              >
                 <div className="metric-top">
                   <div className="metric-icon-box">
                     <Activity size={16} color="#3B82F6" />
@@ -1117,8 +1235,21 @@ export default function App() {
                 <span className="metric-value">{metrics.activeTrades}</span>
               </div>
 
-              {/* Metric 3 */}
-              <div className="metric-card">
+              {/* Metric 3: Total Volume -> Live Markets Tab */}
+              <div
+                className="metric-card"
+                onClick={() => {
+                  setActiveTab('markets');
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setActiveTab('markets');
+                  }
+                }}
+                title="Click to view Live Football Club Markets"
+              >
                 <div className="metric-top">
                   <div className="metric-icon-box">
                     <BarChart3 size={16} color="#F59E0B" />
@@ -1129,8 +1260,21 @@ export default function App() {
                 <span className="metric-value">{metrics.volume}</span>
               </div>
 
-              {/* Metric 4 */}
-              <div className="metric-card">
+              {/* Metric 4: Platform Revenue -> Portfolio Vaults & Reserves Tab */}
+              <div
+                className="metric-card"
+                onClick={() => {
+                  setActiveTab('portfolio');
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setActiveTab('portfolio');
+                  }
+                }}
+                title="Click to view Vaults, Reserves & Balances Portfolio"
+              >
                 <div className="metric-top">
                   <div className="metric-icon-box">
                     <Landmark size={16} color="#00D285" />
@@ -1147,7 +1291,14 @@ export default function App() {
               {/* Trade Frequency Bar Chart */}
               <div className="chart-card">
                 <div className="card-title-row">
-                  <div>
+                  <div
+                    onClick={() => {
+                      setActiveTab('transactions');
+                      setCurrentPage(1);
+                    }}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to view Transactions"
+                  >
                     <h3 className="card-heading">Trade Frequency</h3>
                     <p className="card-subheading">Cumulative transactional activity per hour</p>
                   </div>
@@ -1158,7 +1309,15 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bar-chart-container">
+                <div
+                  className="bar-chart-container"
+                  onClick={() => {
+                    setActiveTab('transactions');
+                    setCurrentPage(1);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                  title="Click to view Transactions"
+                >
                   {tradeFrequencyData.map((data, index) => (
                     <div
                       key={index}
@@ -1184,14 +1343,29 @@ export default function App() {
               {/* Financial Oversight Panel */}
               <div className="chart-card">
                 <div className="card-title-row" style={{ marginBottom: 16 }}>
-                  <div>
+                  <div
+                    onClick={() => setActiveTab('portfolio')}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to view Vaults & Reserves Portfolio"
+                  >
                     <h3 className="card-heading">Financial Oversight</h3>
                   </div>
                 </div>
 
                 <div className="oversight-row">
                   {/* Escrow balance */}
-                  <div className="oversight-item-card">
+                  <div
+                    className="oversight-item-card"
+                    onClick={() => setActiveTab('portfolio')}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setActiveTab('portfolio');
+                      }
+                    }}
+                    title="Click to view Escrow & Vault Reserves"
+                  >
                     <div className="oversight-info-left">
                       <div className="oversight-icon-wrap">
                         <Lock size={16} />
@@ -1205,7 +1379,18 @@ export default function App() {
                   </div>
 
                   {/* Cold wallet balance */}
-                  <div className="oversight-item-card">
+                  <div
+                    className="oversight-item-card"
+                    onClick={() => setActiveTab('portfolio')}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setActiveTab('portfolio');
+                      }
+                    }}
+                    title="Click to view Cold Vault Reserves"
+                  >
                     <div className="oversight-info-left">
                       <div className="oversight-icon-wrap">
                         <Wallet size={16} />
@@ -1219,7 +1404,18 @@ export default function App() {
                   </div>
 
                   {/* Progress segment */}
-                  <div>
+                  <div
+                    onClick={() => setActiveTab('portfolio')}
+                    style={{ cursor: 'pointer' }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setActiveTab('portfolio');
+                      }
+                    }}
+                    title="Click to view Liquidity Distribution in Portfolio"
+                  >
                     <div className="liquidity-progress-header">
                       <span>LIQUIDITY DISTRIBUTION</span>
                     </div>
@@ -1250,6 +1446,18 @@ export default function App() {
                   <p className="card-subheading">Real-time settlement activity across all regions</p>
                 </div>
                 <div className="filter-controls-right">
+                  <button
+                    className="export-btn"
+                    onClick={() => {
+                      setActiveTab('transactions');
+                      setCurrentPage(1);
+                    }}
+                    title="View all transactions in full table"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <ArrowLeftRight size={14} />
+                    <span>View All</span>
+                  </button>
                   <select
                     className="dropdown-select"
                     value={statusFilter}
@@ -1693,37 +1901,160 @@ export default function App() {
                 {/* Section: Administrative credential forms */}
                 <div className="security-settings-section">
                   <h3 className="security-section-title">Change Account Password</h3>
-                  <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+                    Update your master administrator password. Password must be at least 6 characters.
+                  </p>
+                  <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <div className="form-group-wrap">
-                      <input
-                        type="password"
-                        placeholder="Current Admin Password"
-                        className="form-input-text"
-                        value={oldPassword}
-                        onChange={(e) => setOldPassword(e.target.value)}
-                        required
-                      />
+                      <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'bold', marginBottom: 4, display: 'block' }}>
+                        Current Admin Password
+                      </label>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                          type={showOldPassword ? "text" : "password"}
+                          placeholder="Enter current password"
+                          className="form-input-text"
+                          style={{ width: '100%', paddingRight: '40px' }}
+                          value={oldPassword}
+                          onChange={(e) => setOldPassword(e.target.value)}
+                          required
+                          autoComplete="current-password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowOldPassword(!showOldPassword)}
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title={showOldPassword ? "Hide password" : "Show password"}
+                        >
+                          {showOldPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                     </div>
+
                     <div className="form-row-split">
-                      <input
-                        type="password"
-                        placeholder="New Password"
-                        className="form-input-text"
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        required
-                      />
-                      <input
-                        type="password"
-                        placeholder="Confirm Password"
-                        className="form-input-text"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                      />
+                      <div className="form-group-wrap">
+                        <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'bold', marginBottom: 4, display: 'block' }}>
+                          New Password
+                        </label>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type={showNewPassword ? "text" : "password"}
+                            placeholder="Min 6 characters"
+                            className="form-input-text"
+                            style={{ width: '100%', paddingRight: '40px' }}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                            minLength={6}
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            style={{
+                              position: 'absolute',
+                              right: '12px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title={showNewPassword ? "Hide password" : "Show password"}
+                          >
+                            {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="form-group-wrap">
+                        <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'bold', marginBottom: 4, display: 'block' }}>
+                          Confirm New Password
+                        </label>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="Repeat new password"
+                            className="form-input-text"
+                            style={{ width: '100%', paddingRight: '40px' }}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                            minLength={6}
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            style={{
+                              position: 'absolute',
+                              right: '12px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title={showConfirmPassword ? "Hide password" : "Show password"}
+                          >
+                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <button type="submit" className="btn-primary" style={{ alignSelf: 'flex-start' }}>
-                      Update Password
+
+                    {/* Password helper status */}
+                    {newPassword && confirmPassword && (
+                      <div style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, color: newPassword === confirmPassword ? '#00D285' : '#EF4444' }}>
+                        {newPassword === confirmPassword ? (
+                          <>
+                            <CheckCircle size={14} />
+                            <span>Passwords match</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle size={14} />
+                            <span>Passwords do not match</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={isChangingPassword}
+                      style={{
+                        alignSelf: 'flex-start',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        opacity: isChangingPassword ? 0.7 : 1,
+                        cursor: isChangingPassword ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {isChangingPassword ? (
+                        <>
+                          <RefreshCw size={14} className="animate-spin" />
+                          <span>Updating Password...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Key size={14} />
+                          <span>Update Password</span>
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>
@@ -2082,6 +2413,169 @@ export default function App() {
 
                     <button type="submit" className="btn-primary" style={{ alignSelf: 'flex-start', marginTop: 8 }}>
                       Save Profile Changes
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              {/* Change Password Card in Profile */}
+              <div className="security-settings-card" style={{ maxWidth: 650, margin: '0 auto', width: '100%' }}>
+                <div className="security-settings-section">
+                  <h3 className="security-section-title">Change Account Password</h3>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+                    Update your master administrator password. Password must be at least 6 characters.
+                  </p>
+                  <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div className="form-group-wrap">
+                      <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'bold', marginBottom: 4, display: 'block' }}>
+                        Current Admin Password
+                      </label>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                          type={showOldPassword ? "text" : "password"}
+                          placeholder="Enter current password"
+                          className="form-input-text"
+                          style={{ width: '100%', paddingRight: '40px' }}
+                          value={oldPassword}
+                          onChange={(e) => setOldPassword(e.target.value)}
+                          required
+                          autoComplete="current-password"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowOldPassword(!showOldPassword)}
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title={showOldPassword ? "Hide password" : "Show password"}
+                        >
+                          {showOldPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="form-row-split">
+                      <div className="form-group-wrap">
+                        <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'bold', marginBottom: 4, display: 'block' }}>
+                          New Password
+                        </label>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type={showNewPassword ? "text" : "password"}
+                            placeholder="Min 6 characters"
+                            className="form-input-text"
+                            style={{ width: '100%', paddingRight: '40px' }}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                            minLength={6}
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            style={{
+                              position: 'absolute',
+                              right: '12px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title={showNewPassword ? "Hide password" : "Show password"}
+                          >
+                            {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="form-group-wrap">
+                        <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'bold', marginBottom: 4, display: 'block' }}>
+                          Confirm New Password
+                        </label>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="Repeat new password"
+                            className="form-input-text"
+                            style={{ width: '100%', paddingRight: '40px' }}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            required
+                            minLength={6}
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            style={{
+                              position: 'absolute',
+                              right: '12px',
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                            title={showConfirmPassword ? "Hide password" : "Show password"}
+                          >
+                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Password match helper */}
+                    {newPassword && confirmPassword && (
+                      <div style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, color: newPassword === confirmPassword ? '#00D285' : '#EF4444' }}>
+                        {newPassword === confirmPassword ? (
+                          <>
+                            <CheckCircle size={14} />
+                            <span>Passwords match</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle size={14} />
+                            <span>Passwords do not match</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={isChangingPassword}
+                      style={{
+                        alignSelf: 'flex-start',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        opacity: isChangingPassword ? 0.7 : 1,
+                        cursor: isChangingPassword ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {isChangingPassword ? (
+                        <>
+                          <RefreshCw size={14} className="animate-spin" />
+                          <span>Updating Password...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Key size={14} />
+                          <span>Update Password</span>
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>

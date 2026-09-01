@@ -176,21 +176,27 @@ export default function HomeScreen() {
             />
           </View>
 
-          <View style={styles.calendarRow}>
-            {dates.map((item) => {
-              const isSelected = selectedDateNum === parseInt(item.id);
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  onPress={() => setSelectedDateNum(parseInt(item.id))}
-                  activeOpacity={0.8}
-                  style={[styles.calendarBox, isSelected && styles.calendarBoxActive]}
-                >
-                  <Text style={[styles.calendarDay, isSelected && styles.calendarTextActive]}>{item.day}</Text>
-                  <Text style={[styles.calendarNum, isSelected && styles.calendarTextActive]}>{item.num}</Text>
-                </TouchableOpacity>
-              );
-            })}
+          <View style={styles.calendarWrapper}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.calendarScrollContent}
+            >
+              {dates.map((item) => {
+                const isSelected = selectedDateNum === parseInt(item.id);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    onPress={() => setSelectedDateNum(parseInt(item.id))}
+                    activeOpacity={0.8}
+                    style={[styles.calendarBox, isSelected && styles.calendarBoxActive]}
+                  >
+                    <Text style={[styles.calendarDay, isSelected && styles.calendarTextActive]}>{item.day}</Text>
+                    <Text style={[styles.calendarNum, isSelected && styles.calendarTextActive]}>{item.num}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
 
           <View style={styles.featuredSection}>
@@ -387,29 +393,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter',
   },
-  calendarRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
+  calendarWrapper: {
     marginBottom: 18,
   },
+  calendarScrollContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   calendarBox: {
-    flex: 1,
-    height: 60,
+    width: 54,
+    height: 64,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 3,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(19, 28, 50, 0.8)',
+    backgroundColor: 'rgba(19, 28, 50, 0.85)',
   },
   calendarBoxActive: {
-    backgroundColor: Colors.dark.electricBlue,
-    borderColor: Colors.dark.primary,
+    backgroundColor: '#00D285',
+    borderColor: '#00D285',
+    shadowColor: '#00D285',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
   },
   calendarDay: {
     fontSize: 11,
+    fontWeight: '600',
     color: '#8FA2C7',
     fontFamily: 'Inter',
     marginBottom: 4,
@@ -417,12 +431,12 @@ const styles = StyleSheet.create({
   },
   calendarNum: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFFFFF',
     fontFamily: 'Inter',
   },
   calendarTextActive: {
-    color: '#FFFFFF',
+    color: '#050811',
   },
   featuredSection: {
     paddingHorizontal: 20,

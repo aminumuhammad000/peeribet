@@ -14,6 +14,7 @@ import {
   updateTradeStatus,
   getAllTrades,
   changeAdminPassword,
+  resetUserPassword,
   updateAdminProfile,
   updateTransactionStatus,
   getVaultBalances,
@@ -41,6 +42,7 @@ router.get('/stats', getDashboardStats);
 router.get('/users', getAllUsers);
 router.get('/users/:id', getUserById);
 router.post('/users/credit', creditUser);
+router.post('/users/reset-password', resetUserPassword);
 router.get('/transactions', getAllTransactions);
 router.post('/transactions/status', updateTransactionStatus);
 router.post('/kyc-verify', updateKycStatus);

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import User from '../models/User';
 import { generateToken } from '../utils/generateToken';
 import { sendOtpEmail, sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailService';
+import { createNotification } from '../services/notificationService';
 
 // ─── Helper: generate OTP ────────────────────────────────────────────────────
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -23,24 +24,17 @@ export const register = async (req: Request, res: Response) => {
     const user = await User.create({ firstName, lastName, email, phone, password, otp, otpExpires });
 
     if (user) {
-      // Generate default username if not provided
-      const defaultUsername = email.split('@')[0] + Math.floor(1000 + Math.random() * 9000);
-      user.username = defaultUsername;
-      await user.save();
-
-      // Send OTP email (non-blocking)
       sendOtpEmail(email, firstName, otp).catch((err) =>
-        console.error('[Email] Failed to send OTP email:', err.message)
+        console.error('[Email] Failed to send registration OTP email:', err.message)
       );
 
       res.status(201).json({
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
-        username: user.username,
         email: user.email,
         phone: user.phone,
-        token: generateToken((user._id as any).toString()),
+        message: 'Account created! Please check your email for verification OTP.',
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
@@ -54,31 +48,49 @@ export const register = async (req: Request, res: Response) => {
 // @route  POST /api/auth/login
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { emailOrPhone, password } = req.body;
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({
+      $or: [{ email: emailOrPhone }, { phone: emailOrPhone }],
+    }).select('+password');
 
-    if (!user || !user.password) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     const isMatch = await user.comparePassword(password);
-    if (isMatch) {
-      res.json({
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        username: user.username,
-        email: user.email,
-        phone: user.phone,
-        isVerified: user.isVerified,
-        role: user.role,
-        balance: user.balance,
-        token: generateToken((user._id as any).toString()),
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid email or password' });
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    if (!user.isVerified) {
+      // Re-issue OTP if unverified
+      const otp = generateOtp();
+      user.otp = otp;
+      user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+      await user.save();
+
+      sendOtpEmail(user.email, user.firstName, otp).catch((err) =>
+        console.error('[Email] Failed to send login verification OTP email:', err.message)
+      );
+
+      return res.status(403).json({
+        message: 'Account not verified. A new OTP has been sent to your email.',
+        unverified: true,
+        email: user.email,
+      });
+    }
+
+    res.json({
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      token: generateToken((user._id as any).toString()),
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -102,11 +114,17 @@ export const verifyOtp = async (req: Request, res: Response) => {
       user.otpExpires = undefined;
       await user.save();
 
-      // Send welcome email only on first verification
+      // Send welcome email & notification only on first verification
       if (!wasAlreadyVerified) {
         sendWelcomeEmail(email, user.firstName).catch((err) =>
           console.error('[Email] Failed to send welcome email:', err.message)
         );
+        createNotification(
+          (user._id as any).toString(),
+          'Welcome to Peeritrade! 🎉',
+          'Your account is verified. Start exploring live markets, fund your wallet, or create outcome orders.',
+          'system'
+        ).catch(() => {});
       }
 
       res.status(200).json({
@@ -226,6 +244,13 @@ export const resetPassword = async (req: Request, res: Response) => {
     user.otpExpires = undefined;
     await user.save();
 
+    createNotification(
+      (user._id as any).toString(),
+      'Password Reset Successful 🔒',
+      'Your account password was reset successfully.',
+      'system'
+    ).catch(() => {});
+
     res.status(200).json({ message: 'Password reset successfully' });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -302,7 +327,13 @@ export const uploadProfileImage = async (req: any, res: Response) => {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    user.profileImage = req.file.path; // Cloudinary URL
+    let imageUrl = req.file.path;
+    if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+      const serverBase = process.env.API_URL || `${req.protocol}://${req.get('host')}`;
+      imageUrl = `${serverBase}/uploads/${req.file.filename}`;
+    }
+
+    user.profileImage = imageUrl;
     await user.save();
 
     res.json({
@@ -325,9 +356,22 @@ export const uploadKycDocument = async (req: any, res: Response) => {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    user.kycDocument = req.file.path; // Cloudinary URL
+    let docUrl = req.file.path;
+    if (!docUrl.startsWith('http://') && !docUrl.startsWith('https://')) {
+      const serverBase = process.env.API_URL || `${req.protocol}://${req.get('host')}`;
+      docUrl = `${serverBase}/uploads/${req.file.filename}`;
+    }
+
+    user.kycDocument = docUrl;
     user.kycStatus = 'pending';
     await user.save();
+
+    createNotification(
+      (user._id as any).toString(),
+      'KYC Documents Submitted 📋',
+      'Your identity documents have been uploaded and are under review by compliance.',
+      'system'
+    ).catch(() => {});
 
     res.json({
       message: 'KYC Document uploaded successfully',
@@ -366,6 +410,13 @@ export const updatePin = async (req: any, res: Response) => {
     user.pin = newPin;
     await user.save();
 
+    createNotification(
+      (user._id as any).toString(),
+      'Transaction PIN Updated 🛡️',
+      'Your 4-digit transaction PIN has been successfully set.',
+      'system'
+    ).catch(() => {});
+
     res.json({ message: 'PIN updated successfully', hasPin: true });
   } catch (error: any) {
     console.error('Update PIN error:', error);
@@ -398,6 +449,13 @@ export const changePassword = async (req: any, res: Response) => {
 
     user.password = newPassword;
     await user.save();
+
+    createNotification(
+      (user._id as any).toString(),
+      'Password Changed 🔒',
+      'Your trading account password was changed successfully.',
+      'system'
+    ).catch(() => {});
 
     res.json({ message: 'Password updated successfully' });
   } catch (error: any) {

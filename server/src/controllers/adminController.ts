@@ -106,6 +106,21 @@ export const updateKycStatus = async (req: Request, res: Response) => {
     }
     user.kycStatus = status.toLowerCase() as any;
     await user.save();
+
+    try {
+      const { createNotification } = require('../services/notificationService');
+      await createNotification(
+        user._id.toString(),
+        status === 'APPROVED' ? 'KYC Verification Approved ✅' : 'KYC Verification Update ⚠️',
+        status === 'APPROVED' 
+          ? 'Congratulations! Your identity documents have been approved. You now have full trading and withdrawal privileges.' 
+          : 'Your KYC submission was reviewed and requires updated documents. Please check the KYC section in your profile.',
+        'system'
+      );
+    } catch (notifErr) {
+      console.warn('Failed to send KYC notification:', notifErr);
+    }
+
     res.json({ message: `KYC status updated to ${status}` });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -264,24 +279,82 @@ export const getAllTrades = async (req: Request, res: Response) => {
 
 export const changeAdminPassword = async (req: Request, res: Response) => {
   try {
-    const { oldPassword, newPassword } = req.body;
+    const oldPassword = ((req.body.oldPassword || req.body.currentPassword || '') as string).trim();
+    const newPassword = ((req.body.newPassword || req.body.password || '') as string).trim();
     
     if (!oldPassword || !newPassword) {
-      return res.status(400).json({ message: 'Please provide old and new password' });
+      return res.status(400).json({ message: 'Please provide current and new password' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+
+    if (oldPassword === newPassword) {
+      return res.status(400).json({ message: 'New password cannot be the same as current password' });
     }
 
     const adminUser = await User.findById((req as any).user._id).select('+password');
-    if (!adminUser) return res.status(404).json({ message: 'Admin not found' });
+    if (!adminUser) return res.status(404).json({ message: 'Admin user not found' });
 
     const isMatch = await bcrypt.compare(oldPassword, adminUser.password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid current password' });
+    if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
 
     adminUser.password = newPassword; // Will be hashed by pre-save hook in User model
     await adminUser.save();
+
+    // Log the security event
+    try {
+      await SecurityLog.create({
+        type: 'success',
+        text: 'Admin account password updated successfully',
+        meta: `Operator: ${adminUser.firstName || 'Admin'} ${adminUser.lastName || ''} (${adminUser.email})`,
+        icon: 'key'
+      });
+    } catch (logErr) {
+      console.warn('Could not write security log:', logErr);
+    }
+
     res.json({ message: 'Password updated successfully' });
   } catch (error: any) {
     console.error('Change admin password error:', error);
     res.status(500).json({ message: error.message || 'Internal server error while changing admin password' });
+  }
+};
+
+export const resetUserPassword = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.body;
+    const newPassword = ((req.body.newPassword || req.body.password || '') as string).trim();
+    
+    if (!userId || !newPassword) {
+      return res.status(400).json({ message: 'Please provide user ID and new password' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+
+    const user = await User.findById(userId).select('+password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.password = newPassword;
+    await user.save();
+
+    try {
+      await SecurityLog.create({
+        type: 'warning',
+        text: `Password reset performed for user ${user.firstName} ${user.lastName} (${user.email})`,
+        meta: `Authorized by Administrator`,
+        icon: 'key'
+      });
+    } catch (logErr) {
+      console.warn('Could not write security log:', logErr);
+    }
+
+    res.json({ message: `Password for ${user.firstName} ${user.lastName} updated successfully` });
+  } catch (error: any) {
+    console.error('Reset user password error:', error);
+    res.status(500).json({ message: error.message || 'Internal server error while resetting user password' });
   }
 };
 
