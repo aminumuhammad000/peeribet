@@ -21,8 +21,34 @@ const createTransporter = () => {
   });
 };
 
-const FROM_NAME = process.env.EMAIL_FROM_NAME || 'Peeritrade';
-const FROM_EMAIL = process.env.SMTP_USER || 'noreply@peeritrade.com';
+// ─── Sender Helpers & Sanitizers ─────────────────────────────────────────────
+export const getFromName = (): string => {
+  const envName = process.env.EMAIL_FROM_NAME?.trim();
+  if (envName && !/peeribet/i.test(envName)) {
+    return envName;
+  }
+  return 'Peeritrade';
+};
+
+export const getFromEmail = (): string => {
+  const customFrom = (process.env.EMAIL_FROM || process.env.EMAIL_FROM_ADDRESS)?.trim();
+  if (customFrom && !/peeribet/i.test(customFrom)) {
+    return customFrom;
+  }
+  const smtpUser = process.env.SMTP_USER?.trim();
+  if (smtpUser && !/peeribet/i.test(smtpUser)) {
+    return smtpUser;
+  }
+  return 'noreply@peeritrade.com';
+};
+
+export const sanitizeEmailText = (text: string): string => {
+  return text.replace(/peeribet/gi, (match) => {
+    if (match === 'PEERIBET') return 'PEERITRADE';
+    if (match === 'Peeribet') return 'Peeritrade';
+    return 'peeritrade';
+  });
+};
 
 // ─── Shared HTML Wrapper ─────────────────────────────────────────────────────
 const emailWrapper = (content: string) => `
@@ -71,7 +97,10 @@ const emailWrapper = (content: string) => `
 export const sendOtpEmail = async (email: string, firstName: string, otp: string) => {
   try {
     const transporter = createTransporter();
-    const html = emailWrapper(`
+    const fromName = getFromName();
+    const fromEmail = getFromEmail();
+
+    const html = sanitizeEmailText(emailWrapper(`
       <h2 style="color:#ffffff;font-size:22px;margin:0 0 8px;">Verify Your Email Address</h2>
       <p style="color:#94A3B8;font-size:15px;margin:0 0 28px;line-height:1.6;">
         Hi <strong style="color:#ffffff;">${firstName}</strong>, welcome to Peeritrade! 
@@ -84,13 +113,16 @@ export const sendOtpEmail = async (email: string, firstName: string, otp: string
       <p style="color:#64748B;font-size:13px;margin:0;line-height:1.6;">
         If you didn't create a Peeritrade account, you can safely ignore this email.
       </p>
-    `);
+    `));
+
+    const subject = sanitizeEmailText(`${otp} is your Peeritrade verification code`);
 
     await transporter.sendMail({
-      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to: email,
-      subject: `${otp} is your Peeritrade verification code`,
+      subject,
       html,
+      replyTo: fromEmail,
     });
     console.log(`[EmailService] OTP sent successfully to ${email}`);
   } catch (error: any) {
@@ -103,7 +135,10 @@ export const sendOtpEmail = async (email: string, firstName: string, otp: string
 export const sendWelcomeEmail = async (email: string, firstName: string) => {
   try {
     const transporter = createTransporter();
-    const html = emailWrapper(`
+    const fromName = getFromName();
+    const fromEmail = getFromEmail();
+
+    const html = sanitizeEmailText(emailWrapper(`
       <h2 style="color:#ffffff;font-size:22px;margin:0 0 8px;">Welcome to Peeritrade! 🎉</h2>
       <p style="color:#94A3B8;font-size:15px;margin:0 0 24px;line-height:1.6;">
         Hi <strong style="color:#ffffff;">${firstName}</strong>, your trading account is verified and ready!
@@ -117,13 +152,16 @@ export const sendWelcomeEmail = async (email: string, firstName: string) => {
           <li>Zero bookmaker margins and transparent execution</li>
         </ul>
       </div>
-    `);
+    `));
+
+    const subject = sanitizeEmailText(`Welcome to Peeritrade, ${firstName}! 🎉`);
 
     await transporter.sendMail({
-      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to: email,
-      subject: `Welcome to Peeritrade, ${firstName}! 🎉`,
+      subject,
       html,
+      replyTo: fromEmail,
     });
     console.log(`[EmailService] Welcome email sent to ${email}`);
   } catch (error: any) {
@@ -135,7 +173,10 @@ export const sendWelcomeEmail = async (email: string, firstName: string) => {
 export const sendPasswordResetEmail = async (email: string, firstName: string, otp: string) => {
   try {
     const transporter = createTransporter();
-    const html = emailWrapper(`
+    const fromName = getFromName();
+    const fromEmail = getFromEmail();
+
+    const html = sanitizeEmailText(emailWrapper(`
       <h2 style="color:#ffffff;font-size:22px;margin:0 0 8px;">Password Reset Request</h2>
       <p style="color:#94A3B8;font-size:15px;margin:0 0 28px;line-height:1.6;">
         Hi <strong style="color:#ffffff;">${firstName}</strong>, we received a request to reset your Peeritrade password.
@@ -148,13 +189,16 @@ export const sendPasswordResetEmail = async (email: string, firstName: string, o
       <p style="color:#64748B;font-size:13px;margin:0;line-height:1.6;">
         If you didn't request a password reset, please ignore this email. Your password will remain unchanged.
       </p>
-    `);
+    `));
+
+    const subject = sanitizeEmailText(`${otp} — Peeritrade Password Reset Code`);
 
     await transporter.sendMail({
-      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to: email,
-      subject: `${otp} — Peeritrade Password Reset Code`,
+      subject,
       html,
+      replyTo: fromEmail,
     });
     console.log(`[EmailService] Password reset OTP sent to ${email}`);
   } catch (error: any) {

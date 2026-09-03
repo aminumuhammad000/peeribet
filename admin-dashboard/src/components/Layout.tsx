@@ -22,7 +22,7 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-gray-700">
-          <span className="text-xl font-bold text-green-500">Peeribet Admin</span>
+          <span className="text-xl font-bold text-green-500">Peeritrade Admin</span>
         </div>
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">

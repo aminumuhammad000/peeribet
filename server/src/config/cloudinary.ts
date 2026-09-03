@@ -17,7 +17,7 @@ if (process.env.CLOUDINARY_API_KEY) {
     cloudinary: cloudinary,
     params: async (req: any, file: any) => {
       return {
-        folder: 'peeribet_profiles',
+        folder: 'peeritrade_profiles',
         allowed_formats: ['jpg', 'png', 'jpeg'],
         public_id: `profile_${req.user?._id || Date.now()}`,
       };

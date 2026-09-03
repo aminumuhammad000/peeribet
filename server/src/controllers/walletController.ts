@@ -22,7 +22,7 @@ export const provisionVirtualAccount = async (req: AuthRequest, res: Response) =
       return res.status(400).json({ message: 'A valid 11-digit BVN is required to create a virtual account' });
     }
 
-    const reference = `peeribet_${(user._id as any).toString()}_va`;
+    const reference = `peeritrade_${(user._id as any).toString()}_va`;
 
     const vtResponse = await createVirtualAccount({
       firstName: user.firstName,
@@ -37,7 +37,7 @@ export const provisionVirtualAccount = async (req: AuthRequest, res: Response) =
     const accountData = vtResponse?.data || vtResponse;
     const virtualAccount = {
       accountNumber: accountData.accountNumber,
-      accountName: accountData.accountName || `PEERIBET / ${user.firstName} ${user.lastName}`,
+      accountName: accountData.accountName || `PEERITRADE / ${user.firstName} ${user.lastName}`,
       bankName: accountData.bankName || 'PalmPay',
       bankCode: accountData.bankCode || '100033',
       reference,
@@ -200,7 +200,7 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
         bankCode,
         accountNumber,
         accountName,
-        narration: `Peeribet Withdrawal - ${user.firstName}`,
+        narration: `Peeritrade Withdrawal - ${user.firstName}`,
       });
 
       if (payoutRes?.status === 'pending') {

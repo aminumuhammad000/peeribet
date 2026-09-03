@@ -1,6 +1,6 @@
-# Peeribet Project
+# Peeritrade Project
 
-This repository contains the full ecosystem for the Peeribet platform, organized into the following main directories:
+This repository contains the full ecosystem for the Peeritrade platform, organized into the following main directories:
 
 - **app/**: The mobile application (Expo / React Native).
 - **server/**: The backend API server (Node.js / TypeScript).
