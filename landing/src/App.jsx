@@ -20,6 +20,8 @@ import {
 import logo from './assets/logo.png';
 import './index.css';
 
+const APP_URL = 'https://app.peeritrade.com/';
+
 const stats = [
   { value: '₦4.8B+', label: 'Escrow Volume Settled' },
   { value: '120K+', label: 'Verified Traders' },
@@ -169,11 +171,11 @@ export default function App() {
 
           {/* Nav Actions */}
           <div className="nav-actions">
-            <a href="/admin" className="btn-ghost">
-              Admin Portal
+            <a href={APP_URL} className="btn-ghost">
+              Login
             </a>
-            <a href="#cta" className="btn-primary">
-              <span>Start Trading</span>
+            <a href={APP_URL} className="btn-primary">
+              <span>Register</span>
               <ArrowRight size={15} />
             </a>
           </div>
@@ -197,9 +199,9 @@ export default function App() {
             <a href="#security" onClick={() => setMobileMenuOpen(false)}>Security</a>
             <a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
             <div className="mobile-nav-buttons">
-              <a href="/admin" className="btn-ghost w-full">Admin Portal</a>
-              <a href="#cta" className="btn-primary w-full" onClick={() => setMobileMenuOpen(false)}>
-                Start Trading <ArrowRight size={15} />
+              <a href={APP_URL} className="btn-ghost w-full">Login</a>
+              <a href={APP_URL} className="btn-primary w-full" onClick={() => setMobileMenuOpen(false)}>
+                Register / Start Trading <ArrowRight size={15} />
               </a>
             </div>
           </div>
@@ -225,12 +227,12 @@ export default function App() {
             </p>
 
             <div className="hero-cta-row">
-              <a href="#cta" className="btn-primary btn-large">
-                <span>Open Escrow Account</span>
+              <a href={APP_URL} className="btn-primary btn-large">
+                <span>Start Trading / Register</span>
                 <ArrowRight size={18} />
               </a>
-              <a href="#how-it-works" className="btn-secondary btn-large">
-                <span>See How It Works</span>
+              <a href={APP_URL} className="btn-secondary btn-large">
+                <span>Login to Dashboard</span>
               </a>
             </div>
 
@@ -400,7 +402,7 @@ export default function App() {
                 Explore real-time peer-to-peer match markets ready for immediate escrow matching.
               </p>
             </div>
-            <a href="#cta" className="btn-secondary btn-sm">
+            <a href={APP_URL} className="btn-secondary btn-sm">
               <span>View All Markets</span>
               <ChevronRight size={16} />
             </a>
@@ -437,7 +439,7 @@ export default function App() {
                 </div>
 
                 <div className="market-cell-action text-right">
-                  <a href="#cta" className="btn-take-order">
+                  <a href={APP_URL} className="btn-take-order">
                     <span>Join Trade</span>
                     <ArrowRight size={13} />
                   </a>
@@ -533,12 +535,12 @@ export default function App() {
                 Join thousands of verified sports traders on Nigeria's premier peer-to-peer escrow network.
               </p>
               <div className="cta-buttons-row">
-                <a href="#cta" className="btn-primary btn-large">
+                <a href={APP_URL} className="btn-primary btn-large">
                   <span>Create Free Account</span>
                   <ArrowRight size={18} />
                 </a>
-                <a href="/admin" className="btn-ghost btn-large">
-                  <span>Admin Terminal</span>
+                <a href={APP_URL} className="btn-ghost btn-large">
+                  <span>Login to Platform</span>
                   <ExternalLink size={16} />
                 </a>
               </div>
@@ -568,9 +570,9 @@ export default function App() {
           <div className="footer-nav-grid">
             <div className="footer-col">
               <h4>Platform</h4>
-              <a href="#features">Features</a>
-              <a href="#how-it-works">How It Works</a>
-              <a href="#markets">Live Markets</a>
+              <a href={APP_URL}>Register Account</a>
+              <a href={APP_URL}>Login / Sign In</a>
+              <a href={APP_URL}>Live Markets</a>
               <a href="#security">Vault Security</a>
             </div>
 
