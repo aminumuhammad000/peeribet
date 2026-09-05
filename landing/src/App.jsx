@@ -1,11 +1,10 @@
+import { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   ArrowRight,
   Lock,
   Zap,
-  Users,
   CheckCircle2,
-  Activity,
   ArrowLeftRight,
   ChevronRight,
   ChevronDown,
@@ -13,7 +12,6 @@ import {
   Menu,
   X,
   Clock,
-  Award,
   Check,
   EyeOff,
   Coins,
@@ -146,6 +144,21 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false);
+    };
+    const handleResize = () => {
+      if (window.innerWidth > 768) setMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   const toggleFaq = (index) => {
     setActiveFaq(activeFaq === index ? null : index);
   };
@@ -156,6 +169,15 @@ export default function App() {
       <div className="ambient-glow glow-top-left" />
       <div className="ambient-glow glow-center-right" />
       <div className="grid-overlay" />
+
+      {/* Mobile Menu Backdrop */}
+      {mobileMenuOpen && (
+        <div 
+          className="mobile-menu-backdrop" 
+          onClick={() => setMobileMenuOpen(false)} 
+          aria-hidden="true" 
+        />
+      )}
 
       {/* Header / Navbar */}
       <header className="navbar-container">
@@ -195,6 +217,7 @@ export default function App() {
             className="mobile-toggle-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle navigation"
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
@@ -209,7 +232,7 @@ export default function App() {
             <a href="#security" onClick={() => setMobileMenuOpen(false)}>Security</a>
             <a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
             <div className="mobile-nav-buttons">
-              <a href={APP_URL} className="btn-ghost w-full">Login</a>
+              <a href={APP_URL} className="btn-ghost w-full" onClick={() => setMobileMenuOpen(false)}>Login</a>
               <a href={APP_URL} className="btn-primary w-full" onClick={() => setMobileMenuOpen(false)}>
                 Register / Start Trading <ArrowRight size={15} />
               </a>
