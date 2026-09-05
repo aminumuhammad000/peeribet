@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 
 // Define the backend URL directly or use an env variable
-const BACKEND_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+const BACKEND_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'https://api.peeritrade.com';
 
 let socket: Socket | null = null;
 

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   ShieldCheck,
   ArrowRight,
@@ -15,7 +14,10 @@ import {
   X,
   Clock,
   Award,
-  Check
+  Check,
+  EyeOff,
+  Coins,
+  GitBranch
 } from 'lucide-react';
 import logo from './assets/logo.png';
 import './index.css';
@@ -23,60 +25,60 @@ import './index.css';
 const APP_URL = 'https://app.peeritrade.com/';
 
 const stats = [
-  { value: '₦4.8B+', label: 'Escrow Volume Settled' },
-  { value: '120K+', label: 'Verified Traders' },
-  { value: '< 2.5s', label: 'Automated Settlement' },
-  { value: '99.99%', label: 'Dispute-Free Rate' },
+  { value: '₦1K = 1 Coin', label: 'Standardized Coin Matching' },
+  { value: '100% Blind', label: 'Both Parties Identity-Hidden' },
+  { value: '2x Return', label: 'Doubled Payout on Settlement' },
+  { value: 'Pool Branch', label: 'Auto-Backup for Unmatched' },
 ];
 
 const howItWorks = [
   {
     step: '01',
-    title: 'Match & Agree',
-    desc: 'Select upcoming football matches, set your trade terms, or accept an existing peer offer from the order book.',
+    title: 'Trade in Coins (₦1,000 = 1 Coin)',
+    desc: 'Every ₦1k equals 1 Coin (e.g. 50 coins = ₦50,000). Standardizing trades into coins makes matching effortless instead of waiting for someone to match an exact lump sum.',
   },
   {
     step: '02',
-    title: 'Escrow Lock',
-    desc: 'Both parties lock trade stakes in a transparent automated escrow vault before kickoff. No IOUs or trust required.',
+    title: 'Blind Matching by App',
+    desc: 'You just place your trade and simply wait for the app to match you. The engine pairs your coins against opposing traders. Both parties never know who they are matched with.',
   },
   {
     step: '03',
-    title: 'Instant Payout',
-    desc: 'Official match results automatically trigger the escrow release. Funds credit immediately to your bank or wallet.',
+    title: '2x Double Payout & Pool Branch',
+    desc: 'After the game settles, everyone gets their double (2x) based on how much they traded. Any coins that were not matched automatically branch to the Pool Trading option!',
   },
 ];
 
 const features = [
   {
-    icon: ShieldCheck,
-    title: 'Automated Escrow Engine',
-    desc: 'Smart contract logic securely holds 100% of trade funds until official match completion, eliminating counterparty default.',
+    icon: Coins,
+    title: 'Standardized Coins (₦1,000 = 1 Coin)',
+    desc: 'Every ₦1,000 equals 1 Coin. Instead of waiting for one person to stake your exact lump sum, trades match coin-by-coin across peers for lightning-fast pairing.',
+  },
+  {
+    icon: EyeOff,
+    title: 'Blind Matching (Zero Identity Exposure)',
+    desc: 'Both parties never know who they are matched with. No names, phone numbers, or usernames are revealed—trading is 100% blind, confidential, and unbiased.',
   },
   {
     icon: Zap,
-    title: 'Sub-Second Settlement',
-    desc: 'Automated sports data oracles confirm results in real time, executing instant payouts directly to winning balances.',
+    title: 'Instant 2x Double Payouts',
+    desc: 'When the game is settled, winners receive double their traded stake based on how many coins they placed (e.g. 50 coins ➔ ₦100,000 payout).',
   },
   {
-    icon: ArrowLeftRight,
-    title: 'Direct Peer Liquidity',
-    desc: 'Trade directly against other users at your chosen odds. Enjoy zero broker spreads and complete pricing transparency.',
+    icon: GitBranch,
+    title: 'Automatic Branch to Pool Option',
+    desc: 'Never get left out. Any coins that were not matched before kickoff automatically branch into the shared Pool Trading option for a chance at the Pro-Rata Jackpot.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Automated Escrow Engine',
+    desc: 'Smart contract logic securely locks 100% of both stakes in escrow until official match completion, eliminating counterparty default.',
   },
   {
     icon: Lock,
     title: 'Institutional Vault Security',
-    desc: 'Multi-layer cold reserve architectures and 256-bit encryption keep all deposited funds safe 24/7/365.',
-  },
-  {
-    icon: Users,
-    title: 'Verified Trader Reputation',
-    desc: 'Comprehensive KYC verification and on-chain trust scores ensure every trade counterparty is authentic.',
-  },
-  {
-    icon: Activity,
-    title: 'Live Real-Time Auditing',
-    desc: 'Every trade, escrow lock, and settlement is logged with cryptographic hashes for complete accountability.',
+    desc: 'Multi-layer cold reserve architectures and 256-bit encryption keep all deposited escrow funds safe 24/7/365 with instant Nigerian bank withdrawals.',
   },
 ];
 
@@ -88,7 +90,7 @@ const liveMarkets = [
     time: 'Today • 20:00',
     type: 'Match Winner: Arsenal',
     volume: '₦14.2M',
-    odds: '2.10',
+    odds: '2.00 (2x Double)',
     status: 'MATCHING',
   },
   {
@@ -98,7 +100,7 @@ const liveMarkets = [
     time: 'Tomorrow • 21:00',
     type: 'Over 2.5 Goals',
     volume: '₦28.5M',
-    odds: '1.85',
+    odds: '2.00 (2x Double)',
     status: 'ACTIVE',
   },
   {
@@ -108,27 +110,35 @@ const liveMarkets = [
     time: 'Sun • 19:30',
     type: 'Both Teams to Score',
     volume: '₦9.6M',
-    odds: '1.92',
+    odds: '2.00 (2x Double)',
     status: 'ACTIVE',
   },
 ];
 
 const faqs = [
   {
+    q: 'How does the Coin system work (₦1,000 = 1 Coin)?',
+    a: 'Every ₦1,000 equals 1 Coin. For example, trading ₦50,000 is 50 Coins. Standardizing into coins allows the app to match your trades coin-by-coin across opposing peers much easier, without needing a single opponent to match your exact lump sum.',
+  },
+  {
+    q: 'Will either party know who they are matched with?',
+    a: 'No. Both parties never know who they are matched with. All matching is 100% blind and anonymous. Names, phone numbers, and profile identities are never revealed before, during, or after the match.',
+  },
+  {
+    q: 'How does the payout work after the game settles?',
+    a: 'Once the game is officially settled, the winner receives double their stake (2x return) depending on how many coins they traded. If you traded 50 coins (₦50,000), you receive ₦100,000 directly to your wallet.',
+  },
+  {
+    q: 'What happens if my coins are not matched before kickoff?',
+    a: 'You never miss out on match action. Any coins that were not matched by kickoff countdown automatically branch into the Pool Trading option, where your liquidity participates in the match’s shared Pro-Rata Jackpot pool.',
+  },
+  {
     q: 'How does the Peeritrade escrow mechanism work?',
-    a: 'When you create or join a trade, both participants deposit their stakes into an automated, tamper-proof escrow vault. The funds remain locked until official match data is verified, at which point the entire pool is automatically distributed to the winner.',
+    a: 'Both matched traders have 100% of their collateral locked into the automated escrow vault upfront before the match starts. When the final whistle blows, verified match data triggers the escrow release directly to the winner.',
   },
   {
-    q: 'Is there any counterparty default risk?',
-    a: 'None. Because trades require 100% upfront collateral locked in escrow before a match begins, you never have to worry about a losing party failing to pay out.',
-  },
-  {
-    q: 'How fast can I withdraw my winnings?',
+    q: 'How fast can I withdraw my winnings to my bank?',
     a: 'Settlements occur automatically within seconds of final whistle confirmation. You can withdraw your balance directly to your linked Nigerian bank account with instant settlement processing.',
-  },
-  {
-    q: 'What fees are charged on trades?',
-    a: 'Peeritrade charges a minimal flat platform fee (typically 1.5%) only on settled winning payouts. Listing trades, browsing markets, and deposits are 100% free.',
   },
 ];
 
@@ -223,7 +233,7 @@ export default function App() {
             </h1>
 
             <p className="hero-subtext">
-              The minimalist, secure escrow network where peer-to-peer sports traders lock collateral, agree on odds, and receive instant automated payouts.
+              Every ₦1,000 equals 1 Coin for effortless matching. Simply place your trade, let the app blindly pair your coins with anonymous peers, and win double on settlement—with automatic branching to Pool Trading if unmatched.
             </p>
 
             <div className="hero-cta-row">
@@ -238,16 +248,20 @@ export default function App() {
 
             <div className="hero-trust-bar">
               <div className="trust-item">
-                <CheckCircle2 size={16} className="trust-icon" />
-                <span>100% Locked Collateral</span>
+                <Coins size={16} className="trust-icon" />
+                <span>₦1,000 = 1 Coin</span>
+              </div>
+              <div className="trust-item">
+                <EyeOff size={16} className="trust-icon" />
+                <span>Neither Party Knows Counterparty</span>
               </div>
               <div className="trust-item">
                 <Zap size={16} className="trust-icon" />
-                <span>Instant Bank Payouts</span>
+                <span>2x Double Payouts</span>
               </div>
               <div className="trust-item">
-                <Lock size={16} className="trust-icon" />
-                <span>Non-Custodial Escrow</span>
+                <GitBranch size={16} className="trust-icon" />
+                <span>Unmatched Branch to Pool</span>
               </div>
             </div>
           </div>
@@ -259,7 +273,7 @@ export default function App() {
               <div className="escrow-card-header">
                 <div className="escrow-card-badge">
                   <span className="pulsing-green-dot" />
-                  <span>ESCROW ACTIVE • #TRD-8842</span>
+                  <span>BLIND COIN MATCH • #TRD-8842</span>
                 </div>
                 <span className="escrow-league-tag">Premier League</span>
               </div>
@@ -267,19 +281,27 @@ export default function App() {
               {/* Match Header */}
               <div className="escrow-match-title">
                 <h3>Arsenal vs Chelsea</h3>
-                <p className="escrow-market-tag">Market: Arsenal to Win (Full Time)</p>
+                <p className="escrow-market-tag">Market: Full Time Outcome • ₦1,000 = 1 Coin</p>
+              </div>
+
+              {/* Automated App Matching Banner */}
+              <div className="escrow-matching-banner">
+                <EyeOff size={13} className="text-primary" />
+                <span>Blind Match • Neither party knows who they are matched with</span>
               </div>
 
               {/* Parties VS Row */}
               <div className="escrow-parties-row">
                 <div className="party-box initiator">
-                  <div className="party-avatar">IM</div>
-                  <div className="party-details">
-                    <span className="party-role">Initiator</span>
-                    <strong className="party-name">Ibrahim M.</strong>
-                    <span className="party-pick text-primary">Arsenal Win (2.05x)</span>
+                  <div className="party-avatar">
+                    <Coins size={14} />
                   </div>
-                  <span className="party-stake">₦50,000</span>
+                  <div className="party-details">
+                    <span className="party-role">Anonymous Peer</span>
+                    <strong className="party-name">50 Coins (₦50,000)</strong>
+                    <span className="party-pick text-primary">Backs Arsenal Win</span>
+                  </div>
+                  <span className="party-stake">Wins ₦100,000 (2x)</span>
                 </div>
 
                 <div className="parties-vs-divider">
@@ -289,13 +311,15 @@ export default function App() {
                 </div>
 
                 <div className="party-box responder">
-                  <div className="party-avatar blue">CO</div>
-                  <div className="party-details">
-                    <span className="party-role">Counterparty</span>
-                    <strong className="party-name">Chukwuemeka O.</strong>
-                    <span className="party-pick text-blue">Chelsea or Draw</span>
+                  <div className="party-avatar blue">
+                    <Coins size={14} />
                   </div>
-                  <span className="party-stake">₦50,000</span>
+                  <div className="party-details">
+                    <span className="party-role">Anonymous Peer</span>
+                    <strong className="party-name">50 Coins (₦50,000)</strong>
+                    <span className="party-pick text-blue">Backs Chelsea / Draw</span>
+                  </div>
+                  <span className="party-stake">Wins ₦100,000 (2x)</span>
                 </div>
               </div>
 
@@ -304,7 +328,7 @@ export default function App() {
                 <div className="escrow-status-top">
                   <div className="escrow-status-label">
                     <Lock size={14} className="text-primary" />
-                    <span>Total Vault Reserve Locked</span>
+                    <span>Total Vault Reserve (100 Coins)</span>
                   </div>
                   <strong className="escrow-status-val">₦100,000.00</strong>
                 </div>
@@ -312,7 +336,7 @@ export default function App() {
                   <div className="escrow-progress-fill" />
                 </div>
                 <div className="escrow-status-meta">
-                  <span>Vault: 0x8a92...4b31</span>
+                  <span>Settlement: Winner Gets 2x Double</span>
                   <span className="text-primary">Status: Secured in Escrow</span>
                 </div>
               </div>
@@ -320,12 +344,12 @@ export default function App() {
               {/* Card Footer Features */}
               <div className="escrow-card-footer">
                 <div className="footer-feature">
-                  <Award size={14} className="text-primary" />
-                  <span>Oracle Automated</span>
+                  <GitBranch size={14} className="text-primary" />
+                  <span>Unmatched Branch to Pool</span>
                 </div>
                 <div className="footer-feature">
                   <Clock size={14} className="text-primary" />
-                  <span>Auto-Settles in &lt; 2s</span>
+                  <span>Instant 2s Payout</span>
                 </div>
               </div>
             </div>
@@ -350,7 +374,7 @@ export default function App() {
             <span className="section-pill">Frictionless Flow</span>
             <h2 className="section-title">How Peeritrade Escrow Works</h2>
             <p className="section-subtitle">
-              Three transparent steps to trade securely without middlemen or counterparty default risk.
+              Every ₦1,000 = 1 Coin for fast, easy matching. Simply place your trade and the app pairs you blindly—neither party ever knows who they are matched with.
             </p>
           </div>
 
@@ -363,6 +387,90 @@ export default function App() {
                 <div className="step-line" />
               </div>
             ))}
+          </div>
+
+          {/* Visual Matching Flow Explainer */}
+          <div className="flow-explainer-card">
+            <div className="flow-explainer-header">
+              <div className="flow-explainer-badge">
+                <Coins size={14} className="text-primary" />
+                <span>COIN-BASED BLIND MATCHING (₦1,000 = 1 COIN)</span>
+              </div>
+              <span className="flow-explainer-sub">
+                No waiting for exact lump sums • Easy coin-by-coin pairing • Double payout on win
+              </span>
+            </div>
+
+            <div className="flow-steps-visual">
+              {/* Person A */}
+              <div className="flow-party-item">
+                <div className="flow-party-avatar">
+                  <Coins size={20} />
+                </div>
+                <div className="flow-party-meta">
+                  <span className="flow-anon-tag">
+                    <EyeOff size={11} />
+                    <span>Identity 100% Unknown to Peer</span>
+                  </span>
+                  <h4 className="flow-party-title">Person A (Anonymous)</h4>
+                  <p className="flow-party-choice">Backs Arsenal to Win</p>
+                  <span className="flow-party-trade">Trades 50 Coins (₦50,000)</span>
+                  <span className="flow-party-payout">Win Return: ₦100,000 (2x Double)</span>
+                </div>
+              </div>
+
+              {/* Center Connector / Engine */}
+              <div className="flow-connector-box">
+                <div className="flow-connector-pulse">
+                  <ArrowLeftRight size={20} />
+                </div>
+                <span className="flow-engine-badge">App Pairs Coins Seamlessly</span>
+                <p className="flow-engine-text">
+                  Neither party knows who they are matched with. App matches coins automatically instead of waiting for a single lump-sum opponent.
+                </p>
+                <div className="flow-pool-pill">
+                  <Lock size={12} className="text-primary" />
+                  <span>100 Coins (₦100k) in Escrow</span>
+                </div>
+              </div>
+
+              {/* Person B */}
+              <div className="flow-party-item">
+                <div className="flow-party-avatar blue">
+                  <Coins size={20} />
+                </div>
+                <div className="flow-party-meta">
+                  <span className="flow-anon-tag">
+                    <EyeOff size={11} />
+                    <span>Identity 100% Unknown to Peer</span>
+                  </span>
+                  <h4 className="flow-party-title">Person B (Anonymous)</h4>
+                  <p className="flow-party-choice">Backs Chelsea / Draw</p>
+                  <span className="flow-party-trade">Trades 50 Coins (₦50,000)</span>
+                  <span className="flow-party-payout">Win Return: ₦100,000 (2x Double)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Unmatched Branching to Pool Banner */}
+            <div className="flow-branch-banner">
+              <div className="flow-branch-icon">
+                <GitBranch size={18} className="text-primary" />
+              </div>
+              <div className="flow-branch-text">
+                <strong>Unmatched Coin Protection (Branch to Pool):</strong>
+                <span>
+                  {' '}If any of your coins are not matched before kickoff, you don't miss out. The app automatically branches your unmatched coins to the <strong>Pool Trading option</strong> so you participate in the Pro-Rata Jackpot!
+                </span>
+              </div>
+            </div>
+
+            <div className="flow-explainer-footer">
+              <CheckCircle2 size={18} className="text-primary flex-shrink-0" />
+              <span>
+                <strong>Instant 2x Double on Settlement:</strong> After the game settles, the winning party gets double their stake (e.g. 50 coins ➔ ₦100,000) credited directly to their wallet.
+              </span>
+            </div>
           </div>
         </section>
 

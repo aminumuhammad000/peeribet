@@ -3,14 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform } from 'react-native';
 
 const getDefaultApiUrl = () => {
-  if (Platform.OS === 'web') {
-    return 'http://localhost:5000/api';
-  }
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000/api';
-  }
-  // iOS simulator or default local
-  return 'http://localhost:5000/api';
+  return 'https://api.peeritrade.com/api';
 };
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || getDefaultApiUrl()).replace(/\/$/, '');
@@ -138,7 +131,7 @@ export const getApiErrorMessage = (error: any, fallback = 'Something went wrong.
   }
 
   if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-    return `Unable to reach the server at ${API_URL}. Make sure the backend and MongoDB are running, or set EXPO_PUBLIC_API_URL to the correct API address.`;
+    return `Unable to reach the server. Please check your internet connection or try again later.`;
   }
 
   return fallback;

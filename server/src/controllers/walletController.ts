@@ -128,6 +128,68 @@ export const vtStackWebhook = async (req: Request, res: Response) => {
       await user.save();
 
       console.log(`[Webhook] ✅ Credited ₦${amount} to ${user.email} (balance: ₦${user.balance})`);
+    } else if (event === 'payout.success' || event === 'transaction.payout.success') {
+      const payoutId = data?.payoutId || data?.id || data?._id;
+      const ref = data?.reference;
+      const query: any[] = [];
+      if (ref) query.push({ reference: ref });
+      if (payoutId) {
+        query.push({ reference: payoutId });
+        query.push({ description: { $regex: payoutId } });
+      }
+
+      if (query.length > 0) {
+        const tx = await Transaction.findOne({ $or: query });
+        if (tx && tx.status !== 'completed') {
+          tx.status = 'completed';
+          await tx.save();
+          try {
+            const { createNotification } = require('../services/notificationService');
+            await createNotification(
+              (tx.user as any).toString(),
+              'Withdrawal Completed 💸',
+              `Your withdrawal of ₦${tx.amount} has been successfully sent to your bank account.`,
+              'wallet'
+            );
+          } catch {}
+          console.log(`[Webhook] ✅ Payout confirmed completed for tx ${tx._id}`);
+        }
+      }
+    } else if (event === 'payout.failed' || event === 'transaction.payout.failed') {
+      const payoutId = data?.payoutId || data?.id || data?._id;
+      const ref = data?.reference;
+      const query: any[] = [];
+      if (ref) query.push({ reference: ref });
+      if (payoutId) {
+        query.push({ reference: payoutId });
+        query.push({ description: { $regex: payoutId } });
+      }
+
+      if (query.length > 0) {
+        const tx = await Transaction.findOne({ $or: query });
+        if (tx && tx.status !== 'failed') {
+          tx.status = 'failed';
+          await tx.save();
+
+          // Rollback / refund user balance
+          const txUser = await User.findById(tx.user);
+          if (txUser) {
+            txUser.balance += tx.amount;
+            await txUser.save();
+            console.log(`[Webhook] ⚠️ Payout failed for tx ${tx._id}; refunded ₦${tx.amount} to user ${txUser.email}`);
+          }
+
+          try {
+            const { createNotification } = require('../services/notificationService');
+            await createNotification(
+              (tx.user as any).toString(),
+              'Withdrawal Failed ⚠️',
+              `Your withdrawal of ₦${tx.amount} could not be completed and funds have been refunded to your wallet. Reason: ${data?.failureReason || data?.message || 'Bank rejected transfer'}`,
+              'wallet'
+            );
+          } catch {}
+        }
+      }
     }
 
     // Always return 200 so VTStack doesn't retry
@@ -203,24 +265,20 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
         narration: `Peeritrade Withdrawal - ${user.firstName}`,
       });
 
-      if (payoutRes?.status === 'pending') {
-        transaction.status = 'pending';
-        await transaction.save();
-        return res.status(200).json({
-          message: payoutRes.message || 'Withdrawal request received and is being reviewed.',
-          transaction,
-          balance: user.balance,
-          pending: true,
-        });
+      const payoutId = payoutRes?.data?.payoutId || payoutRes?.payoutId;
+      if (payoutId) {
+        transaction.description = `${transaction.description || `Withdrawal to ${accountNumber}`} [VTStack ID: ${payoutId}]`;
       }
 
-      transaction.status = 'completed';
+      const isInstantSuccess = payoutRes?.status === 'success' || payoutRes?.data?.status === 'SUCCESS';
+      transaction.status = isInstantSuccess ? 'completed' : 'pending';
       await transaction.save();
 
       return res.status(200).json({
-        message: 'Withdrawal successful',
+        message: payoutRes?.message || 'Withdrawal request submitted successfully and is being processed.',
         transaction,
         balance: user.balance,
+        pending: transaction.status === 'pending',
       });
     } catch (payoutError: any) {
       console.error('[Payout Error]', payoutError.response?.data || payoutError.message);

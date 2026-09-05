@@ -1,7 +1,7 @@
 import axios from 'axios';
 import crypto from 'crypto';
 
-const VTSTACK_BASE = 'https://api.vtstack.com.ng/api';
+const VTSTACK_BASE = (process.env.VTSTACK_BASE_URL || 'https://api.vtstack.ng/api').replace(/\/$/, '');
 const API_KEY = process.env.VTSTACK_API_KEY || '';
 
 const FALLBACK_BANKS = [
@@ -107,10 +107,11 @@ export const sendPayout = async (payload: {
   bankCode: string;
   accountNumber: string;
   accountName: string;
-  narration: string;
+  narration?: string;
 }) => {
-  const PAYOUT_KEY = process.env.VTSTACK_PAYOUT_KEY || '';
+  const PAYOUT_KEY = process.env.VTSTACK_PAYOUT_KEY || process.env.VTSTACK_API_KEY || '';
   if (!PAYOUT_KEY) {
+    console.warn('[VTStack Payout] VTSTACK_PAYOUT_KEY is not configured. Queued locally for review.');
     return {
       status: 'pending',
       message: 'VTStack payout key is not configured. Withdrawal is queued locally for review.',
@@ -118,34 +119,35 @@ export const sendPayout = async (payload: {
     };
   }
 
-  const endpoint = `${VTSTACK_BASE}/v1/payouts/request`;
+  const primaryEndpoint = `${VTSTACK_BASE}/v1/payout/secure/request`;
+  const fallbackEndpoint = `${VTSTACK_BASE}/v1/payouts/request`;
   const timestamp = Date.now().toString();
-  const idempotencyKey = crypto.randomBytes(16).toString('hex');
+  const idempotencyKey = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
   const bodyString = JSON.stringify(payload);
 
+  // Generate HMAC-SHA256 signature: hash(timestamp + body)
+  const signature = crypto.createHmac('sha256', PAYOUT_KEY)
+    .update(timestamp + bodyString)
+    .digest('hex');
+
+  const headers = {
+    Authorization: `Bearer ${PAYOUT_KEY}`,
+    'x-signature': signature,
+    'x-timestamp': timestamp,
+    'x-idempotency-key': idempotencyKey,
+    'Content-Type': 'application/json',
+  };
+
   try {
-    // Generate HMAC-SHA256 signature: hash(timestamp + body)
-    const signature = crypto.createHmac('sha256', PAYOUT_KEY)
-      .update(timestamp + bodyString)
-      .digest('hex');
-
-    const { data } = await axios.post(endpoint, payload, {
-      headers: {
-        Authorization: `Bearer ${PAYOUT_KEY}`,
-        'x-signature': signature,
-        'x-timestamp': timestamp,
-        'x-idempotency-key': idempotencyKey,
-        'Content-Type': 'application/json',
-      },
-    });
-
+    const { data } = await axios.post(primaryEndpoint, payload, { headers, timeout: 15000 });
     return data;
   } catch (error: any) {
-    return {
-      status: 'pending',
-      message: error?.response?.data?.message || error.message || 'Payout provider is unavailable. Withdrawal queued locally for review.',
-      reference: `fallback_${Date.now()}`,
-    };
+    // If primary /v1/payout/secure/request returned 404, fallback to /v1/payouts/request
+    if (error.response?.status === 404) {
+      const { data } = await axios.post(fallbackEndpoint, payload, { headers, timeout: 15000 });
+      return data;
+    }
+    throw error;
   }
 };
 
