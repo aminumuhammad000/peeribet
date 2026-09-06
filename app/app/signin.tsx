@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Check, AlertCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
@@ -17,12 +18,21 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const isResetSuccess = params.resetSuccess === 'true';
 
   useEffect(() => {
     if (initialEmail) {
       setEmail(initialEmail);
+    } else {
+      // Auto-load remembered email/identifier from local storage
+      AsyncStorage.getItem('rememberedEmail').then((saved) => {
+        if (saved && !email) {
+          setEmail(saved);
+        }
+      }).catch(() => {});
     }
   }, [initialEmail]);
 
@@ -36,14 +46,12 @@ export default function SignInScreen() {
     let isValid = true;
     setEmailError('');
     setPasswordError('');
+    setGeneralError('');
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanIdentifier = email.trim();
 
-    if (!cleanEmail) {
-      setEmailError('Email address is required');
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(cleanEmail)) {
-      setEmailError('Please enter a valid email address');
+    if (!cleanIdentifier) {
+      setEmailError('Email or username is required');
       isValid = false;
     }
 
@@ -58,13 +66,38 @@ export default function SignInScreen() {
     if (isValid) {
       setLoading(true);
       try {
-        await authService.login({ emailOrPhone: cleanEmail, email: cleanEmail, password });
+        await authService.login({
+          emailOrPhone: cleanIdentifier,
+          email: cleanIdentifier,
+          username: cleanIdentifier,
+          password: password,
+        });
+
+        if (rememberMe) {
+          await AsyncStorage.setItem('rememberedEmail', cleanIdentifier);
+        } else {
+          await AsyncStorage.removeItem('rememberedEmail');
+        }
+
         setLoading(false);
         router.replace({ pathname: '/welcome-user', params: { type: 'login' } });
       } catch (err: any) {
         setLoading(false);
         const errorMsg = getApiErrorMessage(err, 'Invalid email or password');
-        Alert.alert('Login Failed', errorMsg);
+
+        if (err?.response?.data?.unverified) {
+          showToast('Please verify your account OTP', 'info');
+          router.push({
+            pathname: '/verify-otp',
+            params: { email: err.response.data.email || cleanIdentifier, type: 'signup' }
+          });
+          return;
+        }
+
+        setGeneralError(errorMsg);
+        if (Platform.OS !== 'web') {
+          Alert.alert('Login Failed', errorMsg);
+        }
       }
     }
   };
@@ -104,34 +137,73 @@ export default function SignInScreen() {
               </View>
             )}
 
+            {/* General error banner */}
+            {generalError ? (
+              <View style={styles.errorBanner}>
+                <AlertCircle size={16} color="#EF4444" style={{ marginRight: 8 }} />
+                <Text style={styles.errorBannerText}>{generalError}</Text>
+              </View>
+            ) : null}
+
             {/* Input Forms */}
             <View style={styles.formContainer}>
               <CustomInput
-                label="Email address :"
+                label="Email or Username :"
                 placeholder="example@gmail.com"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (emailError) setEmailError('');
+                  if (generalError) setGeneralError('');
+                }}
                 error={emailError}
                 keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                textContentType="username"
+                importantForAutofill="yes"
               />
 
               <CustomInput
                 label="Password :"
-                placeholder="********"
+                placeholder="••••••••"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (passwordError) setPasswordError('');
+                  if (generalError) setGeneralError('');
+                }}
                 error={passwordError}
                 secureTextEntry={true}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="current-password"
+                textContentType="password"
+                importantForAutofill="yes"
               />
 
-              {/* Forgot Password Link */}
-              <TouchableOpacity
-                onPress={() => router.push('/forgot-password')}
-                activeOpacity={0.7}
-                style={styles.forgotPasswordContainer}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-              </TouchableOpacity>
+              {/* Remember Me & Forgot Password Row */}
+              <View style={styles.rememberRow}>
+                <TouchableOpacity
+                  style={styles.rememberCheckboxRow}
+                  onPress={() => setRememberMe(!rememberMe)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                    {rememberMe && <Check size={12} color="#FFFFFF" strokeWidth={3} />}
+                  </View>
+                  <Text style={styles.rememberText}>Remember me</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => router.push('/forgot-password')}
+                  activeOpacity={0.7}
+                  style={styles.forgotPasswordContainer}
+                >
+                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                </TouchableOpacity>
+              </View>
 
               {/* Submit Control */}
               <CustomButton
@@ -245,12 +317,60 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     lineHeight: 18,
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 18,
+  },
+  errorBannerText: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'Inter',
+    flex: 1,
+    lineHeight: 18,
+  },
   formContainer: {
     width: '100%',
   },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 10,
+  },
+  rememberCheckboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: '#64748B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    backgroundColor: 'transparent',
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
+  },
+  rememberText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontFamily: 'Inter',
+    fontWeight: '500',
+  },
   forgotPasswordContainer: {
-    alignSelf: 'flex-end',
-    marginVertical: 4,
     paddingVertical: 4,
   },
   forgotPasswordText: {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  RefreshControl, ActivityIndicator, Alert
+  RefreshControl, ActivityIndicator, Alert, Platform
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -87,22 +87,70 @@ export default function NotificationsScreen() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    Alert.alert('Delete Notification', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            await notificationService.delete(id);
-            const deleted = notifications.find(n => n._id === id);
-            setNotifications(prev => prev.filter(n => n._id !== id));
-            if (deleted && !deleted.isRead) setUnreadCount(prev => Math.max(0, prev - 1));
-          } catch (err) {
-            console.error('Delete failed:', err);
-          }
+  const executeDelete = async (id: string) => {
+    const deleted = notifications.find(n => n._id === id);
+    setNotifications(prev => prev.filter(n => n._id !== id));
+    if (deleted && !deleted.isRead) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    try {
+      await notificationService.delete(id);
+    } catch (err) {
+      console.error('Delete failed:', err);
+      if (deleted) {
+        setNotifications(prev => [deleted, ...prev]);
+        if (!deleted.isRead) {
+          setUnreadCount(prev => prev + 1);
         }
       }
-    ]);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined' ? window.confirm('Delete this notification?') : true;
+      if (confirmed) {
+        executeDelete(id);
+      }
+    } else {
+      Alert.alert('Delete Notification', 'Are you sure you want to delete this notification?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => executeDelete(id),
+        },
+      ]);
+    }
+  };
+
+  const executeClearAll = async () => {
+    setNotifications([]);
+    setUnreadCount(0);
+    try {
+      await notificationService.clearAll();
+    } catch (err) {
+      console.error('Clear all failed:', err);
+      fetchNotifications();
+    }
+  };
+
+  const handleClearAll = () => {
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined' ? window.confirm('Clear all notifications?') : true;
+      if (confirmed) {
+        executeClearAll();
+      }
+    } else {
+      Alert.alert('Clear All', 'Are you sure you want to clear all notifications?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: () => executeClearAll(),
+        },
+      ]);
+    }
   };
 
   return (
@@ -119,11 +167,19 @@ export default function NotificationsScreen() {
               <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount}</Text></View>
             ) : null}
           </View>
-          {unreadCount > 0 ? (
-            <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.7} style={styles.markAllBtn}>
-              <CheckCheck size={18} color={Colors.dark.primary} />
-            </TouchableOpacity>
-          ) : <View style={{ width: 36 }} />}
+          <View style={styles.headerActions}>
+            {unreadCount > 0 && (
+              <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.7} style={styles.headerActionBtn} accessibilityLabel="Mark all as read">
+                <CheckCheck size={18} color={Colors.dark.primary} />
+              </TouchableOpacity>
+            )}
+            {notifications.length > 0 && (
+              <TouchableOpacity onPress={handleClearAll} activeOpacity={0.7} style={styles.headerActionBtn} accessibilityLabel="Clear all">
+                <Trash2 size={16} color="#EF4444" />
+              </TouchableOpacity>
+            )}
+            {notifications.length === 0 && <View style={{ width: 36 }} />}
+          </View>
         </View>
 
         {loading ? (
@@ -212,8 +268,18 @@ function NotificationCard({
       </View>
       <View style={styles.cardActions}>
         {!notification.isRead ? <View style={styles.dot} /> : null}
-        <TouchableOpacity onPress={() => onDelete(notification._id)} activeOpacity={0.7} style={styles.deleteBtn}>
-          <Trash2 size={15} color="#475569" />
+        <TouchableOpacity
+          onPress={(e: any) => {
+            if (e && typeof e.stopPropagation === 'function') {
+              e.stopPropagation();
+            }
+            onDelete(notification._id);
+          }}
+          activeOpacity={0.6}
+          style={styles.deleteBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Trash2 size={16} color="#64748B" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -244,6 +310,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7, paddingVertical: 2, minWidth: 20, alignItems: 'center',
   },
   badgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold', fontFamily: 'Inter' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#131C32',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
   markAllBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#131C32', alignItems: 'center', justifyContent: 'center' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 60 },
   emptyIcon: {

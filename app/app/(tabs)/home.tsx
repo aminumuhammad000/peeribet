@@ -37,6 +37,7 @@ export default function HomeScreen() {
   };
 
   const dates = generateDates();
+  const [loadingDate, setLoadingDate] = useState(false);
 
   // Set initial selected date to today
   useEffect(() => {
@@ -44,6 +45,26 @@ export default function HomeScreen() {
       setSelectedDateId(dates[0].id);
     }
   }, []);
+
+  const handleSelectDate = async (item: typeof dates[0]) => {
+    setSelectedDateId(item.id);
+    const dateString = item.fullDate.toISOString().split('T')[0];
+    setLoadingDate(true);
+    try {
+      const data = await matchService.getMatches({ date: dateString, limit: 100 });
+      if (data?.matches && data.matches.length > 0) {
+        setAllMatches((prev) => {
+          const existingIds = new Set(prev.map((m) => m._id));
+          const fresh = data.matches.filter((m: any) => !existingIds.has(m._id));
+          return [...prev, ...fresh];
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to fetch matches for date:', dateString, e);
+    } finally {
+      setLoadingDate(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -105,7 +126,7 @@ export default function HomeScreen() {
       });
     }
 
-    // Filter by date
+    // Filter strictly by selected date
     if (selectedDateId) {
       const selectedItem = dates.find((d) => d.id === selectedDateId);
       if (selectedItem) {
@@ -122,10 +143,8 @@ export default function HomeScreen() {
           );
         });
 
-        // If there are matches on this specific day, show them
-        if (onDateMatches.length > 0) {
-          return onDateMatches;
-        }
+        // Strictly return matches on the selected date (e.g. Monday)
+        return onDateMatches;
       }
     }
 
@@ -217,7 +236,7 @@ export default function HomeScreen() {
                 return (
                   <TouchableOpacity
                     key={item.id}
-                    onPress={() => setSelectedDateId(item.id)}
+                    onPress={() => handleSelectDate(item)}
                     activeOpacity={0.8}
                     style={[styles.calendarBox, isSelected && styles.calendarBoxActive]}
                   >
@@ -254,7 +273,7 @@ export default function HomeScreen() {
                       <View style={styles.teamBadge}>
                         <Text style={styles.teamBadgeText}>{(featuredMatch.homeTeam || 'H').slice(0, 2).toUpperCase()}</Text>
                       </View>
-                      <Text style={styles.featuredTeamName}>{featuredMatch.homeTeam}</Text>
+                      <Text style={styles.featuredTeamName} numberOfLines={1}>{featuredMatch.homeTeam}</Text>
                       <Text style={styles.featuredTeamLabel}>HOME</Text>
                     </View>
 
@@ -267,7 +286,7 @@ export default function HomeScreen() {
                       <View style={styles.teamBadge}>
                         <Text style={styles.teamBadgeText}>{(featuredMatch.awayTeam || 'A').slice(0, 2).toUpperCase()}</Text>
                       </View>
-                      <Text style={styles.featuredTeamName}>{featuredMatch.awayTeam}</Text>
+                      <Text style={styles.featuredTeamName} numberOfLines={1}>{featuredMatch.awayTeam}</Text>
                       <Text style={styles.featuredTeamLabel}>AWAY</Text>
                     </View>
                   </View>
@@ -291,50 +310,72 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ) : (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyStateTitle}>No featured match yet</Text>
-                <Text style={styles.emptyStateText}>Live football cards will appear here when the feed is ready.</Text>
+                <Text style={styles.emptyStateTitle}>No featured match</Text>
+                <Text style={styles.emptyStateText}>
+                  {loadingDate ? 'Fetching match details...' : 'Live football cards will appear here when the feed is ready.'}
+                </Text>
               </View>
             )}
           </View>
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Matches</Text>
-            <Text style={styles.sectionChip}>{upcomingMatches.length > 0 ? `${upcomingMatches.length} Matches` : 'Today'}</Text>
+            <Text style={styles.sectionChip}>{upcomingMatches.length > 0 ? `${upcomingMatches.length} Matches` : (dates.find(d => d.id === selectedDateId)?.day || 'Today')}</Text>
           </View>
 
           <View style={styles.upcomingList}>
-            {upcomingMatches.map((match) => (
-              <TouchableOpacity 
-                key={match._id} 
-                style={styles.upcomingRow}
-                onPress={() => router.push({
-                  pathname: '/match-detail',
-                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
-                })}
-              >
-                <View style={styles.dateCol}>
-                  <Text style={[styles.upcomingTime, match.status === 'LIVE' && { color: '#EF4444', fontWeight: 'bold' }]}>
-                    {match.status === 'LIVE' ? 'LIVE' : formatMatchTime(match.startTime)}
-                  </Text>
-                  <Text style={styles.upcomingDay}>
-                    {match.status === 'LIVE' ? 'NOW' : new Date(match.startTime).toLocaleDateString([], { weekday: 'short' })}
-                  </Text>
-                </View>
+            {upcomingMatches.length > 0 ? (
+              upcomingMatches.map((match) => (
+                <TouchableOpacity 
+                  key={match._id} 
+                  style={styles.upcomingRow}
+                  onPress={() => router.push({
+                    pathname: '/match-detail',
+                    params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                  })}
+                >
+                  <View style={styles.dateCol}>
+                    <Text style={[styles.upcomingTime, match.status === 'LIVE' && { color: '#EF4444', fontWeight: 'bold' }]}>
+                      {match.status === 'LIVE' ? 'LIVE' : formatMatchTime(match.startTime)}
+                    </Text>
+                    <Text style={styles.upcomingDay}>
+                      {match.status === 'LIVE' ? 'NOW' : new Date(match.startTime).toLocaleDateString([], { weekday: 'short' })}
+                    </Text>
+                  </View>
 
-                <View style={styles.teamsCompact}>
-                  <Text style={styles.teamTextLeft} numberOfLines={1}>{match.homeTeam}</Text>
-                  <Text style={styles.teamTextRight} numberOfLines={1}>{match.awayTeam}</Text>
-                </View>
+                  <View style={styles.teamsCompact}>
+                    <Text style={styles.teamTextLeft} numberOfLines={1}>{match.homeTeam}</Text>
+                    <Text style={styles.teamTextRight} numberOfLines={1}>{match.awayTeam}</Text>
+                  </View>
 
-                <View style={styles.oddsContainer}>
-                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.home)}</Text></View>
-                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.draw)}</Text></View>
-                  <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.away)}</Text></View>
-                </View>
+                  <View style={styles.oddsContainer}>
+                    <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.home)}</Text></View>
+                    <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.draw)}</Text></View>
+                    <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.away)}</Text></View>
+                  </View>
 
-                <Text style={styles.marketText}>₦{(match.poolAmount || 0).toLocaleString()}</Text>
-              </TouchableOpacity>
-            ))}
+                  <Text style={styles.marketText}>₦{(match.poolAmount || 0).toLocaleString()}</Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateTitle}>
+                  No matches for {dates.find(d => d.id === selectedDateId)?.day || 'this date'}
+                </Text>
+                <Text style={styles.emptyStateText}>
+                  {loadingDate ? 'Fetching fixtures...' : 'There are no scheduled fixtures recorded for this day.'}
+                </Text>
+                {selectedDateId !== dates[0]?.id && (
+                  <TouchableOpacity
+                    onPress={() => dates[0] && handleSelectDate(dates[0])}
+                    style={styles.resetDateBtn}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.resetDateBtnText}>View Today's Matches</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
 
         </ScrollView>
@@ -474,44 +515,44 @@ const styles = StyleSheet.create({
   },
   featuredSection: {
     paddingHorizontal: 20,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   featuredCard: {
-    borderRadius: 24,
-    padding: 16,
+    borderRadius: 18,
+    padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 210, 133, 0.32)',
+    borderColor: 'rgba(0, 210, 133, 0.28)',
     shadowColor: '#000',
-    shadowOpacity: 0.34,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 6,
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
     backgroundColor: 'rgba(19, 28, 50, 0.96)',
   },
   featuredTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   liveTag: {
     backgroundColor: 'rgba(0, 210, 133, 0.18)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: 'rgba(0, 210, 133, 0.25)',
   },
   liveTagText: {
     color: '#00D285',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
     fontFamily: 'Inter',
     textTransform: 'uppercase',
   },
   venueText: {
     color: '#8FA2C7',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
     fontFamily: 'Inter',
     textTransform: 'uppercase',
@@ -521,93 +562,94 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   featuredTeamColumn: {
     flex: 1,
     alignItems: 'center',
   },
   teamBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
   },
   teamBadgeText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     fontFamily: 'Inter',
   },
   featuredTeamName: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: 'Inter',
     textAlign: 'center',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   featuredTeamLabel: {
-    fontSize: 11,
+    fontSize: 9,
     color: '#8FA2C7',
     fontFamily: 'Inter',
   },
   featuredCenterBadge: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: 'rgba(0, 210, 133, 0.36)',
     backgroundColor: 'rgba(0, 210, 133, 0.09)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 8,
+    marginHorizontal: 6,
   },
   centerBadgeText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '800',
     color: '#00D285',
     fontFamily: 'Inter',
   },
   centerBadgeLabel: {
-    fontSize: 9,
+    fontSize: 8,
     color: '#8FA2C7',
     fontFamily: 'Inter',
-    marginTop: 2,
+    marginTop: 1,
     textTransform: 'uppercase',
   },
   oddsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   oddsPill: {
     flex: 1,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 12,
-    paddingVertical: 10,
+    borderRadius: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 4,
     marginHorizontal: 3,
     alignItems: 'center',
-    minHeight: 56,
+    minHeight: 42,
     justifyContent: 'center',
   },
   oddsLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#8FA2C7',
     fontFamily: 'Inter',
     textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   oddsValue: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: 'Inter',
@@ -618,28 +660,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   footerLabel: {
-    fontSize: 11,
+    fontSize: 9,
     color: '#8FA2C7',
     fontFamily: 'Inter',
     textTransform: 'uppercase',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   footerValue: {
     color: '#00D285',
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 13,
     fontFamily: 'Inter',
   },
   enterButton: {
-    height: 44,
+    height: 32,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 14,
   },
   enterButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700',
     fontFamily: 'Inter',
     textTransform: 'uppercase',
@@ -697,31 +739,31 @@ const styles = StyleSheet.create({
   upcomingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    marginBottom: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    marginBottom: 7,
     backgroundColor: 'rgba(19, 28, 50, 0.92)',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     shadowColor: '#000',
-    shadowOpacity: 0.14,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
   dateCol: {
-    width: 48,
+    width: 44,
   },
   upcomingTime: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#00D285',
     fontFamily: 'Inter',
     marginBottom: 2,
     fontWeight: '700',
   },
   upcomingDay: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#8FA2C7',
     fontFamily: 'Inter',
   },
@@ -731,14 +773,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   teamTextLeft: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: '#FFFFFF',
     fontFamily: 'Inter',
     marginBottom: 2,
   },
   teamTextRight: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: '#FFFFFF',
     fontFamily: 'Inter',
@@ -749,25 +791,41 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   oddsBox: {
-    width: 32,
-    height: 24,
+    width: 30,
+    height: 22,
     backgroundColor: '#FFFFFF',
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 3,
+    marginHorizontal: 2,
   },
   oddsText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#000000',
     fontFamily: 'Inter',
   },
   marketText: {
-    width: 56,
+    width: 52,
     textAlign: 'right',
-    fontSize: 12,
+    fontSize: 11,
     color: '#00D285',
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  resetDateBtn: {
+    marginTop: 12,
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.35)',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    alignItems: 'center',
+  },
+  resetDateBtnText: {
+    color: '#00D285',
+    fontSize: 12,
     fontWeight: '700',
     fontFamily: 'Inter',
   },

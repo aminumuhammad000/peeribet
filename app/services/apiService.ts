@@ -31,6 +31,8 @@ api.interceptors.request.use(
       const token = await AsyncStorage.getItem('userToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      } else if (config.headers?.Authorization) {
+        delete config.headers.Authorization;
       }
     } catch {
       // Native module not yet available; request proceeds without auth header
@@ -82,20 +84,30 @@ api.interceptors.response.use(
       });
     }
 
-    // Check for 401 Unauthorized (Session Expired)
-    if (error.response?.status === 401) {
-      const url = error.config?.url || '';
-      const isPublicAuthRoute =
-        url.includes('/auth/login') ||
-        url.includes('/auth/register') ||
-        url.includes('/auth/verify-otp') ||
-        url.includes('/auth/resend-otp') ||
-        url.includes('/auth/forgot-password') ||
-        url.includes('/auth/reset-password') ||
-        url.includes('/auth/verify-reset-otp') ||
-        url.includes('/auth/check-availability');
+    const url = error.config?.url || '';
+    const isPublicAuthRoute =
+      url.includes('/auth/login') ||
+      url.includes('/auth/register') ||
+      url.includes('/auth/verify-otp') ||
+      url.includes('/auth/resend-otp') ||
+      url.includes('/auth/forgot-password') ||
+      url.includes('/auth/reset-password') ||
+      url.includes('/auth/verify-reset-otp') ||
+      url.includes('/auth/check-availability');
 
-      if (!isPublicAuthRoute) {
+    // Check for 401 Unauthorized (Session Expired)
+    if (error.response?.status === 401 && !isPublicAuthRoute) {
+      // Only clear storage and trigger session expired if a Bearer token was provided
+      // and the server indicated token expiry/invalidation.
+      const hasAuthHeader = Boolean(error.config?.headers?.Authorization);
+      const serverMsg = (error.response?.data?.message || '').toLowerCase();
+      const isTokenExpiredOrInvalid =
+        serverMsg.includes('token') ||
+        serverMsg.includes('jwt') ||
+        serverMsg.includes('expired') ||
+        serverMsg.includes('user not found');
+
+      if (hasAuthHeader && isTokenExpiredOrInvalid) {
         try {
           await AsyncStorage.multiRemove([
             'userToken',
@@ -115,8 +127,12 @@ api.interceptors.response.use(
       }
     }
 
-    const message = getApiErrorMessage(error, 'Request failed. Please try again.');
-    showToast(message, 'error');
+    // Suppress global toast on public auth routes so screens like signin handle their own localized feedback cleanly
+    if (!isPublicAuthRoute) {
+      const message = getApiErrorMessage(error, 'Request failed. Please try again.');
+      showToast(message, 'error');
+    }
+
     return Promise.reject(error);
   }
 );
@@ -202,6 +218,7 @@ export const authService = {
   },
   logout: async () => {
     try {
+      delete api.defaults.headers.common['Authorization'];
       await AsyncStorage.multiRemove([
         'userToken',
         'userData',
@@ -216,10 +233,14 @@ export const authService = {
   },
   isAuthenticated: async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
+      let token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        // Short grace period in case AsyncStorage is initializing during startup
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        token = await AsyncStorage.getItem('userToken');
+      }
       return !!token;
     } catch (error) {
-      // Native module not yet available during early startup
       return false;
     }
   },
@@ -302,7 +323,7 @@ export const walletService = {
 };
 
 export const matchService = {
-  getMatches: async (params?: { status?: string; isPromoted?: boolean; sport?: string; page?: number; limit?: number }) => {
+  getMatches: async (params?: { status?: string; isPromoted?: boolean; sport?: string; date?: string; page?: number; limit?: number }) => {
     const response = await apiRequest(api.get('/matches', { params }));
     return response.data;
   },
@@ -396,6 +417,10 @@ export const notificationService = {
   },
   delete: async (id: string) => {
     const response = await apiRequest(api.delete(`/notifications/${id}`));
+    return response.data;
+  },
+  clearAll: async () => {
+    const response = await apiRequest(api.delete('/notifications'));
     return response.data;
   },
 };

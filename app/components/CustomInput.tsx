@@ -14,6 +14,11 @@ interface CustomInputProps {
   style?: ViewStyle;
   maxLength?: number;
   autoFocus?: boolean;
+  autoComplete?: any;
+  textContentType?: any;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  autoCorrect?: boolean;
+  importantForAutofill?: 'auto' | 'no' | 'noExcludeDescendants' | 'yes' | 'yesExcludeDescendants';
 }
 
 export const CustomInput: React.FC<CustomInputProps> = ({
@@ -27,6 +32,11 @@ export const CustomInput: React.FC<CustomInputProps> = ({
   style,
   maxLength,
   autoFocus = false,
+  autoComplete,
+  textContentType,
+  autoCapitalize = 'none',
+  autoCorrect = false,
+  importantForAutofill,
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
@@ -44,7 +54,11 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           placeholderTextColor="#94A3B8"
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
-          autoCapitalize="none"
+          autoCapitalize={autoCapitalize}
+          autoCorrect={autoCorrect}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          importantForAutofill={importantForAutofill}
           maxLength={maxLength}
           autoFocus={autoFocus}
           style={styles.textInput}

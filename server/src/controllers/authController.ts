@@ -54,22 +54,27 @@ export const register = async (req: Request, res: Response) => {
 // @route  POST /api/auth/login
 export const login = async (req: Request, res: Response) => {
   try {
-    const { emailOrPhone, password } = req.body;
-    const cleanIdentifier = emailOrPhone ? String(emailOrPhone).trim() : '';
+    const rawIdentifier = req.body.emailOrPhone || req.body.email || req.body.username || req.body.phone;
+    const cleanIdentifier = rawIdentifier ? String(rawIdentifier).trim() : '';
+    const cleanPassword = req.body.password ? String(req.body.password) : '';
 
-    if (!cleanIdentifier || !password) {
-      return res.status(400).json({ message: 'Email/phone and password are required' });
+    if (!cleanIdentifier || !cleanPassword) {
+      return res.status(400).json({ message: 'Email, username, or phone and password are required' });
     }
 
     const user = await User.findOne({
-      $or: [{ email: cleanIdentifier.toLowerCase() }, { phone: cleanIdentifier }],
+      $or: [
+        { email: cleanIdentifier.toLowerCase() },
+        { username: cleanIdentifier.toLowerCase() },
+        { phone: cleanIdentifier },
+      ],
     }).select('+password');
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await user.comparePassword(cleanPassword);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }

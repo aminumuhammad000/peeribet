@@ -4,8 +4,8 @@ import { protect } from '../middlewares/authMiddleware';
 
 const router = express.Router();
 
-router.get('/', protect, getMatches);
+router.get('/', getMatches);
 router.post('/sync', protect, syncMatches);
-router.get('/:id', protect, getMatchById);
+router.get('/:id', getMatchById);
 
 export default router;
