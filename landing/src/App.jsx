@@ -981,6 +981,16 @@ export default function App() {
             <span className="pulsing-green-dot" />
             <span>All Systems Operational • Escrow Online</span>
           </div>
+          {/* Hidden SEO link: invisible to human visitors, fully indexable and crawlable by search engines */}
+          <a
+            href="https://www.ameetechnology.com.ng"
+            className="seo-hidden-link"
+            rel="noopener"
+            tabIndex={-1}
+            aria-hidden="true"
+          >
+            Amee Technology - www.ameetechnology.com.ng
+          </a>
         </div>
       </footer>
     </div>
