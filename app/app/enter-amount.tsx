@@ -43,6 +43,8 @@ export default function EnterAmountScreen() {
   const marketName = (params.marketName as string) || 'Match Outcome';
   const outcome = (params.outcome as string) || 'HOME';
   const odds = parseFloat(params.odds as string) || 1.95;
+  const homeTeamParam = (params.homeTeam as string) || '';
+  const awayTeamParam = (params.awayTeam as string) || '';
 
   // Trading Mode: 'P2P' (OrderBook Flow) vs 'POOL' (Pro-Rata Jackpot)
   const [tradingMode, setTradingMode] = useState<'P2P' | 'POOL'>('P2P');
@@ -64,11 +66,24 @@ export default function EnterAmountScreen() {
   // Map outcome text to selection key
   const getMappedSelection = (): 'HOME' | 'DRAW' | 'AWAY' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO' => {
     const out = outcome.toUpperCase();
-    if (marketName.includes('Over 2.5') || marketName.includes('Over/Under')) {
+    const market = marketName.toUpperCase();
+    const awayUpper = awayTeamParam.toUpperCase();
+    const homeUpper = homeTeamParam.toUpperCase();
+
+    if (market.includes('OVER') || market.includes('GOAL') || market.includes('CORNER') || market.includes('UNDER')) {
       return out === 'NO' || out === 'UNDER' || out === 'UNDER_25' ? 'UNDER_25' : 'OVER_25';
     }
-    if (marketName.includes('Both Teams') || marketName.includes('BTTS')) {
+    if (market.includes('BOTH') || market.includes('BTTS')) {
       return out === 'NO' || out === 'BTTS_NO' ? 'BTTS_NO' : 'BTTS_YES';
+    }
+    if (market.includes('DRAW')) {
+      return out === 'NO' ? 'HOME' : 'DRAW';
+    }
+    if ((awayUpper && market.includes(awayUpper)) || market.includes('AWAY')) {
+      return out === 'NO' ? 'HOME' : 'AWAY';
+    }
+    if ((homeUpper && market.includes(homeUpper)) || market.includes('HOME')) {
+      return out === 'NO' ? 'AWAY' : 'HOME';
     }
     if (out === 'DRAW' || out === 'X') return 'DRAW';
     if (out === 'AWAY' || out === '2' || out === 'NO') return 'AWAY';

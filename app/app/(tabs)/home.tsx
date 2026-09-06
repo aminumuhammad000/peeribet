@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, Settings, Search } from 'lucide-react-native';
+import { Bell, Settings, Search, X, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
 import { authService, matchService, notificationService } from '../../services/apiService';
@@ -16,6 +16,7 @@ export default function HomeScreen() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [searchText, setSearchText] = useState('');
   const [selectedDateId, setSelectedDateId] = useState<string>('');
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 
   // Generate 7 days starting from today
   const generateDates = () => {
@@ -111,22 +112,28 @@ export default function HomeScreen() {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
+  const INITIAL_UPCOMING_LIMIT = 5;
+
   // Filter matches by date and search
   const filterMatches = (matches: any[]) => {
-    let filtered = matches;
-
-    // Filter by search text first
+    // When searching, perform global search across all loaded matches
     if (searchText.trim()) {
-      const searchLower = searchText.toLowerCase();
-      filtered = filtered.filter((match) => {
-        const homeTeam = match.homeTeam?.toLowerCase() || '';
-        const awayTeam = match.awayTeam?.toLowerCase() || '';
-        const league = (match.leagueName || match.league || '').toLowerCase();
-        return homeTeam.includes(searchLower) || awayTeam.includes(searchLower) || league.includes(searchLower);
+      const searchLower = searchText.trim().toLowerCase();
+      return matches.filter((match) => {
+        const homeTeam = (match.homeTeam || '').toLowerCase();
+        const awayTeam = (match.awayTeam || '').toLowerCase();
+        const league = (match.leagueName || match.league || match.competition || '').toLowerCase();
+        const sport = (match.sport || '').toLowerCase();
+        return (
+          homeTeam.includes(searchLower) ||
+          awayTeam.includes(searchLower) ||
+          league.includes(searchLower) ||
+          sport.includes(searchLower)
+        );
       });
     }
 
-    // Filter strictly by selected date
+    // Filter strictly by selected date when no search is active
     if (selectedDateId) {
       const selectedItem = dates.find((d) => d.id === selectedDateId);
       if (selectedItem) {
@@ -134,7 +141,7 @@ export default function HomeScreen() {
         const targetMonth = selectedItem.fullDate.getMonth();
         const targetDay = selectedItem.fullDate.getDate();
 
-        const onDateMatches = filtered.filter((match) => {
+        const onDateMatches = matches.filter((match) => {
           const matchDate = new Date(match.startTime);
           return (
             matchDate.getFullYear() === targetYear &&
@@ -148,7 +155,7 @@ export default function HomeScreen() {
       }
     }
 
-    return filtered;
+    return matches;
   };
 
   const filtered = filterMatches(allMatches);
@@ -164,14 +171,21 @@ export default function HomeScreen() {
     filtered.find((m) => m.status === 'LIVE') ||
     filtered.find((m) => m.status === 'UPCOMING') ||
     filtered[0] ||
-    allMatches.find((m) => m.isPromoted && (m.status === 'LIVE' || m.status === 'UPCOMING')) ||
-    allMatches.find((m) => m.status === 'LIVE') ||
-    allMatches.find((m) => m.status === 'UPCOMING') ||
-    allMatches[0] ||
-    null;
+    (!searchText.trim()
+      ? allMatches.find((m) => m.isPromoted && (m.status === 'LIVE' || m.status === 'UPCOMING')) ||
+        allMatches.find((m) => m.status === 'LIVE') ||
+        allMatches.find((m) => m.status === 'UPCOMING') ||
+        allMatches[0] ||
+        null
+      : null);
 
   // Upcoming matches list: all other matches from filtered (excluding the featured match)
   const upcomingMatches = filtered.filter((m) => m._id !== featuredMatch?._id);
+  const hasMoreUpcoming = upcomingMatches.length > INITIAL_UPCOMING_LIMIT;
+  const displayedUpcoming =
+    showAllUpcoming || searchText.trim().length > 0
+      ? upcomingMatches
+      : upcomingMatches.slice(0, INITIAL_UPCOMING_LIMIT);
 
   return (
     <LinearGradient
@@ -217,146 +231,225 @@ export default function HomeScreen() {
           <View style={styles.searchContainer}>
             <Search size={18} color={Colors.dark.placeholder} />
             <TextInput
-              placeholder="Search match"
+              placeholder="Search match, team, or league..."
               placeholderTextColor={Colors.dark.placeholder}
               style={styles.searchInput}
               value={searchText}
               onChangeText={setSearchText}
+              returnKeyType="search"
             />
-          </View>
-
-          <View style={styles.calendarWrapper}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.calendarScrollContent}
-            >
-              {dates.map((item) => {
-                const isSelected = selectedDateId === item.id;
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    onPress={() => handleSelectDate(item)}
-                    activeOpacity={0.8}
-                    style={[styles.calendarBox, isSelected && styles.calendarBoxActive]}
-                  >
-                    <Text style={[styles.calendarDay, isSelected && styles.calendarTextActive]}>{item.day}</Text>
-                    <Text style={[styles.calendarNum, isSelected && styles.calendarTextActive]}>{item.num}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          <View style={styles.featuredSection}>
-            {featuredMatch ? (
+            {searchText.trim().length > 0 && (
               <TouchableOpacity
-                key={featuredMatch._id}
-                activeOpacity={0.9}
-                onPress={() => router.push({ pathname: '/match-detail', params: { id: featuredMatch._id, homeTeam: featuredMatch.homeTeam, awayTeam: featuredMatch.awayTeam } })}
+                onPress={() => setSearchText('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={styles.clearSearchButton}
+                activeOpacity={0.7}
               >
-                <LinearGradient
-                  colors={[Colors.dark.cardBackground, '#08111F']}
-                  style={styles.featuredCard}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <View style={styles.featuredTopRow}>
-                    <View style={[styles.liveTag, featuredMatch.status === 'LIVE' && { backgroundColor: '#EF4444' }]}>
-                      <Text style={styles.liveTagText}>{featuredMatch.status === 'LIVE' ? '● LIVE NOW' : `START ${formatMatchTime(featuredMatch.startTime)}`}</Text>
-                    </View>
-                    <Text style={styles.venueText}>{(featuredMatch.leagueName || featuredMatch.league || featuredMatch.competition || 'PREMIUM MATCH').toUpperCase()}</Text>
-                  </View>
-
-                  <View style={styles.featuredTeamsRow}>
-                    <View style={styles.featuredTeamColumn}>
-                      <View style={styles.teamBadge}>
-                        <Text style={styles.teamBadgeText}>{(featuredMatch.homeTeam || 'H').slice(0, 2).toUpperCase()}</Text>
-                      </View>
-                      <Text style={styles.featuredTeamName} numberOfLines={1}>{featuredMatch.homeTeam}</Text>
-                      <Text style={styles.featuredTeamLabel}>HOME</Text>
-                    </View>
-
-                    <View style={styles.featuredCenterBadge}>
-                      <Text style={styles.centerBadgeText}>VS</Text>
-                      <Text style={styles.centerBadgeLabel}>ODDS</Text>
-                    </View>
-
-                    <View style={styles.featuredTeamColumn}>
-                      <View style={styles.teamBadge}>
-                        <Text style={styles.teamBadgeText}>{(featuredMatch.awayTeam || 'A').slice(0, 2).toUpperCase()}</Text>
-                      </View>
-                      <Text style={styles.featuredTeamName} numberOfLines={1}>{featuredMatch.awayTeam}</Text>
-                      <Text style={styles.featuredTeamLabel}>AWAY</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.oddsRow}>
-                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>HOME</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.home)}</Text></View>
-                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>DRAW</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.draw)}</Text></View>
-                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>AWAY</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.away)}</Text></View>
-                  </View>
-
-                  <View style={styles.featuredFooter}>
-                    <View>
-                      <Text style={styles.footerLabel}>POOL</Text>
-                      <Text style={styles.footerValue}>₦{(featuredMatch.poolAmount || 0).toLocaleString()}</Text>
-                    </View>
-                    <LinearGradient colors={[Colors.dark.primary, Colors.dark.electricBlue]} style={styles.enterButton}>
-                      <Text style={styles.enterButtonText}>ENTER</Text>
-                    </LinearGradient>
-                  </View>
-                </LinearGradient>
+                <X size={16} color="#8FA2C7" />
               </TouchableOpacity>
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateTitle}>No featured match</Text>
-                <Text style={styles.emptyStateText}>
-                  {loadingDate ? 'Fetching match details...' : 'Live football cards will appear here when the feed is ready.'}
-                </Text>
-              </View>
             )}
           </View>
 
+          {!searchText.trim() && (
+            <View style={styles.calendarWrapper}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.calendarScrollContent}
+              >
+                {dates.map((item) => {
+                  const isSelected = selectedDateId === item.id;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      onPress={() => handleSelectDate(item)}
+                      activeOpacity={0.8}
+                      style={[styles.calendarBox, isSelected && styles.calendarBoxActive]}
+                    >
+                      <Text style={[styles.calendarDay, isSelected && styles.calendarTextActive]}>{item.day}</Text>
+                      <Text style={[styles.calendarNum, isSelected && styles.calendarTextActive]}>{item.num}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {(!searchText.trim() || featuredMatch) && (
+            <View style={styles.featuredSection}>
+              {featuredMatch ? (
+                <TouchableOpacity
+                  key={featuredMatch._id}
+                  activeOpacity={0.9}
+                  onPress={() => router.push({ pathname: '/match-detail', params: { id: featuredMatch._id, homeTeam: featuredMatch.homeTeam, awayTeam: featuredMatch.awayTeam } })}
+                >
+                  <LinearGradient
+                    colors={[Colors.dark.cardBackground, '#08111F']}
+                    style={styles.featuredCard}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <View style={styles.featuredTopRow}>
+                      <View style={[styles.liveTag, featuredMatch.status === 'LIVE' && { backgroundColor: '#EF4444' }]}>
+                        <Text style={styles.liveTagText}>{featuredMatch.status === 'LIVE' ? '● LIVE NOW' : `START ${formatMatchTime(featuredMatch.startTime)}`}</Text>
+                      </View>
+                      <Text style={styles.venueText}>{(featuredMatch.leagueName || featuredMatch.league || featuredMatch.competition || 'PREMIUM MATCH').toUpperCase()}</Text>
+                    </View>
+
+                    <View style={styles.featuredTeamsRow}>
+                      <View style={styles.featuredTeamColumn}>
+                        <View style={styles.teamBadge}>
+                          <Text style={styles.teamBadgeText}>{(featuredMatch.homeTeam || 'H').slice(0, 2).toUpperCase()}</Text>
+                        </View>
+                        <Text style={styles.featuredTeamName} numberOfLines={1}>{featuredMatch.homeTeam}</Text>
+                        <Text style={styles.featuredTeamLabel}>HOME</Text>
+                      </View>
+
+                      <View style={styles.featuredCenterBadge}>
+                        <Text style={styles.centerBadgeText}>VS</Text>
+                        <Text style={styles.centerBadgeLabel}>ODDS</Text>
+                      </View>
+
+                      <View style={styles.featuredTeamColumn}>
+                        <View style={styles.teamBadge}>
+                          <Text style={styles.teamBadgeText}>{(featuredMatch.awayTeam || 'A').slice(0, 2).toUpperCase()}</Text>
+                        </View>
+                        <Text style={styles.featuredTeamName} numberOfLines={1}>{featuredMatch.awayTeam}</Text>
+                        <Text style={styles.featuredTeamLabel}>AWAY</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.oddsRow}>
+                      <View style={styles.oddsPill}><Text style={styles.oddsLabel}>HOME</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.home)}</Text></View>
+                      <View style={styles.oddsPill}><Text style={styles.oddsLabel}>DRAW</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.draw)}</Text></View>
+                      <View style={styles.oddsPill}><Text style={styles.oddsLabel}>AWAY</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.away)}</Text></View>
+                    </View>
+
+                    <View style={styles.featuredFooter}>
+                      <View>
+                        <Text style={styles.footerLabel}>POOL</Text>
+                        <Text style={styles.footerValue}>₦{(featuredMatch.poolAmount || 0).toLocaleString()}</Text>
+                      </View>
+                      <LinearGradient colors={[Colors.dark.primary, Colors.dark.electricBlue]} style={styles.enterButton}>
+                        <Text style={styles.enterButtonText}>ENTER</Text>
+                      </LinearGradient>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ) : !searchText.trim() ? (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateTitle}>No featured match</Text>
+                  <Text style={styles.emptyStateText}>
+                    {loadingDate ? 'Fetching match details...' : 'Live football cards will appear here when the feed is ready.'}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Upcoming Matches</Text>
-            <Text style={styles.sectionChip}>{upcomingMatches.length > 0 ? `${upcomingMatches.length} Matches` : (dates.find(d => d.id === selectedDateId)?.day || 'Today')}</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>
+                {searchText.trim() ? 'Search Results' : 'Upcoming Matches'}
+              </Text>
+              {searchText.trim() ? (
+                <View style={styles.searchCountBadge}>
+                  <Text style={styles.searchCountBadgeText}>{filtered.length} found</Text>
+                </View>
+              ) : null}
+            </View>
+
+            {hasMoreUpcoming && !searchText.trim() && (
+              <TouchableOpacity
+                onPress={() => setShowAllUpcoming((prev) => !prev)}
+                style={styles.viewAllToggle}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.viewAllToggleText}>
+                  {showAllUpcoming ? 'Show Less' : `View All (${upcomingMatches.length})`}
+                </Text>
+                {showAllUpcoming ? (
+                  <ChevronUp size={14} color="#00D285" />
+                ) : (
+                  <ChevronDown size={14} color="#00D285" />
+                )}
+              </TouchableOpacity>
+            )}
+
+            {!hasMoreUpcoming && !searchText.trim() && (
+              <Text style={styles.sectionChip}>
+                {upcomingMatches.length > 0 ? `${upcomingMatches.length} Matches` : (dates.find(d => d.id === selectedDateId)?.day || 'Today')}
+              </Text>
+            )}
           </View>
 
           <View style={styles.upcomingList}>
-            {upcomingMatches.length > 0 ? (
-              upcomingMatches.map((match) => (
-                <TouchableOpacity 
-                  key={match._id} 
-                  style={styles.upcomingRow}
-                  onPress={() => router.push({
-                    pathname: '/match-detail',
-                    params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
-                  })}
+            {displayedUpcoming.length > 0 ? (
+              <>
+                {displayedUpcoming.map((match) => (
+                  <TouchableOpacity 
+                    key={match._id} 
+                    style={styles.upcomingRow}
+                    onPress={() => router.push({
+                      pathname: '/match-detail',
+                      params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                    })}
+                  >
+                    <View style={styles.dateCol}>
+                      <Text style={[styles.upcomingTime, match.status === 'LIVE' && { color: '#EF4444', fontWeight: 'bold' }]}>
+                        {match.status === 'LIVE' ? 'LIVE' : formatMatchTime(match.startTime)}
+                      </Text>
+                      <Text style={styles.upcomingDay}>
+                        {match.status === 'LIVE' ? 'NOW' : new Date(match.startTime).toLocaleDateString([], { weekday: 'short' })}
+                      </Text>
+                    </View>
+
+                    <View style={styles.teamsCompact}>
+                      <Text style={styles.teamTextLeft} numberOfLines={1}>{match.homeTeam}</Text>
+                      <Text style={styles.teamTextRight} numberOfLines={1}>{match.awayTeam}</Text>
+                    </View>
+
+                    <View style={styles.oddsContainer}>
+                      <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.home)}</Text></View>
+                      <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.draw)}</Text></View>
+                      <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.away)}</Text></View>
+                    </View>
+
+                    <Text style={styles.marketText}>₦{(match.poolAmount || 0).toLocaleString()}</Text>
+                  </TouchableOpacity>
+                ))}
+
+                {hasMoreUpcoming && !searchText.trim() && (
+                  <TouchableOpacity
+                    style={styles.viewAllBottomBtn}
+                    onPress={() => setShowAllUpcoming((prev) => !prev)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.viewAllBottomText}>
+                      {showAllUpcoming ? 'Show Less' : `View All (${upcomingMatches.length} Matches)`}
+                    </Text>
+                    {showAllUpcoming ? (
+                      <ChevronUp size={15} color="#00D285" />
+                    ) : (
+                      <ChevronDown size={15} color="#00D285" />
+                    )}
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : searchText.trim() ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateTitle}>No matches found</Text>
+                <Text style={styles.emptyStateText}>
+                  No fixtures matching "{searchText}". Check team names or clear the search.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setSearchText('')}
+                  style={styles.resetDateBtn}
+                  activeOpacity={0.8}
                 >
-                  <View style={styles.dateCol}>
-                    <Text style={[styles.upcomingTime, match.status === 'LIVE' && { color: '#EF4444', fontWeight: 'bold' }]}>
-                      {match.status === 'LIVE' ? 'LIVE' : formatMatchTime(match.startTime)}
-                    </Text>
-                    <Text style={styles.upcomingDay}>
-                      {match.status === 'LIVE' ? 'NOW' : new Date(match.startTime).toLocaleDateString([], { weekday: 'short' })}
-                    </Text>
-                  </View>
-
-                  <View style={styles.teamsCompact}>
-                    <Text style={styles.teamTextLeft} numberOfLines={1}>{match.homeTeam}</Text>
-                    <Text style={styles.teamTextRight} numberOfLines={1}>{match.awayTeam}</Text>
-                  </View>
-
-                  <View style={styles.oddsContainer}>
-                    <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.home)}</Text></View>
-                    <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.draw)}</Text></View>
-                    <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.away)}</Text></View>
-                  </View>
-
-                  <Text style={styles.marketText}>₦{(match.poolAmount || 0).toLocaleString()}</Text>
+                  <Text style={styles.resetDateBtnText}>Clear Search</Text>
                 </TouchableOpacity>
-              ))
+              </View>
             ) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateTitle}>
@@ -467,6 +560,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontFamily: 'Inter',
+  },
+  clearSearchButton: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   calendarWrapper: {
     marginBottom: 18,
@@ -716,10 +814,65 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 4,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  searchCountBadge: {
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+  },
+  searchCountBadgeText: {
+    color: '#00D285',
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  viewAllToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 210, 133, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.25)',
+  },
+  viewAllToggleText: {
+    color: '#00D285',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  viewAllBottomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(19, 28, 50, 0.95)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+    borderRadius: 14,
+    paddingVertical: 10,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  viewAllBottomText: {
+    color: '#00D285',
+    fontSize: 12,
+    fontWeight: '700',
     fontFamily: 'Inter',
   },
   sectionChip: {
