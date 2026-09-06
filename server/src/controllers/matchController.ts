@@ -57,9 +57,9 @@ const parseOdds = (bookmakers: any[]) => {
   return result;
 };
 
-export const refreshMatchesFromProvider = async () => {
+export const refreshMatchesFromProvider = async (targetDate?: string) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = targetDate || new Date().toISOString().split('T')[0];
     
     // Fetch fixtures and odds in parallel
     const [fixtures, oddsResponse] = await Promise.all([
@@ -162,13 +162,22 @@ export const getMatches = async (req: Request, res: Response) => {
       const end = new Date(String(date));
       end.setHours(23, 59, 59, 999);
       filter.startTime = { $gte: start, $lte: end };
+
+      // Auto-refresh fixtures for this date if none exist in DB
+      Match.countDocuments(filter).then((c) => {
+        if (c === 0) {
+          refreshMatchesFromProvider(String(date)).catch((err) =>
+            console.warn(`[Matches] Auto-refresh for date ${date} failed:`, err.message)
+          );
+        }
+      });
     }
 
     const page = parseInt(pageQuery as string) || 1;
     const limit = parseInt(limitQuery as string) || 50;
     const skip = (page - 1) * limit;
 
-    let sortCriteria: any = { isPromoted: -1, status: 1, startTime: 1 };
+    let sortCriteria: any = { isPromoted: -1, status: 1, startTime: -1 };
 
     // When status is not explicitly passed, prioritize LIVE and UPCOMING matches
     if (!status && !date) {
@@ -180,8 +189,8 @@ export const getMatches = async (req: Request, res: Response) => {
       const activeCount = await Match.countDocuments(activeFilter);
       if (activeCount > 0) {
         filter.status = { $in: ['LIVE', 'UPCOMING'] };
-        // 'LIVE' < 'UPCOMING'. Sorting status: 1 puts LIVE before UPCOMING.
-        sortCriteria = { isPromoted: -1, status: 1, startTime: 1 };
+        // 'LIVE' < 'UPCOMING'. Sort promoted first, then LIVE/UPCOMING, and newest/relevant startTime
+        sortCriteria = { isPromoted: -1, status: 1, startTime: -1 };
       } else {
         // Trigger auto-refresh in the background if no active matches
         refreshMatchesFromProvider().catch((err) =>
@@ -193,7 +202,7 @@ export const getMatches = async (req: Request, res: Response) => {
     } else if (status === 'FINISHED') {
       sortCriteria = { startTime: -1 };
     } else if (status === 'LIVE' || status === 'UPCOMING') {
-      sortCriteria = { isPromoted: -1, startTime: 1 };
+      sortCriteria = { isPromoted: -1, startTime: -1 };
     }
 
     const total = await Match.countDocuments(filter);

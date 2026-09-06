@@ -12,11 +12,18 @@ const PORT = process.env.PORT || 5000;
 // Connect to Database
 connectDB();
 
-const server = app.listen(PORT, () => {
+import { refreshMatchesFromProvider } from './controllers/matchController';
+
+const server = app.listen(PORT, async () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
   initSocket(server);
   startLiveSettlementScheduler();
   startBridgeScheduler();
+
+  // Auto-refresh today's fixtures on boot
+  refreshMatchesFromProvider().catch((err) => {
+    console.warn('[Matches] Initial server boot sync warning:', err.message);
+  });
 });
 
 // Handle unhandled promise rejections

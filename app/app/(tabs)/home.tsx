@@ -18,6 +18,18 @@ export default function HomeScreen() {
   const [selectedDateId, setSelectedDateId] = useState<string>('');
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 
+  // Helper functions for consistent local date keys and API ISO date strings
+  const getLocalDateKey = (d: Date) => {
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  };
+
+  const getIsoDateString = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Generate 7 days starting from today
   const generateDates = () => {
     const days = [];
@@ -28,10 +40,11 @@ export default function HomeScreen() {
       const dayNum = date.getDate();
       const dayName = i === 0 ? 'Today' : date.toLocaleDateString([], { weekday: 'short' });
       days.push({
-        id: `${date.getFullYear()}-${date.getMonth()}-${dayNum}`,
+        id: getLocalDateKey(date),
         day: dayName,
         num: dayNum.toString(),
         fullDate: date,
+        isoDate: getIsoDateString(date),
       });
     }
     return days;
@@ -49,7 +62,7 @@ export default function HomeScreen() {
 
   const handleSelectDate = async (item: typeof dates[0]) => {
     setSelectedDateId(item.id);
-    const dateString = item.fullDate.toISOString().split('T')[0];
+    const dateString = item.isoDate || getIsoDateString(item.fullDate);
     setLoadingDate(true);
     try {
       const data = await matchService.getMatches({ date: dateString, limit: 100 });
@@ -69,13 +82,23 @@ export default function HomeScreen() {
 
   const fetchData = async () => {
     try {
-      const [userData, allMatchesData, notifData] = await Promise.all([
+      const todayIso = dates[0]?.isoDate || getIsoDateString(new Date());
+      const [userData, todayMatchesData, allMatchesData, notifData] = await Promise.all([
         authService.getMe().catch(() => null),
+        matchService.getMatches({ date: todayIso, limit: 100 }).catch(() => ({ matches: [] })),
         matchService.getMatches({ limit: 100 }).catch(() => ({ matches: [] })),
         notificationService.getAll().catch(() => ({ unreadCount: 0 })),
       ]);
       setUser(userData);
-      setAllMatches(allMatchesData?.matches || []);
+
+      const combined = [...(todayMatchesData?.matches || []), ...(allMatchesData?.matches || [])];
+      const seen = new Set<string>();
+      const unique = combined.filter((m) => {
+        if (!m?._id || seen.has(m._id)) return false;
+        seen.add(m._id);
+        return true;
+      });
+      setAllMatches(unique);
       setUnreadNotifications(notifData?.unreadCount || 0);
     } catch (error) {
       console.error('Error fetching data for home:', error);
@@ -150,8 +173,23 @@ export default function HomeScreen() {
           );
         });
 
-        // Strictly return matches on the selected date (e.g. Monday)
-        return onDateMatches;
+        // If fixtures specifically match the date, return them
+        if (onDateMatches.length > 0) {
+          return onDateMatches;
+        }
+
+        // Resilient fallback for "Today":
+        // If "Today" is selected and no fixtures specifically match the exact device date,
+        // display the active LIVE and UPCOMING fixtures from matches so the user is never
+        // greeted with a dead empty screen!
+        const isToday = selectedDateId === dates[0]?.id;
+        if (isToday) {
+          const active = matches.filter((m) => m.status === 'LIVE' || m.status === 'UPCOMING');
+          return active.length > 0 ? active : matches;
+        }
+
+        // For future days with no scheduled games, return empty
+        return [];
       }
     }
 
@@ -180,7 +218,14 @@ export default function HomeScreen() {
       : null);
 
   // Upcoming matches list: all other matches from filtered (excluding the featured match)
-  const upcomingMatches = filtered.filter((m) => m._id !== featuredMatch?._id);
+  // If filtered only has 1 match (or upcoming is empty on Today), pull other active matches
+  // from allMatches so the list is always rich and interactive!
+  let upcomingMatches = filtered.filter((m) => m._id !== featuredMatch?._id);
+  const isTodaySelected = !selectedDateId || selectedDateId === dates[0]?.id;
+  if (upcomingMatches.length === 0 && isTodaySelected && !searchText.trim()) {
+    upcomingMatches = allMatches.filter((m) => m._id !== featuredMatch?._id);
+  }
+
   const hasMoreUpcoming = upcomingMatches.length > INITIAL_UPCOMING_LIMIT;
   const displayedUpcoming =
     showAllUpcoming || searchText.trim().length > 0
