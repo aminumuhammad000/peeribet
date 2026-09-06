@@ -88,6 +88,25 @@ export const refreshMatchesFromProvider = async () => {
 
       const matchOdds = oddsMap.get(fixture.id) || parseOdds([]);
 
+      const highProfileLeagues = [
+        'premier league',
+        'champions league',
+        'uefa champions league',
+        'la liga',
+        'serie a',
+        'bundesliga',
+        'ligue 1',
+        'world cup',
+        'fa cup',
+        'copa del rey',
+        'major league soccer',
+        'mls',
+        'eredivisie',
+        'primeira liga'
+      ];
+      const leagueLower = (league?.name || '').toLowerCase();
+      const isHighProfile = highProfileLeagues.some((l) => leagueLower.includes(l));
+
       await Match.findOneAndUpdate(
         { fixtureId: fixture.id },
         {
@@ -103,6 +122,7 @@ export const refreshMatchesFromProvider = async () => {
             scoreHome: goals?.home || 0,
             scoreAway: goals?.away || 0,
             odds: matchOdds,
+            ...(isHighProfile ? { isPromoted: true } : {}),
           },
         },
         { upsert: true, returnDocument: 'after' }
@@ -124,9 +144,7 @@ export const refreshMatchesFromProvider = async () => {
 // @access Private
 export const getMatches = async (req: Request, res: Response) => {
   try {
-    // Data is synced in the background via startLiveSettlementScheduler
-
-    const { status, isPromoted, sport, page: pageQuery, limit: limitQuery } = req.query;
+    const { status, isPromoted, sport, date, page: pageQuery, limit: limitQuery } = req.query;
     const filter: any = {};
     
     if (status) filter.status = status;
@@ -138,14 +156,49 @@ export const getMatches = async (req: Request, res: Response) => {
         { league: { $regex: new RegExp(normalizedSport, 'i') } },
       ];
     }
+    if (date) {
+      const start = new Date(String(date));
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(String(date));
+      end.setHours(23, 59, 59, 999);
+      filter.startTime = { $gte: start, $lte: end };
+    }
 
     const page = parseInt(pageQuery as string) || 1;
     const limit = parseInt(limitQuery as string) || 50;
     const skip = (page - 1) * limit;
 
+    let sortCriteria: any = { isPromoted: -1, status: 1, startTime: 1 };
+
+    // When status is not explicitly passed, prioritize LIVE and UPCOMING matches
+    if (!status && !date) {
+      const activeFilter = {
+        ...filter,
+        status: { $in: ['LIVE', 'UPCOMING'] },
+      };
+
+      const activeCount = await Match.countDocuments(activeFilter);
+      if (activeCount > 0) {
+        filter.status = { $in: ['LIVE', 'UPCOMING'] };
+        // 'LIVE' < 'UPCOMING'. Sorting status: 1 puts LIVE before UPCOMING.
+        sortCriteria = { isPromoted: -1, status: 1, startTime: 1 };
+      } else {
+        // Trigger auto-refresh in the background if no active matches
+        refreshMatchesFromProvider().catch((err) =>
+          console.error('[Matches] Auto-refresh from provider failed:', err.message)
+        );
+        // Show most recent matches first instead of oldest
+        sortCriteria = { startTime: -1 };
+      }
+    } else if (status === 'FINISHED') {
+      sortCriteria = { startTime: -1 };
+    } else if (status === 'LIVE' || status === 'UPCOMING') {
+      sortCriteria = { isPromoted: -1, startTime: 1 };
+    }
+
     const total = await Match.countDocuments(filter);
     const matches = await Match.find(filter)
-      .sort({ startTime: 1 })
+      .sort(sortCriteria)
       .skip(skip)
       .limit(limit);
 
@@ -155,6 +208,18 @@ export const getMatches = async (req: Request, res: Response) => {
       totalPages: Math.ceil(total / limit),
       totalItems: total
     });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @route  POST /api/matches/sync
+// @access Private
+export const syncMatches = async (req: Request, res: Response) => {
+  try {
+    await refreshMatchesFromProvider();
+    const count = await Match.countDocuments({ status: { $in: ['LIVE', 'UPCOMING'] } });
+    res.json({ message: 'Matches synced successfully', activeMatchesCount: count });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

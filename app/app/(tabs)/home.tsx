@@ -15,7 +15,7 @@ export default function HomeScreen() {
   const [allMatches, setAllMatches] = useState<any[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [searchText, setSearchText] = useState('');
-  const [selectedDateNum, setSelectedDateNum] = useState<number | null>(null);
+  const [selectedDateId, setSelectedDateId] = useState<string>('');
 
   // Generate 7 days starting from today
   const generateDates = () => {
@@ -25,12 +25,12 @@ export default function HomeScreen() {
       const date = new Date(today);
       date.setDate(date.getDate() + i);
       const dayNum = date.getDate();
-      const dayName = date.toLocaleDateString([], { weekday: 'short' });
+      const dayName = i === 0 ? 'Today' : date.toLocaleDateString([], { weekday: 'short' });
       days.push({
-        id: dayNum.toString(),
+        id: `${date.getFullYear()}-${date.getMonth()}-${dayNum}`,
         day: dayName,
         num: dayNum.toString(),
-        fullDate: new Date(date.getFullYear(), date.getMonth(), dayNum),
+        fullDate: date,
       });
     }
     return days;
@@ -40,21 +40,21 @@ export default function HomeScreen() {
 
   // Set initial selected date to today
   useEffect(() => {
-    if (selectedDateNum === null) {
-      setSelectedDateNum(new Date().getDate());
+    if (!selectedDateId && dates.length > 0) {
+      setSelectedDateId(dates[0].id);
     }
   }, []);
 
   const fetchData = async () => {
     try {
       const [userData, allMatchesData, notifData] = await Promise.all([
-        authService.getMe(),
-        matchService.getMatches({ limit: 50 }),
+        authService.getMe().catch(() => null),
+        matchService.getMatches({ limit: 100 }).catch(() => ({ matches: [] })),
         notificationService.getAll().catch(() => ({ unreadCount: 0 })),
       ]);
       setUser(userData);
       setAllMatches(allMatchesData?.matches || []);
-      setUnreadNotifications(notifData.unreadCount || 0);
+      setUnreadNotifications(notifData?.unreadCount || 0);
     } catch (error) {
       console.error('Error fetching data for home:', error);
     }
@@ -100,29 +100,59 @@ export default function HomeScreen() {
       filtered = filtered.filter((match) => {
         const homeTeam = match.homeTeam?.toLowerCase() || '';
         const awayTeam = match.awayTeam?.toLowerCase() || '';
-        return homeTeam.includes(searchLower) || awayTeam.includes(searchLower);
+        const league = (match.leagueName || match.league || '').toLowerCase();
+        return homeTeam.includes(searchLower) || awayTeam.includes(searchLower) || league.includes(searchLower);
       });
     }
 
-    // Filter by date - show matches from selected date onwards, within a week
-    if (selectedDateNum !== null && filtered.length > 0) {
-      // Find the minimum date number (could wrap around month)
-      const minDate = selectedDateNum;
-      const maxDate = selectedDateNum + 6; // Show up to 6 days ahead
+    // Filter by date
+    if (selectedDateId) {
+      const selectedItem = dates.find((d) => d.id === selectedDateId);
+      if (selectedItem) {
+        const targetYear = selectedItem.fullDate.getFullYear();
+        const targetMonth = selectedItem.fullDate.getMonth();
+        const targetDay = selectedItem.fullDate.getDate();
 
-      return filtered.filter((match) => {
-        const matchDate = new Date(match.startTime);
-        const matchDateNum = matchDate.getDate();
-        // Show matches from selected date onwards
-        return matchDateNum >= minDate && matchDateNum <= maxDate;
-      });
+        const onDateMatches = filtered.filter((match) => {
+          const matchDate = new Date(match.startTime);
+          return (
+            matchDate.getFullYear() === targetYear &&
+            matchDate.getMonth() === targetMonth &&
+            matchDate.getDate() === targetDay
+          );
+        });
+
+        // If there are matches on this specific day, show them
+        if (onDateMatches.length > 0) {
+          return onDateMatches;
+        }
+      }
     }
 
     return filtered;
   };
 
-  const promotedMatches = filterMatches(allMatches).filter((m) => m.isPromoted && (m.status === 'LIVE' || m.status === 'UPCOMING'));
-  const upcomingMatches = filterMatches(allMatches).filter((m) => m.status === 'UPCOMING' && !m.isPromoted);
+  const filtered = filterMatches(allMatches);
+
+  // Best match to feature:
+  // 1. Promoted match (LIVE or UPCOMING) from filtered
+  // 2. LIVE match from filtered
+  // 3. UPCOMING match from filtered
+  // 4. Any match from filtered
+  // 5. Fallback: Promoted, LIVE, UPCOMING, or any match from allMatches
+  const featuredMatch: any =
+    filtered.find((m) => m.isPromoted && (m.status === 'LIVE' || m.status === 'UPCOMING')) ||
+    filtered.find((m) => m.status === 'LIVE') ||
+    filtered.find((m) => m.status === 'UPCOMING') ||
+    filtered[0] ||
+    allMatches.find((m) => m.isPromoted && (m.status === 'LIVE' || m.status === 'UPCOMING')) ||
+    allMatches.find((m) => m.status === 'LIVE') ||
+    allMatches.find((m) => m.status === 'UPCOMING') ||
+    allMatches[0] ||
+    null;
+
+  // Upcoming matches list: all other matches from filtered (excluding the featured match)
+  const upcomingMatches = filtered.filter((m) => m._id !== featuredMatch?._id);
 
   return (
     <LinearGradient
@@ -183,11 +213,11 @@ export default function HomeScreen() {
               contentContainerStyle={styles.calendarScrollContent}
             >
               {dates.map((item) => {
-                const isSelected = selectedDateNum === parseInt(item.id);
+                const isSelected = selectedDateId === item.id;
                 return (
                   <TouchableOpacity
                     key={item.id}
-                    onPress={() => setSelectedDateNum(parseInt(item.id))}
+                    onPress={() => setSelectedDateId(item.id)}
                     activeOpacity={0.8}
                     style={[styles.calendarBox, isSelected && styles.calendarBoxActive]}
                   >
@@ -200,11 +230,11 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.featuredSection}>
-            {promotedMatches.length > 0 ? promotedMatches.slice(0, 1).map((match) => (
+            {featuredMatch ? (
               <TouchableOpacity
-                key={match._id}
+                key={featuredMatch._id}
                 activeOpacity={0.9}
-                onPress={() => router.push({ pathname: '/match-detail', params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam } })}
+                onPress={() => router.push({ pathname: '/match-detail', params: { id: featuredMatch._id, homeTeam: featuredMatch.homeTeam, awayTeam: featuredMatch.awayTeam } })}
               >
                 <LinearGradient
                   colors={[Colors.dark.cardBackground, '#08111F']}
@@ -213,18 +243,18 @@ export default function HomeScreen() {
                   end={{ x: 1, y: 1 }}
                 >
                   <View style={styles.featuredTopRow}>
-                    <View style={styles.liveTag}>
-                      <Text style={styles.liveTagText}>{match.status === 'LIVE' ? 'LIVE NOW' : `START ${formatMatchTime(match.startTime)}`}</Text>
+                    <View style={[styles.liveTag, featuredMatch.status === 'LIVE' && { backgroundColor: '#EF4444' }]}>
+                      <Text style={styles.liveTagText}>{featuredMatch.status === 'LIVE' ? '● LIVE NOW' : `START ${formatMatchTime(featuredMatch.startTime)}`}</Text>
                     </View>
-                    <Text style={styles.venueText}>{(match.leagueName || match.competition || 'PREMIUM MATCH').toUpperCase()}</Text>
+                    <Text style={styles.venueText}>{(featuredMatch.leagueName || featuredMatch.league || featuredMatch.competition || 'PREMIUM MATCH').toUpperCase()}</Text>
                   </View>
 
                   <View style={styles.featuredTeamsRow}>
                     <View style={styles.featuredTeamColumn}>
                       <View style={styles.teamBadge}>
-                        <Text style={styles.teamBadgeText}>{(match.homeTeam || 'H').slice(0, 2).toUpperCase()}</Text>
+                        <Text style={styles.teamBadgeText}>{(featuredMatch.homeTeam || 'H').slice(0, 2).toUpperCase()}</Text>
                       </View>
-                      <Text style={styles.featuredTeamName}>{match.homeTeam}</Text>
+                      <Text style={styles.featuredTeamName}>{featuredMatch.homeTeam}</Text>
                       <Text style={styles.featuredTeamLabel}>HOME</Text>
                     </View>
 
@@ -235,23 +265,23 @@ export default function HomeScreen() {
 
                     <View style={styles.featuredTeamColumn}>
                       <View style={styles.teamBadge}>
-                        <Text style={styles.teamBadgeText}>{(match.awayTeam || 'A').slice(0, 2).toUpperCase()}</Text>
+                        <Text style={styles.teamBadgeText}>{(featuredMatch.awayTeam || 'A').slice(0, 2).toUpperCase()}</Text>
                       </View>
-                      <Text style={styles.featuredTeamName}>{match.awayTeam}</Text>
+                      <Text style={styles.featuredTeamName}>{featuredMatch.awayTeam}</Text>
                       <Text style={styles.featuredTeamLabel}>AWAY</Text>
                     </View>
                   </View>
 
                   <View style={styles.oddsRow}>
-                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>HOME</Text><Text style={styles.oddsValue}>{formatOddsValue(match.odds?.home)}</Text></View>
-                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>DRAW</Text><Text style={styles.oddsValue}>{formatOddsValue(match.odds?.draw)}</Text></View>
-                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>AWAY</Text><Text style={styles.oddsValue}>{formatOddsValue(match.odds?.away)}</Text></View>
+                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>HOME</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.home)}</Text></View>
+                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>DRAW</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.draw)}</Text></View>
+                    <View style={styles.oddsPill}><Text style={styles.oddsLabel}>AWAY</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.away)}</Text></View>
                   </View>
 
                   <View style={styles.featuredFooter}>
                     <View>
                       <Text style={styles.footerLabel}>POOL</Text>
-                      <Text style={styles.footerValue}>₦{(match.poolAmount || 0).toLocaleString()}</Text>
+                      <Text style={styles.footerValue}>₦{(featuredMatch.poolAmount || 0).toLocaleString()}</Text>
                     </View>
                     <LinearGradient colors={[Colors.dark.primary, Colors.dark.electricBlue]} style={styles.enterButton}>
                       <Text style={styles.enterButtonText}>ENTER</Text>
@@ -259,7 +289,7 @@ export default function HomeScreen() {
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
-            )) : (
+            ) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateTitle}>No featured match yet</Text>
                 <Text style={styles.emptyStateText}>Live football cards will appear here when the feed is ready.</Text>
@@ -269,7 +299,7 @@ export default function HomeScreen() {
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Matches</Text>
-            <Text style={styles.sectionChip}>Today</Text>
+            <Text style={styles.sectionChip}>{upcomingMatches.length > 0 ? `${upcomingMatches.length} Matches` : 'Today'}</Text>
           </View>
 
           <View style={styles.upcomingList}>
@@ -283,8 +313,12 @@ export default function HomeScreen() {
                 })}
               >
                 <View style={styles.dateCol}>
-                  <Text style={styles.upcomingTime}>{formatMatchTime(match.startTime)}</Text>
-                  <Text style={styles.upcomingDay}>{new Date(match.startTime).toLocaleDateString([], { weekday: 'short' })}</Text>
+                  <Text style={[styles.upcomingTime, match.status === 'LIVE' && { color: '#EF4444', fontWeight: 'bold' }]}>
+                    {match.status === 'LIVE' ? 'LIVE' : formatMatchTime(match.startTime)}
+                  </Text>
+                  <Text style={styles.upcomingDay}>
+                    {match.status === 'LIVE' ? 'NOW' : new Date(match.startTime).toLocaleDateString([], { weekday: 'short' })}
+                  </Text>
                 </View>
 
                 <View style={styles.teamsCompact}>
