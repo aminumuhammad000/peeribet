@@ -30,15 +30,16 @@ export default function ForgotPasswordScreen() {
     validateEmail(value);
   };
 
-  const isFormValid = email.trim().length > 0 && /\S+@\S+\.\S+/.test(email) && !emailError;
+  const cleanEmail = email.trim().toLowerCase();
+  const isFormValid = cleanEmail.length > 0 && /\S+@\S+\.\S+/.test(cleanEmail) && !emailError;
 
   const handleSendResetLink = async () => {
     if (!isFormValid) return;
     setLoading(true);
     try {
-      await authService.forgotPassword(email);
+      await authService.forgotPassword(cleanEmail);
       setLoading(false);
-      router.push({ pathname: '/verify-otp', params: { email, context: 'reset_password' } });
+      router.push({ pathname: '/verify-otp', params: { email: cleanEmail, context: 'reset_password' } });
     } catch (err: any) {
       setLoading(false);
       const errorMsg = err.response?.data?.message || 'Something went wrong. Please try again.';
@@ -77,7 +78,7 @@ export default function ForgotPasswordScreen() {
               <View style={styles.formContainer}>
                 <CustomInput
                   label="Email address :"
-                  placeholder="Example@gmail.com"
+                  placeholder="example@gmail.com"
                   value={email}
                   onChangeText={handleEmailChange}
                   error={emailError}

@@ -1,31 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { authService, getApiErrorMessage } from '../services/apiService';
+import { authService, getApiErrorMessage, showToast } from '../services/apiService';
 
 export default function SignInScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const params = useLocalSearchParams();
+  const initialEmail = (Array.isArray(params.email) ? params.email[0] : params.email) || '';
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
+  const isResetSuccess = params.resetSuccess === 'true';
+
+  useEffect(() => {
+    if (initialEmail) {
+      setEmail(initialEmail);
+    }
+  }, [initialEmail]);
+
+  useEffect(() => {
+    if (isResetSuccess) {
+      showToast('Password reset successful! Please log in.', 'success');
+    }
+  }, [isResetSuccess]);
 
   const handleSignIn = async () => {
     let isValid = true;
     setEmailError('');
     setPasswordError('');
 
-    if (!email) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail) {
       setEmailError('Email address is required');
       isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
+    } else if (!/\S+@\S+\.\S+/.test(cleanEmail)) {
       setEmailError('Please enter a valid email address');
       isValid = false;
     }
@@ -41,7 +58,7 @@ export default function SignInScreen() {
     if (isValid) {
       setLoading(true);
       try {
-        await authService.login({ email, password });
+        await authService.login({ emailOrPhone: cleanEmail, email: cleanEmail, password });
         setLoading(false);
         router.replace({ pathname: '/welcome-user', params: { type: 'login' } });
       } catch (err: any) {
@@ -78,11 +95,20 @@ export default function SignInScreen() {
               <Text style={styles.subtitle}>Hi, Welcome back. You 've been missed</Text>
             </View>
 
+            {/* Reset password success alert banner if applicable */}
+            {isResetSuccess && (
+              <View style={styles.successBanner}>
+                <Text style={styles.successBannerText}>
+                  ✓ Password reset successful! Please enter your new password to sign in.
+                </Text>
+              </View>
+            )}
+
             {/* Input Forms */}
             <View style={styles.formContainer}>
               <CustomInput
                 label="Email address :"
-                placeholder="Example@gmail.com"
+                placeholder="example@gmail.com"
                 value={email}
                 onChangeText={setEmail}
                 error={emailError}
@@ -202,6 +228,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
     fontFamily: 'Inter',
+  },
+  successBanner: {
+    backgroundColor: 'rgba(0, 210, 133, 0.12)',
+    borderWidth: 1,
+    borderColor: '#00D285',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 18,
+  },
+  successBannerText: {
+    color: '#00D285',
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'Inter',
+    lineHeight: 18,
   },
   formContainer: {
     width: '100%',

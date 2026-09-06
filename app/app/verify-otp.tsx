@@ -11,7 +11,8 @@ import { authService, showToast } from '../services/apiService';
 export default function VerifyOtpScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const email = (params.email as string) || 'user@example.com';
+  const rawEmail = Array.isArray(params.email) ? params.email[0] : params.email;
+  const email = (rawEmail ? String(rawEmail).trim().toLowerCase() : '') || 'user@example.com';
   const context = params.context as string | undefined;
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -30,13 +31,49 @@ export default function VerifyOtpScreen() {
   }, []);
 
   const handleChangeText = (text: string, index: number) => {
+    const digitsOnly = text.replace(/[^0-9]/g, '');
+    if (!digitsOnly) {
+      const newOtp = [...otp];
+      newOtp[index] = '';
+      setOtp(newOtp);
+      return;
+    }
+
+    if (digitsOnly.length > 1) {
+      if (digitsOnly.length >= 4) {
+        // Multi-digit paste or autofill: fill from index 0 to 5
+        const pasted = digitsOnly.slice(0, 6).split('');
+        const newOtp = ['', '', '', '', '', ''];
+        for (let i = 0; i < 6; i++) {
+          newOtp[i] = pasted[i] || '';
+        }
+        setOtp(newOtp);
+        setError('');
+        const focusIndex = Math.min(pasted.length - 1, 5);
+        inputs.current[focusIndex]?.focus();
+        return;
+      }
+
+      // User typed over an existing character
+      const newChar = digitsOnly[digitsOnly.length - 1];
+      const newOtp = [...otp];
+      newOtp[index] = newChar;
+      setOtp(newOtp);
+      setError('');
+      if (index < 5) {
+        inputs.current[index + 1]?.focus();
+      }
+      return;
+    }
+
+    // Exactly 1 digit entered
     const newOtp = [...otp];
-    newOtp[index] = text;
+    newOtp[index] = digitsOnly;
     setOtp(newOtp);
     setError('');
 
     // Auto-focus next input
-    if (text && index < 5) {
+    if (digitsOnly && index < 5) {
       inputs.current[index + 1]?.focus();
     }
   };
@@ -45,11 +82,14 @@ export default function VerifyOtpScreen() {
     // Auto-focus previous on backspace delete
     if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
       inputs.current[index - 1]?.focus();
+      const newOtp = [...otp];
+      newOtp[index - 1] = '';
+      setOtp(newOtp);
     }
   };
 
   const handleVerify = async () => {
-    const code = otp.join('');
+    const code = otp.join('').trim();
     if (code.length < 6) {
       setError('Please enter the 6-digit verification code');
       return;
@@ -139,8 +179,11 @@ export default function VerifyOtpScreen() {
                     onChangeText={(text) => handleChangeText(text, index)}
                     onKeyPress={(e) => handleKeyPress(e, index)}
                     keyboardType="number-pad"
-                    maxLength={1}
+                    maxLength={6}
                     selectTextOnFocus={true}
+                    textContentType="oneTimeCode"
+                    autoComplete="one-time-code"
+                    autoCapitalize="none"
                     style={[styles.otpBox, error ? styles.otpBoxError : null]}
                   />
                 ))}
@@ -178,7 +221,13 @@ export default function VerifyOtpScreen() {
 
             {/* Recheck link */}
             <TouchableOpacity
-              onPress={() => router.replace('/signup-step2')}
+              onPress={() => {
+                if (context === 'reset_password') {
+                  router.replace('/forgot-password');
+                } else {
+                  router.replace('/signup-step2');
+                }
+              }}
               activeOpacity={0.7}
               style={styles.recheckContainer}
             >

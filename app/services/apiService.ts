@@ -224,23 +224,39 @@ export const authService = {
     }
   },
   resendOtp: async (email: string) => {
-    const response = await apiRequest(api.post('/auth/resend-otp', { email }));
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const response = await apiRequest(api.post('/auth/resend-otp', { email: cleanEmail }));
     return response.data;
   },
   forgotPassword: async (email: string) => {
-    const response = await apiRequest(api.post('/auth/forgot-password', { email }));
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const response = await apiRequest(api.post('/auth/forgot-password', { email: cleanEmail }));
     return response.data;
   },
   resetPassword: async (data: { email: string; otp: string; newPassword: string }) => {
-    const response = await apiRequest(api.post('/auth/reset-password', data));
+    const cleanData = {
+      ...data,
+      email: data.email ? data.email.trim().toLowerCase() : '',
+      otp: data.otp ? String(data.otp).trim() : '',
+    };
+    const response = await apiRequest(api.post('/auth/reset-password', cleanData));
     return response.data;
   },
   verifyResetOtp: async (data: { email: string; otp: string }) => {
-    const response = await apiRequest(api.post('/auth/verify-reset-otp', data));
+    const cleanData = {
+      email: data.email ? data.email.trim().toLowerCase() : '',
+      otp: data.otp ? String(data.otp).trim() : '',
+    };
+    const response = await apiRequest(api.post('/auth/verify-reset-otp', cleanData));
     return response.data;
   },
   checkAvailability: async (data: { email?: string; phone?: string }) => {
-    const response = await apiRequest(api.post('/auth/check-availability', data));
+    const cleanData = {
+      ...data,
+      email: data.email ? data.email.trim().toLowerCase() : undefined,
+      phone: data.phone ? data.phone.trim() : undefined,
+    };
+    const response = await apiRequest(api.post('/auth/check-availability', cleanData));
     return response.data;
   },
 };

@@ -7,13 +7,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { authService } from '../services/apiService';
+import { authService, showToast } from '../services/apiService';
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const email = params.email as string || '';
-  const otp = params.otp as string || '';
+  const rawEmail = Array.isArray(params.email) ? params.email[0] : params.email;
+  const rawOtp = Array.isArray(params.otp) ? params.otp[0] : params.otp;
+  const email = (rawEmail ? String(rawEmail).trim().toLowerCase() : '') || '';
+  const otp = (rawOtp ? String(rawOtp).trim() : '') || '';
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -86,11 +88,29 @@ export default function ResetPasswordScreen() {
     if (!isFormValid) return;
     setLoading(true);
     try {
-      await authService.resetPassword({ email, otp, newPassword: password });
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanOtp = otp.trim();
+      await authService.resetPassword({ email: cleanEmail, otp: cleanOtp, newPassword: password });
       setLoading(false);
-      Alert.alert('Success', 'Password reset successfully!', [
-        { text: 'Sign In', onPress: () => router.replace('/signin') },
-      ]);
+      showToast('Password reset successfully! Please sign in.', 'success');
+
+      if (Platform.OS === 'web') {
+        setTimeout(() => {
+          router.replace({ pathname: '/signin', params: { email: cleanEmail, resetSuccess: 'true' } });
+        }, 1200);
+      } else {
+        Alert.alert(
+          'Password Reset Successful',
+          'Your password has been changed successfully. Please log in with your new password.',
+          [
+            {
+              text: 'Log In',
+              onPress: () => router.replace({ pathname: '/signin', params: { email: cleanEmail, resetSuccess: 'true' } }),
+            },
+          ],
+          { cancelable: false }
+        );
+      }
     } catch (err: any) {
       setLoading(false);
       const errorMsg = err.response?.data?.message || 'Failed to reset password. Please try again.';

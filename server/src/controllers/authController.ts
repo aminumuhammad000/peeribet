@@ -12,8 +12,14 @@ const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
 export const register = async (req: Request, res: Response) => {
   try {
     const { firstName, lastName, email, phone, password } = req.body;
+    const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+    const cleanPhone = phone ? String(phone).trim() : '';
 
-    const userExists = await User.findOne({ $or: [{ email }, { phone }] });
+    if (!cleanEmail || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    const userExists = await User.findOne({ $or: [{ email: cleanEmail }, { phone: cleanPhone }] });
     if (userExists) {
       return res.status(400).json({ message: 'User already exists with this email or phone' });
     }
@@ -21,10 +27,10 @@ export const register = async (req: Request, res: Response) => {
     const otp = generateOtp();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-    const user = await User.create({ firstName, lastName, email, phone, password, otp, otpExpires });
+    const user = await User.create({ firstName, lastName, email: cleanEmail, phone: cleanPhone, password, otp, otpExpires });
 
     if (user) {
-      sendOtpEmail(email, firstName, otp).catch((err) =>
+      sendOtpEmail(cleanEmail, firstName, otp).catch((err) =>
         console.error('[Email] Failed to send registration OTP email:', err.message)
       );
 
@@ -49,9 +55,14 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   try {
     const { emailOrPhone, password } = req.body;
+    const cleanIdentifier = emailOrPhone ? String(emailOrPhone).trim() : '';
+
+    if (!cleanIdentifier || !password) {
+      return res.status(400).json({ message: 'Email/phone and password are required' });
+    }
 
     const user = await User.findOne({
-      $or: [{ email: emailOrPhone }, { phone: emailOrPhone }],
+      $or: [{ email: cleanIdentifier.toLowerCase() }, { phone: cleanIdentifier }],
     }).select('+password');
 
     if (!user) {
@@ -101,13 +112,24 @@ export const login = async (req: Request, res: Response) => {
 export const verifyOtp = async (req: Request, res: Response) => {
   try {
     const { email, otp } = req.body;
+    const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+    const cleanOtp = otp ? String(otp).trim() : '';
 
-    const user = await User.findOne({ email });
+    if (!cleanEmail || !cleanOtp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (user.otp === otp && user.otpExpires && user.otpExpires > new Date()) {
+    const isOtpValid =
+      String(user.otp || '').trim() === cleanOtp &&
+      user.otpExpires &&
+      new Date(user.otpExpires).getTime() > Date.now();
+
+    if (isOtpValid) {
       const wasAlreadyVerified = user.isVerified;
       user.isVerified = true;
       user.otp = undefined;
@@ -116,7 +138,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
       // Send welcome email & notification only on first verification
       if (!wasAlreadyVerified) {
-        sendWelcomeEmail(email, user.firstName).catch((err) =>
+        sendWelcomeEmail(cleanEmail, user.firstName).catch((err) =>
           console.error('[Email] Failed to send welcome email:', err.message)
         );
         createNotification(
@@ -144,8 +166,13 @@ export const verifyOtp = async (req: Request, res: Response) => {
 export const resendOtp = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
+    const cleanEmail = email ? String(email).trim().toLowerCase() : '';
 
-    const user = await User.findOne({ email });
+    if (!cleanEmail) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -159,7 +186,7 @@ export const resendOtp = async (req: Request, res: Response) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    sendOtpEmail(email, user.firstName, otp).catch((err) =>
+    sendOtpEmail(cleanEmail, user.firstName, otp).catch((err) =>
       console.error('[Email] Failed to resend OTP email:', err.message)
     );
 
@@ -174,16 +201,18 @@ export const resendOtp = async (req: Request, res: Response) => {
 export const checkAvailability = async (req: Request, res: Response) => {
   try {
     const { email, phone } = req.body;
+    const cleanEmail = email ? String(email).trim().toLowerCase() : undefined;
+    const cleanPhone = phone ? String(phone).trim() : undefined;
     let query = {};
-    if (email) query = { email };
-    else if (phone) query = { phone };
+    if (cleanEmail) query = { email: cleanEmail };
+    else if (cleanPhone) query = { phone: cleanPhone };
     else return res.status(400).json({ message: 'Email or phone is required' });
 
     const user = await User.findOne(query);
     if (user) {
       return res.status(400).json({ 
         available: false, 
-        message: `${email ? 'Email' : 'Phone number'} is already registered` 
+        message: `${cleanEmail ? 'Email' : 'Phone number'} is already registered` 
       });
     }
 
@@ -198,8 +227,13 @@ export const checkAvailability = async (req: Request, res: Response) => {
 export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
+    const cleanEmail = email ? String(email).trim().toLowerCase() : '';
 
-    const user = await User.findOne({ email });
+    if (!cleanEmail) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: cleanEmail });
     // Always respond with 200 to prevent email enumeration
     if (!user) {
       return res.status(200).json({ message: 'If that email exists, a reset code has been sent.' });
@@ -210,7 +244,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    sendPasswordResetEmail(email, user.firstName, otp).catch((err) =>
+    sendPasswordResetEmail(cleanEmail, user.firstName, otp).catch((err) =>
       console.error('[Email] Failed to send reset email:', err.message)
     );
 
@@ -225,17 +259,28 @@ export const forgotPassword = async (req: Request, res: Response) => {
 export const resetPassword = async (req: Request, res: Response) => {
   try {
     const { email, otp, newPassword } = req.body;
+    const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+    const cleanOtp = otp ? String(otp).trim() : '';
 
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
-    const user = await User.findOne({ email });
+    if (!cleanEmail || !cleanOtp) {
+      return res.status(400).json({ message: 'Email and reset code are required' });
+    }
+
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (user.otp !== otp || !user.otpExpires || user.otpExpires < new Date()) {
+    const isOtpValid =
+      String(user.otp || '').trim() === cleanOtp &&
+      user.otpExpires &&
+      new Date(user.otpExpires).getTime() > Date.now();
+
+    if (!isOtpValid) {
       return res.status(400).json({ message: 'Invalid or expired reset code' });
     }
 
@@ -262,13 +307,24 @@ export const resetPassword = async (req: Request, res: Response) => {
 export const checkResetOtp = async (req: Request, res: Response) => {
   try {
     const { email, otp } = req.body;
+    const cleanEmail = email ? String(email).trim().toLowerCase() : '';
+    const cleanOtp = otp ? String(otp).trim() : '';
 
-    const user = await User.findOne({ email });
+    if (!cleanEmail || !cleanOtp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (user.otp === otp && user.otpExpires && user.otpExpires > new Date()) {
+    const isOtpValid =
+      String(user.otp || '').trim() === cleanOtp &&
+      user.otpExpires &&
+      new Date(user.otpExpires).getTime() > Date.now();
+
+    if (isOtpValid) {
       res.status(200).json({ message: 'OTP is valid' });
     } else {
       res.status(400).json({ message: 'Invalid or expired OTP' });
