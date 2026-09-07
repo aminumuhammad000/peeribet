@@ -56,6 +56,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 import p2pRoutes from './routes/p2pRoutes';
 import poolRoutes from './routes/poolRoutes';
 import bridgeRoutes from './routes/bridgeRoutes';
+import marketRoutes from './routes/marketRoutes';
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -63,6 +64,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/matches', matchRoutes);
+app.use('/api/markets', marketRoutes);
 app.use('/api/bets', betRoutes);
 app.use('/api/p2p', p2pRoutes);
 app.use('/api/pool', poolRoutes);

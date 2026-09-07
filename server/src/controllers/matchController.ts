@@ -150,11 +150,28 @@ export const getMatches = async (req: Request, res: Response) => {
     if (status) filter.status = status;
     if (isPromoted) filter.isPromoted = isPromoted === 'true';
     if (sport) {
-      const normalizedSport = String(sport).trim();
-      filter.$or = [
-        { sport: { $regex: new RegExp(`^${normalizedSport}$`, 'i') } },
-        { league: { $regex: new RegExp(normalizedSport, 'i') } },
-      ];
+      const normalizedSport = String(sport).trim().toLowerCase();
+      if (normalizedSport.includes('football') || normalizedSport.includes('soccer')) {
+        filter.$or = [
+          { sport: { $regex: /football|soccer/i } },
+          { league: { $regex: /premier league|champions league|la liga|serie a|bundesliga|ligue 1|europa|eredivisie|primeira/i } },
+        ];
+      } else if (normalizedSport.includes('ufc') || normalizedSport.includes('box') || normalizedSport.includes('mma')) {
+        filter.$or = [
+          { sport: { $regex: /ufc|boxing|mma|combat/i } },
+          { league: { $regex: /ufc|boxing|wba|wbc|ibf|wbo|bellator|pfl/i } },
+        ];
+      } else if (normalizedSport.includes('basket') || normalizedSport.includes('nba')) {
+        filter.$or = [
+          { sport: { $regex: /basketball|nba/i } },
+          { league: { $regex: /nba|euroleague|wnba/i } },
+        ];
+      } else {
+        filter.$or = [
+          { sport: { $regex: new RegExp(`^${String(sport).trim()}$`, 'i') } },
+          { league: { $regex: new RegExp(String(sport).trim(), 'i') } },
+        ];
+      }
     }
     if (date) {
       const start = new Date(String(date));

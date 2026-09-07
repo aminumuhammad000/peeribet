@@ -344,6 +344,21 @@ export const betService = {
   },
 };
 
+export const predictionMarketService = {
+  getMarkets: async (params?: { category?: string; subcategory?: string; search?: string; status?: string; limit?: number; page?: number }) => {
+    const response = await apiRequest(api.get('/markets', { params }));
+    return response.data;
+  },
+  getMarketById: async (id: string) => {
+    const response = await apiRequest(api.get(`/markets/${id}`));
+    return response.data;
+  },
+  placeBet: async (marketId: string, data: { selection: string; amount: number }) => {
+    const response = await apiRequest(api.post(`/markets/${marketId}/bet`, data));
+    return response.data;
+  },
+};
+
 // P2P Flow Trading Service (Atomized Shares ₦1,000 = 1 Share)
 export const p2pService = {
   placeOrder: async (data: {

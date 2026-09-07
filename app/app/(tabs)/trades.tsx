@@ -74,15 +74,15 @@ export default function TradesScreen() {
 
       const legacyBetsList = (betsRes.bets || []).map((b: any) => ({
         id: `bet_${b._id}`,
-        type: 'BET',
-        matchTitle: b.match ? `${b.match.homeTeam} vs ${b.match.awayTeam}` : 'Lakers vs Celtics',
-        market: b.selection.includes('OVER') ? 'Total Points Over 210' : 'Match Winner',
-        position: b.selection.includes('OVER') || b.selection === 'HOME' ? 'Long' : 'Short',
+        type: b.market ? 'PREDICTION' : 'BET',
+        matchTitle: b.market ? b.market.title : b.match ? `${b.match.homeTeam} vs ${b.match.awayTeam}` : 'Sports Match',
+        market: b.market ? b.market.category : (b.selection?.includes('OVER') ? 'Total Points Over 210' : 'Match Winner'),
+        position: b.selection || 'Pick',
         amount: b.amount || 5000,
-        status: b.status === 'WON' ? 'WON' : b.status === 'LOST' ? 'LOST' : 'ACTIVE',
-        isLive: b.match?.status === 'LIVE' || b.status === 'PENDING',
-        pnl: b.status === 'WON' ? (b.potentialPayout ? b.potentialPayout - b.amount : b.amount) : -b.amount,
-        rawProfit: b.status === 'WON' ? (b.potentialPayout ? b.potentialPayout - b.amount : b.amount) : b.amount,
+        status: b.status === 'WON' ? 'WON' : b.status === 'LOST' ? 'LOST' : b.status === 'REFUNDED' ? 'SETTLED' : 'ACTIVE',
+        isLive: b.market?.status === 'ACTIVE' || b.match?.status === 'LIVE' || b.status === 'PENDING',
+        pnl: b.status === 'WON' ? (b.potentialPayout ? b.potentialPayout - b.amount : b.amount) : (b.status === 'LOST' ? -b.amount : 0),
+        rawProfit: b.status === 'WON' ? (b.potentialPayout ? b.potentialPayout - b.amount : b.amount) : (b.status === 'LOST' ? -b.amount : 0),
         createdAt: b.createdAt || new Date(),
       }));
 

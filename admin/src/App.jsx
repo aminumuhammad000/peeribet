@@ -146,13 +146,33 @@ export default function App() {
   // Notifications feed state
   const [notifications, setNotifications] = useState([]);
 
-  // Markets list state
+  // Markets & Backdoor Trades State
   const [markets, setMarkets] = useState([]);
-  const [newMarketPair, setNewMarketPair] = useState('');
-  const [newMarketRate, setNewMarketRate] = useState('');
-  const [newMarketVol, setNewMarketVol] = useState('');
-  const [newMarketStatus, setNewMarketStatus] = useState('ACTIVE');
+  const [marketCategoryFilter, setMarketCategoryFilter] = useState('ALL');
+  const [marketStatusFilter, setMarketStatusFilter] = useState('ALL');
+  const [marketSearchText, setMarketSearchText] = useState('');
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
+  const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
+  const [resolvingMarket, setResolvingMarket] = useState(null);
+  const [selectedWinningOption, setSelectedWinningOption] = useState('yes');
+
+  // Manual Backdoor Trade Form States
+  const [tradeTitle, setTradeTitle] = useState('');
+  const [tradeCategory, setTradeCategory] = useState('Entertainment');
+  const [tradeSubcategory, setTradeSubcategory] = useState('Spotify & Music');
+  const [tradeMarketType, setTradeMarketType] = useState('YES_NO');
+  const [tradeYesOdds, setTradeYesOdds] = useState('1.85');
+  const [tradeNoOdds, setTradeNoOdds] = useState('1.95');
+  const [tradeOptions, setTradeOptions] = useState([
+    { id: 'opt_1', label: 'Drake', odds: '2.40' },
+    { id: 'opt_2', label: 'Taylor Swift', odds: '1.95' },
+    { id: 'opt_3', label: 'The Weeknd', odds: '3.10' },
+  ]);
+  const [tradeRules, setTradeRules] = useState('');
+  const [tradeResolutionSource, setTradeResolutionSource] = useState('');
+  const [tradePoolAmount, setTradePoolAmount] = useState('500000');
+  const [tradeClosingHours, setTradeClosingHours] = useState('24');
+  const [tradePublishNow, setTradePublishNow] = useState(false); // Default: Backdoor Draft
 
   // User Portfolio balances ledger
   const [userBalances, setUserBalances] = useState([]);
@@ -347,11 +367,27 @@ export default function App() {
       const list = Array.isArray(data) ? data : (data?.markets || []);
       setMarkets(list.map(m => ({
         id: m._id || m.id,
-        pair: m.pair,
-        rate: m.rate,
-        change: m.change,
-        volume: m.volume,
-        status: m.status
+        _id: m._id || m.id,
+        title: m.title || m.pair || 'Market',
+        pair: m.pair || m.title || 'Market',
+        category: m.category || 'Entertainment',
+        subcategory: m.subcategory || 'General',
+        marketType: m.marketType || 'YES_NO',
+        options: m.options || [],
+        rules: m.rules || '',
+        resolutionSource: m.resolutionSource || '',
+        poolAmount: m.poolAmount || 0,
+        volume: m.volume || `₦${(m.poolAmount || 0).toLocaleString()}`,
+        status: m.status || 'ACTIVE',
+        winningOption: m.winningOption,
+        closingDate: m.closingDate,
+        resolutionDate: m.resolutionDate,
+        resolvedAt: m.resolvedAt,
+        isBackdoorManual: m.isBackdoorManual ?? true,
+        betCount: m.betCount || 0,
+        pendingStake: m.pendingStake || 0,
+        rate: m.rate || 1.0,
+        change: m.change || '0.0%',
       })));
     } catch (error) {
       console.error('Error fetching markets:', error);
@@ -662,29 +698,279 @@ export default function App() {
     }
   };
 
-  // Handle simulated market creation
+  // Reset New Trade form
+  const resetTradeForm = () => {
+    setTradeTitle('');
+    setTradeCategory('Entertainment');
+    setTradeSubcategory('Spotify & Music');
+    setTradeMarketType('YES_NO');
+    setTradeYesOdds('1.85');
+    setTradeNoOdds('1.95');
+    setTradeOptions([
+      { id: 'opt_1', label: 'Drake', odds: '2.40' },
+      { id: 'opt_2', label: 'Taylor Swift', odds: '1.95' },
+      { id: 'opt_3', label: 'The Weeknd', odds: '3.10' },
+    ]);
+    setTradeRules('');
+    setTradeResolutionSource('');
+    setTradePoolAmount('500000');
+    setTradeClosingHours('24');
+    setTradePublishNow(false);
+  };
+
+  // Pre-load preset trade templates (including exact user requested examples!)
+  const applyTradePreset = (presetKey) => {
+    if (presetKey === 'justin_streams') {
+      setTradeTitle('Will Justin Bieber get 50M streams today yes or no');
+      setTradeCategory('Entertainment');
+      setTradeSubcategory('Spotify & Music');
+      setTradeMarketType('YES_NO');
+      setTradeYesOdds('1.85');
+      setTradeNoOdds('1.95');
+      setTradeRules('Resolves to YES if Justin Bieber surpasses 50,000,000 official daily streams on Spotify for Artists / Spotify Charts on the settlement date. Otherwise resolves to NO.');
+      setTradeResolutionSource('Official Spotify Charts & Artist Portal');
+      setTradePoolAmount('800000');
+      setTradeClosingHours('18');
+    } else if (presetKey === 'justin_grammy') {
+      setTradeTitle('Will Justin win a Grammy this year yes or no');
+      setTradeCategory('Entertainment');
+      setTradeSubcategory('Awards & Grammys');
+      setTradeMarketType('YES_NO');
+      setTradeYesOdds('2.35');
+      setTradeNoOdds('1.58');
+      setTradeRules('Resolves to YES if Justin Bieber is announced as a Grammy winner in any category at the annual Grammy Awards ceremony. Otherwise resolves to NO.');
+      setTradeResolutionSource('Recording Academy (grammy.com)');
+      setTradePoolAmount('1500000');
+      setTradeClosingHours('72');
+    } else if (presetKey === 'movie_budget') {
+      setTradeTitle('Will a certain movie pass its initial budget yes or no');
+      setTradeCategory('Entertainment');
+      setTradeSubcategory('Movies & Box Office');
+      setTradeMarketType('YES_NO');
+      setTradeYesOdds('1.68');
+      setTradeNoOdds('2.15');
+      setTradeRules('Resolves to YES if the movie passes its officially reported initial production budget in worldwide box office ticket sales within 30 days of theatrical premiere.');
+      setTradeResolutionSource('Box Office Mojo / Variety Box Office Tracking');
+      setTradePoolAmount('1200000');
+      setTradeClosingHours('48');
+    } else if (presetKey === 'spotify_most') {
+      setTradeTitle('Who will get the most streams on Spotify');
+      setTradeCategory('Entertainment');
+      setTradeSubcategory('Spotify & Music');
+      setTradeMarketType('MULTIPLE_CHOICE');
+      setTradeOptions([
+        { id: 'drake', label: 'Drake', odds: '2.30' },
+        { id: 'taylor_swift', label: 'Taylor Swift', odds: '1.95' },
+        { id: 'the_weeknd', label: 'The Weeknd', odds: '3.10' },
+        { id: 'justin_bieber', label: 'Justin Bieber', odds: '4.20' },
+        { id: 'bad_bunny', label: 'Bad Bunny', odds: '3.60' },
+      ]);
+      setTradeRules('Resolves to whichever artist has the highest total official stream count on the Spotify Global Weekly Charts at the end of the current tracking week.');
+      setTradeResolutionSource('Spotify Global Weekly Charts (charts.spotify.com)');
+      setTradePoolAmount('4200000');
+      setTradeClosingHours('72');
+    } else if (presetKey === 'politics_fed') {
+      setTradeTitle('Will the US Federal Reserve cut interest rates at the next FOMC meeting?');
+      setTradeCategory('Politics');
+      setTradeSubcategory('Policy & Economy');
+      setTradeMarketType('YES_NO');
+      setTradeYesOdds('1.72');
+      setTradeNoOdds('2.10');
+      setTradeRules('Resolves to YES if the Federal Reserve announces a cut of at least 25 bps to the federal funds target rate following the upcoming FOMC meeting.');
+      setTradeResolutionSource('Federal Reserve Board Official Statement');
+      setTradePoolAmount('3100000');
+      setTradeClosingHours('60');
+    } else if (presetKey === 'politics_election') {
+      setTradeTitle('Will the presidential election result be officially certified without objection?');
+      setTradeCategory('Politics');
+      setTradeSubcategory('Elections');
+      setTradeMarketType('YES_NO');
+      setTradeYesOdds('1.45');
+      setTradeNoOdds('2.70');
+      setTradeRules('Resolves to YES if Congress certifies the electoral vote tally without any sustained written objections from members of both houses.');
+      setTradeResolutionSource('US Congressional Record / Associated Press');
+      setTradePoolAmount('2100000');
+      setTradeClosingHours('140');
+    } else if (presetKey === 'spacex_orbital') {
+      setTradeTitle('Will SpaceX Starship successfully complete full orbital catch & recovery test in Q4?');
+      setTradeCategory('Real Life Events');
+      setTradeSubcategory('Space & Tech');
+      setTradeMarketType('YES_NO');
+      setTradeYesOdds('1.88');
+      setTradeNoOdds('1.92');
+      setTradeRules('Resolves to YES if SpaceX successfully soft-lands or catches the Starship upper stage or Super Heavy booster during an orbital flight test mission.');
+      setTradeResolutionSource('SpaceX Official Mission Broadcast');
+      setTradePoolAmount('1670000');
+      setTradeClosingHours('96');
+    } else if (presetKey === 'gta_revenue') {
+      setTradeTitle('Will GTA VI break the worldwide gaming revenue record ($1B in 24 hours) upon release?');
+      setTradeCategory('Pop Culture');
+      setTradeSubcategory('Gaming & Media');
+      setTradeMarketType('YES_NO');
+      setTradeYesOdds('1.35');
+      setTradeNoOdds('3.20');
+      setTradeRules('Resolves to YES if Take-Two Interactive or Guinness World Records verifies that Grand Theft Auto VI generates $1 Billion or more in revenue in its first 24 hours of retail release.');
+      setTradeResolutionSource('Take-Two Interactive SEC Filing / Official Press Release');
+      setTradePoolAmount('4150000');
+      setTradeClosingHours('120');
+    }
+  };
+
+  // Handle Backdoor Manual Trade Creation
   const handleCreateMarket = async (e) => {
     e.preventDefault();
-    if (!newMarketPair.trim() || !newMarketRate || !newMarketVol) return;
-    const rateNum = parseFloat(newMarketRate) || 0;
+    if (!tradeTitle.trim()) {
+      showToast('Please enter a trade question / title.', 'error');
+      return;
+    }
+
+    let finalOptions = [];
+    if (tradeMarketType === 'YES_NO') {
+      const yesNum = parseFloat(tradeYesOdds) || 1.85;
+      const noNum = parseFloat(tradeNoOdds) || 1.95;
+      finalOptions = [
+        { id: 'yes', label: 'Yes', odds: yesNum, totalStaked: 0 },
+        { id: 'no', label: 'No', odds: noNum, totalStaked: 0 },
+      ];
+    } else {
+      finalOptions = tradeOptions.map((opt, i) => ({
+        id: opt.id || `opt_${i + 1}`,
+        label: opt.label,
+        odds: parseFloat(opt.odds) || 2.0,
+        totalStaked: 0,
+      }));
+    }
+
+    const hours = parseFloat(tradeClosingHours) || 24;
+    const closingDate = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const poolVal = parseFloat(tradePoolAmount) || 0;
 
     try {
       await api.post('/admin/markets', {
-        pair: newMarketPair.toUpperCase(),
-        rate: rateNum,
-        volume: '₦' + (parseFloat(newMarketVol) || 0).toLocaleString(),
-        status: newMarketStatus
+        title: tradeTitle.trim(),
+        pair: tradeTitle.trim(),
+        category: tradeCategory,
+        subcategory: tradeSubcategory.trim() || 'General',
+        marketType: tradeMarketType,
+        options: finalOptions,
+        rules: tradeRules.trim(),
+        resolutionSource: tradeResolutionSource.trim(),
+        poolAmount: poolVal,
+        closingDate,
+        status: tradePublishNow ? 'ACTIVE' : 'DRAFT',
+        isBackdoorManual: true,
       });
-      fetchMarkets();
+
+      showToast(
+        tradePublishNow
+          ? `Market "${tradeTitle.trim()}" published live to user market!`
+          : `Backdoor trade "${tradeTitle.trim()}" created as private DRAFT.`,
+        'success'
+      );
       setIsMarketModalOpen(false);
-      setNewMarketPair('');
-      setNewMarketRate('');
-      setNewMarketVol('');
-      setNewMarketStatus('ACTIVE');
-      showToast(`Market pair ${newMarketPair.toUpperCase()} successfully registered.`, 'success');
-      logSecurityEvent('success', `New market pair synchronized: ${newMarketPair.toUpperCase()}`, `Authorized: ${adminName}`, 'trending-up');
+      resetTradeForm();
+      fetchMarkets();
+
+      logSecurityEvent(
+        'success',
+        `Backdoor market initialized: ${tradeTitle.trim()} [${tradeCategory} • ${tradeSubcategory}]`,
+        `Operator: ${adminName} • Status: ${tradePublishNow ? 'LIVE' : 'DRAFT'}`,
+        'trending-up'
+      );
     } catch (error) {
-      showToast('Failed to register new market pair.', 'error');
+      console.error('Error creating market:', error);
+      showToast(error.response?.data?.message || 'Failed to create manual trade.', 'error');
+    }
+  };
+
+  // Handle Toggle Publish Market (from Backdoor DRAFT to Live Market & vice versa)
+  const handleTogglePublish = async (marketId) => {
+    try {
+      const res = await api.post(`/admin/markets/${marketId}/publish`);
+      showToast(res.data?.message || 'Market publication status updated.', 'success');
+      fetchMarkets();
+      logSecurityEvent(
+        'info',
+        `Market ID ${marketId} publication status toggled`,
+        `Authorized: ${adminName}`,
+        'shield'
+      );
+    } catch (error) {
+      showToast('Failed to update publication status.', 'error');
+    }
+  };
+
+  // Open Resolution Modal
+  const handleOpenResolveModal = (market) => {
+    setResolvingMarket(market);
+    if (market.marketType === 'YES_NO') {
+      setSelectedWinningOption('yes');
+    } else if (market.options && market.options.length > 0) {
+      setSelectedWinningOption(market.options[0].label || market.options[0].id);
+    }
+    setIsResolveModalOpen(true);
+  };
+
+  // Confirm Settlement and payout users
+  const handleConfirmResolve = async () => {
+    if (!resolvingMarket) return;
+    try {
+      const res = await api.post(`/admin/markets/${resolvingMarket._id}/resolve`, {
+        winningOption: selectedWinningOption,
+      });
+      showToast(res.data?.message || 'Market resolved and winners paid out!', 'success');
+      setIsResolveModalOpen(false);
+      setResolvingMarket(null);
+      fetchMarkets();
+      fetchDashboardStats();
+      fetchTransactions();
+      logSecurityEvent(
+        'success',
+        `Market "${resolvingMarket.title}" resolved with winner: "${selectedWinningOption}"`,
+        `Payouts distributed by ${adminName}`,
+        'check-circle'
+      );
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Failed to resolve market.', 'error');
+    }
+  };
+
+  // Void market and refund stakes
+  const handleVoidMarket = async (marketId, marketTitle) => {
+    if (!window.confirm(`Are you sure you want to void "${marketTitle || 'this market'}"? All user stakes will be refunded in full.`)) {
+      return;
+    }
+    try {
+      const res = await api.post(`/admin/markets/${marketId}/void`);
+      showToast(res.data?.message || 'Market voided and stakes refunded.', 'success');
+      fetchMarkets();
+      fetchDashboardStats();
+      logSecurityEvent(
+        'warning',
+        `Market "${marketTitle}" was VOIDED and user stakes refunded`,
+        `Authorized: ${adminName}`,
+        'alert-triangle'
+      );
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Failed to void market.', 'error');
+    }
+  };
+
+  // Delete market
+  const handleDeleteMarket = async (marketId, marketTitle) => {
+    if (!window.confirm(`Permanently delete "${marketTitle || 'this trade'}" from the system?`)) return;
+    try {
+      await api.delete(`/admin/markets/${marketId}`);
+      showToast('Market deleted successfully.', 'success');
+      fetchMarkets();
+      logSecurityEvent(
+        'warning',
+        `Market "${marketTitle}" deleted from system registry`,
+        `Operator: ${adminName}`,
+        'trash'
+      );
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Failed to delete market.', 'error');
     }
   };
 
@@ -799,6 +1085,32 @@ export default function App() {
   }, [filteredTransactions, currentPage]);
 
   const totalTxnPages = Math.ceil(filteredTransactions.length / itemsPerPage) || 1;
+
+  // Filtered Prediction Markets & Backdoor Trades calculation
+  const filteredAdminMarkets = useMemo(() => {
+    return markets.filter((m) => {
+      // 1. Category Filter
+      const matchesCategory =
+        marketCategoryFilter === 'ALL' ||
+        (m.category && m.category.toLowerCase() === marketCategoryFilter.toLowerCase());
+
+      // 2. Status Filter
+      const matchesStatus =
+        marketStatusFilter === 'ALL' ||
+        (m.status && m.status.toUpperCase() === marketStatusFilter.toUpperCase());
+
+      // 3. Search query
+      const q = marketSearchText.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        (m.title && m.title.toLowerCase().includes(q)) ||
+        (m.subcategory && m.subcategory.toLowerCase().includes(q)) ||
+        (m.rules && m.rules.toLowerCase().includes(q)) ||
+        (m.category && m.category.toLowerCase().includes(q));
+
+      return matchesCategory && matchesStatus && matchesSearch;
+    });
+  }, [markets, marketCategoryFilter, marketStatusFilter, marketSearchText]);
 
   // Log out administrative session
   const handleLogout = () => {
@@ -2587,27 +2899,154 @@ export default function App() {
             {/* Header section */}
             <div className="section-header">
               <div>
-                <h2 className="overview-title">Football Club Markets</h2>
-                <p className="overview-sub">Configure real-time share indices, pricing status, and trade volumes.</p>
+                <h2 className="overview-title">Prediction Markets &amp; Backdoor Trades</h2>
+                <p className="overview-sub">
+                  Set manual trades behind backdoor, configure question rules, publish to live markets, and settle outcomes.
+                </p>
               </div>
-              <div className="header-action-row">
+              <div className="header-action-row" style={{ display: 'flex', gap: 10 }}>
+                <button
+                  className="btn-secondary"
+                  onClick={fetchMarkets}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  <RefreshCw size={14} />
+                  <span>Refresh</span>
+                </button>
                 <button
                   className="btn-primary"
-                  onClick={() => setIsMarketModalOpen(true)}
+                  onClick={() => {
+                    resetTradeForm();
+                    setIsMarketModalOpen(true);
+                  }}
                   style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                 >
                   <Plus size={16} />
-                  <span>Add Football Club</span>
+                  <span>Set Manual Trade (Backdoor)</span>
                 </button>
               </div>
             </div>
 
-            {/* Markets table registry card */}
+            {/* Metrics Ribbon */}
+            <div className="metrics-grid" style={{ marginBottom: 20 }}>
+              <div className="metric-card">
+                <span className="metric-label">TOTAL TRADES &amp; MARKETS</span>
+                <span className="metric-value">{markets.length}</span>
+                <span className="metric-sub-text" style={{ color: '#94a3b8' }}>All categories</span>
+              </div>
+              <div className="metric-card">
+                <span className="metric-label">PUBLISHED (LIVE IN APP)</span>
+                <span className="metric-value" style={{ color: '#00D285' }}>
+                  {markets.filter((m) => m.status === 'ACTIVE').length}
+                </span>
+                <span className="metric-sub-text" style={{ color: '#00D285' }}>Open for user trading</span>
+              </div>
+              <div className="metric-card">
+                <span className="metric-label">BACKDOOR DRAFTS</span>
+                <span className="metric-value" style={{ color: '#F59E0B' }}>
+                  {markets.filter((m) => m.status === 'DRAFT').length}
+                </span>
+                <span className="metric-sub-text" style={{ color: '#F59E0B' }}>Private / Unpublished</span>
+              </div>
+              <div className="metric-card">
+                <span className="metric-label">TOTAL STAKED POOL</span>
+                <span className="metric-value" style={{ color: '#3B82F6' }}>
+                  ₦{markets.reduce((acc, m) => acc + (m.poolAmount || 0), 0).toLocaleString()}
+                </span>
+                <span className="metric-sub-text" style={{ color: '#94a3b8' }}>Cumulative user volume</span>
+              </div>
+              <div className="metric-card">
+                <span className="metric-label">SETTLED / RESOLVED</span>
+                <span className="metric-value" style={{ color: '#A855F7' }}>
+                  {markets.filter((m) => m.status === 'RESOLVED').length}
+                </span>
+                <span className="metric-sub-text" style={{ color: '#A855F7' }}>Completed payouts</span>
+              </div>
+            </div>
+
+            {/* Markets Main Card */}
             <section className="recent-trades-card">
-              <div className="table-filter-row">
-                <div>
-                  <h3 className="card-heading">Active Football Club Indices</h3>
-                  <p className="card-subheading">Club valuation metrics synchronized with index rates</p>
+              {/* Category Filter Pills & Search */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  {/* Category Pills */}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {[
+                      { id: 'ALL', label: 'All Categories' },
+                      { id: 'Entertainment', label: '🎭 Entertainment' },
+                      { id: 'Politics', label: '🏛️ Politics' },
+                      { id: 'Real Life Events', label: '🌍 Real Life Events' },
+                      { id: 'Pop Culture', label: '🔥 Pop Culture' },
+                      { id: 'European Football', label: '⚽ European Football' },
+                      { id: 'UFC & Boxing', label: '🥊 UFC & Boxing' },
+                      { id: 'NBA Basketball', label: '🏀 NBA Basketball' },
+                    ].map((cat) => {
+                      const isActive = marketCategoryFilter === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => setMarketCategoryFilter(cat.id)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: 20,
+                            fontSize: 12,
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            backgroundColor: isActive ? '#00D285' : 'rgba(255, 255, 255, 0.05)',
+                            color: isActive ? '#000000' : '#94A3B8',
+                            border: isActive ? '1px solid #00D285' : '1px solid rgba(255, 255, 255, 0.1)',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          {cat.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Status Dropdown */}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <select
+                      className="dropdown-select"
+                      style={{ height: 36, fontSize: 12, padding: '0 10px', minWidth: 150 }}
+                      value={marketStatusFilter}
+                      onChange={(e) => setMarketStatusFilter(e.target.value)}
+                    >
+                      <option value="ALL">Status: All</option>
+                      <option value="ACTIVE">Status: Published (Live)</option>
+                      <option value="DRAFT">Status: Backdoor Drafts</option>
+                      <option value="RESOLVED">Status: Resolved</option>
+                      <option value="VOIDED">Status: Voided</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Search Input Bar */}
+                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.04)', borderRadius: 8, padding: '0 12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                  <Search size={16} color="#64748B" style={{ marginRight: 8 }} />
+                  <input
+                    type="text"
+                    placeholder="Search trade question, subcategory (e.g. Spotify, Music, Grammys, Elections), or rules..."
+                    value={marketSearchText}
+                    onChange={(e) => setMarketSearchText(e.target.value)}
+                    style={{
+                      flex: 1,
+                      height: 38,
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      color: '#ffffff',
+                      fontSize: 13,
+                    }}
+                  />
+                  {marketSearchText && (
+                    <button
+                      onClick={() => setMarketSearchText('')}
+                      style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 4 }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -2616,62 +3055,275 @@ export default function App() {
                 <table className="trades-table">
                   <thead>
                     <tr>
-                      <th>Football Club</th>
-                      <th>Share Price</th>
-                      <th>24h Change</th>
-                      <th>24h Volume</th>
-                      <th>Status</th>
-                      <th style={{ textAlign: 'right' }}>Actions</th>
+                      <th style={{ minWidth: 260 }}>Trade Question &amp; Rules</th>
+                      <th>Category &amp; Subcategory</th>
+                      <th>Odds &amp; Outcomes</th>
+                      <th>Pool &amp; Activity</th>
+                      <th>Publish Status</th>
+                      <th>Closing Date</th>
+                      <th style={{ textAlign: 'right', minWidth: 200 }}>Admin Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {markets.map((mkt) => (
-                      <tr key={mkt.id}>
-                        <td style={{ fontWeight: 'bold', color: '#ffffff' }}>{mkt.pair}</td>
-                        <td style={{ color: '#00D285', fontWeight: '600' }}>
-                          ₦{mkt.rate.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </td>
-                        <td style={{
-                          color: mkt.change.startsWith('+') ? '#00D285' : '#EF4444',
-                          fontWeight: '600'
-                        }}>
-                          {mkt.change}
-                        </td>
-                        <td style={{ color: '#94a3b8' }}>{mkt.volume}</td>
-                        <td>
-                          <span
-                            className="status-badge-td"
-                            style={{
-                              backgroundColor: mkt.status === 'ACTIVE' ? 'rgba(0, 210, 133, 0.08)' : 'rgba(245, 158, 11, 0.08)',
-                              border: mkt.status === 'ACTIVE' ? '1px solid rgba(0, 210, 133, 0.2)' : '1px solid rgba(245, 158, 11, 0.2)',
-                              color: mkt.status === 'ACTIVE' ? '#00D285' : '#F59E0B'
-                            }}
-                          >
-                            {mkt.status}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button
-                            style={{
-                              backgroundColor: 'transparent',
-                              border: '1px solid #1e293b',
-                              color: '#64748b',
-                              fontSize: 10,
-                              fontWeight: 'bold',
-                              padding: '4px 10px',
-                              borderRadius: 4,
-                              cursor: 'pointer'
-                            }}
-                            onClick={() => {
-                              setMarkets(markets.map(m => m.id === mkt.id ? { ...m, status: m.status === 'ACTIVE' ? 'MAINTENANCE' : 'ACTIVE' } : m));
-                              logSecurityEvent('warning', `Market status modified for ${mkt.pair} to ${mkt.status === 'ACTIVE' ? 'MAINTENANCE' : 'ACTIVE'}`, 'Operator: HASHIM . Just now', 'cpu');
-                            }}
-                          >
-                            Toggle Status
-                          </button>
+                    {filteredAdminMarkets.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '36px 12px', color: '#64748B' }}>
+                          No markets found matching your current filter. Click <strong>"Set Manual Trade (Backdoor)"</strong> to create one!
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredAdminMarkets.map((mkt) => {
+                        const isDraft = mkt.status === 'DRAFT';
+                        const isActive = mkt.status === 'ACTIVE';
+                        const isResolved = mkt.status === 'RESOLVED';
+                        const isVoided = mkt.status === 'VOIDED';
+
+                        // Badge color per category
+                        let catColor = '#3B82F6'; // Default Blue
+                        if (mkt.category === 'Entertainment') catColor = '#A855F7'; // Purple
+                        if (mkt.category === 'Politics') catColor = '#38BDF8'; // Sky Blue
+                        if (mkt.category === 'Real Life Events') catColor = '#F59E0B'; // Amber
+                        if (mkt.category === 'Pop Culture') catColor = '#EC4899'; // Pink
+                        if (mkt.category === 'European Football') catColor = '#00D285'; // Green
+                        if (mkt.category === 'UFC & Boxing') catColor = '#EF4444'; // Red
+                        if (mkt.category === 'NBA Basketball') catColor = '#F97316'; // Orange
+
+                        return (
+                          <tr key={mkt.id || mkt._id}>
+                            {/* Question Title & Rules */}
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <span style={{ fontWeight: '700', color: '#ffffff', fontSize: 13, lineHeight: 1.35 }}>
+                                  {mkt.title || mkt.pair}
+                                </span>
+                                {mkt.rules && (
+                                  <span style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.3, maxWidth: 320 }}>
+                                    {mkt.rules.length > 95 ? `${mkt.rules.substring(0, 95)}...` : mkt.rules}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Category & Subcategory */}
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: '800',
+                                    color: catColor,
+                                    backgroundColor: `${catColor}15`,
+                                    border: `1px solid ${catColor}40`,
+                                    padding: '2px 8px',
+                                    borderRadius: 6,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: 0.4,
+                                  }}
+                                >
+                                  {mkt.category || 'Entertainment'}
+                                </span>
+                                {mkt.subcategory && (
+                                  <span style={{ fontSize: 11, color: '#cbd5e1', fontWeight: '500' }}>
+                                    {mkt.subcategory}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Odds & Outcomes */}
+                            <td>
+                              {mkt.marketType === 'YES_NO' || (!mkt.marketType && mkt.options?.length === 2) ? (
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  {mkt.options?.map((opt) => (
+                                    <div
+                                      key={opt.id}
+                                      style={{
+                                        padding: '4px 8px',
+                                        borderRadius: 6,
+                                        backgroundColor: opt.id.toLowerCase() === 'yes' ? 'rgba(0, 210, 133, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                        border: opt.id.toLowerCase() === 'yes' ? '1px solid rgba(0, 210, 133, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+                                        fontSize: 11,
+                                        fontWeight: '700',
+                                        color: opt.id.toLowerCase() === 'yes' ? '#00D285' : '#EF4444',
+                                      }}
+                                    >
+                                      {opt.label}: {opt.odds?.toFixed(2) || '1.90'}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 220 }}>
+                                  {mkt.options?.slice(0, 3).map((opt) => (
+                                    <span
+                                      key={opt.id}
+                                      style={{
+                                        fontSize: 10,
+                                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                        padding: '2px 6px',
+                                        borderRadius: 4,
+                                        color: '#cbd5e1',
+                                      }}
+                                    >
+                                      {opt.label} ({opt.odds?.toFixed(2)})
+                                    </span>
+                                  ))}
+                                  {mkt.options?.length > 3 && (
+                                    <span style={{ fontSize: 10, color: '#94a3b8' }}>
+                                      +{mkt.options.length - 3} more
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Pool & Bets Count */}
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ color: '#00D285', fontWeight: '700', fontSize: 13 }}>
+                                  ₦{(mkt.poolAmount || 0).toLocaleString()}
+                                </span>
+                                <span style={{ color: '#64748B', fontSize: 11 }}>
+                                  {mkt.betCount || 0} bets placed
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Status */}
+                            <td>
+                              <span
+                                className="status-badge-td"
+                                style={{
+                                  backgroundColor: isDraft
+                                    ? 'rgba(245, 158, 11, 0.12)'
+                                    : isActive
+                                    ? 'rgba(0, 210, 133, 0.12)'
+                                    : isResolved
+                                    ? 'rgba(168, 85, 247, 0.12)'
+                                    : 'rgba(100, 116, 139, 0.12)',
+                                  border: isDraft
+                                    ? '1px solid rgba(245, 158, 11, 0.3)'
+                                    : isActive
+                                    ? '1px solid rgba(0, 210, 133, 0.3)'
+                                    : isResolved
+                                    ? '1px solid rgba(168, 85, 247, 0.3)'
+                                    : '1px solid rgba(100, 116, 139, 0.3)',
+                                  color: isDraft
+                                    ? '#F59E0B'
+                                    : isActive
+                                    ? '#00D285'
+                                    : isResolved
+                                    ? '#A855F7'
+                                    : '#94A3B8',
+                                  fontSize: 10,
+                                  fontWeight: '800',
+                                  padding: '4px 8px',
+                                  borderRadius: 6,
+                                }}
+                              >
+                                {isDraft
+                                  ? 'BACKDOOR DRAFT'
+                                  : isActive
+                                  ? 'PUBLISHED (LIVE)'
+                                  : isResolved
+                                  ? `RESOLVED: ${mkt.winningOption?.toUpperCase()}`
+                                  : mkt.status}
+                              </span>
+                            </td>
+
+                            {/* Closing Date */}
+                            <td style={{ color: '#94A3B8', fontSize: 11 }}>
+                              {mkt.closingDate
+                                ? new Date(mkt.closingDate).toLocaleDateString([], {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : 'Open'}
+                            </td>
+
+                            {/* Actions */}
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, alignItems: 'center' }}>
+                                {/* Publish / Unpublish Toggle */}
+                                {!isResolved && !isVoided && (
+                                  <button
+                                    style={{
+                                      backgroundColor: isDraft ? 'rgba(0, 210, 133, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                      border: isDraft ? '1px solid #00D285' : '1px solid #F59E0B',
+                                      color: isDraft ? '#00D285' : '#F59E0B',
+                                      fontSize: 11,
+                                      fontWeight: '700',
+                                      padding: '4px 10px',
+                                      borderRadius: 6,
+                                      cursor: 'pointer',
+                                    }}
+                                    onClick={() => handleTogglePublish(mkt.id || mkt._id)}
+                                    title={isDraft ? 'Publish to live market for users' : 'Unpublish back to private draft'}
+                                  >
+                                    {isDraft ? 'Publish to Market' : 'Unpublish'}
+                                  </button>
+                                )}
+
+                                {/* Settle / Resolve Button */}
+                                {!isResolved && !isVoided && (
+                                  <button
+                                    style={{
+                                      backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                                      border: '1px solid #A855F7',
+                                      color: '#A855F7',
+                                      fontSize: 11,
+                                      fontWeight: '700',
+                                      padding: '4px 10px',
+                                      borderRadius: 6,
+                                      cursor: 'pointer',
+                                    }}
+                                    onClick={() => handleOpenResolveModal(mkt)}
+                                    title="Settle winning outcome and payout users"
+                                  >
+                                    Resolve
+                                  </button>
+                                )}
+
+                                {/* Void / Cancel Button */}
+                                {!isResolved && !isVoided && (
+                                  <button
+                                    style={{
+                                      backgroundColor: 'transparent',
+                                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                                      color: '#94A3B8',
+                                      fontSize: 11,
+                                      padding: '4px 8px',
+                                      borderRadius: 6,
+                                      cursor: 'pointer',
+                                    }}
+                                    onClick={() => handleVoidMarket(mkt.id || mkt._id, mkt.title)}
+                                    title="Refund all user stakes"
+                                  >
+                                    Void
+                                  </button>
+                                )}
+
+                                {/* Delete Button */}
+                                <button
+                                  style={{
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    color: '#EF4444',
+                                    padding: '4px',
+                                    cursor: 'pointer',
+                                  }}
+                                  onClick={() => handleDeleteMarket(mkt.id || mkt._id, mkt.title)}
+                                  title="Delete market"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -3213,12 +3865,17 @@ export default function App() {
         </div>
       )}
 
-      {/* Add Football Club Modal */}
+      {/* Set Manual Backdoor Trade Modal */}
       {isMarketModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content-card">
+          <div className="modal-content-card" style={{ maxWidth: 680, maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="modal-title-row">
-              <h2>Add Football Club Listing</h2>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: '800', color: '#ffffff' }}>Set Manual Trade (Backdoor)</h2>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+                  Configure prediction question, rules, and publishing status for live client markets.
+                </p>
+              </div>
               <button
                 className="modal-close-btn"
                 onClick={() => setIsMarketModalOpen(false)}
@@ -3227,66 +3884,315 @@ export default function App() {
               </button>
             </div>
 
+            {/* Quick Template Presets Bar */}
+            <div style={{ margin: '14px 0', padding: 12, backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 10, border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <span style={{ fontSize: 11, fontWeight: '700', color: '#00D285', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                ⚡ Quick Template Presets:
+              </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                {[
+                  { key: 'justin_streams', label: '🎵 Justin Bieber 50M Streams' },
+                  { key: 'justin_grammy', label: '🏆 Justin Grammy Win' },
+                  { key: 'movie_budget', label: '🎬 Movie Budget Pass' },
+                  { key: 'spotify_most', label: '🎧 Most Spotify Streams' },
+                  { key: 'politics_fed', label: '🏛️ Fed Rate Cut' },
+                  { key: 'politics_election', label: '🗳️ Election Certification' },
+                  { key: 'spacex_orbital', label: '🚀 SpaceX Orbital Catch' },
+                  { key: 'gta_revenue', label: '🎮 GTA VI $1B Record' },
+                ].map((preset) => (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    onClick={() => applyTradePreset(preset.key)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 14,
+                      fontSize: 11,
+                      fontWeight: '600',
+                      backgroundColor: 'rgba(0, 210, 133, 0.08)',
+                      border: '1px solid rgba(0, 210, 133, 0.25)',
+                      color: '#00D285',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <form onSubmit={handleCreateMarket}>
-              <div className="modal-form-fields">
+              <div className="modal-form-fields" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Category and Subcategory */}
+                <div className="form-row-split">
+                  <div className="form-group-wrap">
+                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>Category</label>
+                    <select
+                      className="dropdown-select"
+                      style={{ height: 42, width: '100%' }}
+                      value={tradeCategory}
+                      onChange={(e) => {
+                        setTradeCategory(e.target.value);
+                        if (e.target.value === 'Entertainment') setTradeSubcategory('Spotify & Music');
+                        else if (e.target.value === 'Politics') setTradeSubcategory('Policy & Economy');
+                        else if (e.target.value === 'Real Life Events') setTradeSubcategory('Space & Tech');
+                        else if (e.target.value === 'Pop Culture') setTradeSubcategory('Gaming & Media');
+                        else if (e.target.value === 'European Football') setTradeSubcategory('Premier League');
+                        else if (e.target.value === 'UFC & Boxing') setTradeSubcategory('UFC');
+                        else if (e.target.value === 'NBA Basketball') setTradeSubcategory('NBA');
+                      }}
+                    >
+                      <option value="Entertainment">🎭 Entertainment</option>
+                      <option value="Politics">🏛️ Politics</option>
+                      <option value="Real Life Events">🌍 Real Life Events</option>
+                      <option value="Pop Culture">🔥 Pop Culture</option>
+                      <option value="European Football">⚽ European Football</option>
+                      <option value="UFC & Boxing">🥊 UFC & Boxing</option>
+                      <option value="NBA Basketball">🏀 NBA Basketball</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group-wrap">
+                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>Subcategory</label>
+                    <input
+                      type="text"
+                      className="form-input-text"
+                      placeholder="e.g. Spotify & Music, Movies, Grammys, Elections..."
+                      value={tradeSubcategory}
+                      onChange={(e) => setTradeSubcategory(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Trade Question / Title */}
                 <div className="form-group-wrap">
-                  <label htmlFor="market-pair">Football Club Name (e.g. Chelsea FC)</label>
+                  <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>
+                    Trade Question / Market Title
+                  </label>
                   <input
                     type="text"
-                    id="market-pair"
                     className="form-input-text"
-                    placeholder="Ex: Chelsea FC"
-                    value={newMarketPair}
-                    onChange={(e) => setNewMarketPair(e.target.value)}
+                    placeholder="e.g. Will Justin Bieber get 50M streams today yes or no"
+                    value={tradeTitle}
+                    onChange={(e) => setTradeTitle(e.target.value)}
                     required
                   />
                 </div>
 
+                {/* Market Format Selection */}
+                <div className="form-group-wrap">
+                  <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>Question Format</label>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                    <button
+                      type="button"
+                      onClick={() => setTradeMarketType('YES_NO')}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        backgroundColor: tradeMarketType === 'YES_NO' ? 'rgba(0, 210, 133, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                        border: tradeMarketType === 'YES_NO' ? '1px solid #00D285' : '1px solid rgba(255, 255, 255, 0.1)',
+                        color: tradeMarketType === 'YES_NO' ? '#00D285' : '#94A3B8',
+                      }}
+                    >
+                      ✓ Binary (Yes / No)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTradeMarketType('MULTIPLE_CHOICE')}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        backgroundColor: tradeMarketType === 'MULTIPLE_CHOICE' ? 'rgba(0, 210, 133, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                        border: tradeMarketType === 'MULTIPLE_CHOICE' ? '1px solid #00D285' : '1px solid rgba(255, 255, 255, 0.1)',
+                        color: tradeMarketType === 'MULTIPLE_CHOICE' ? '#00D285' : '#94A3B8',
+                      }}
+                    >
+                      ✓ Multiple Choice (e.g. Spotify Streams by Artist)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Odds Configuration */}
+                {tradeMarketType === 'YES_NO' ? (
+                  <div className="form-row-split">
+                    <div className="form-group-wrap">
+                      <label style={{ fontSize: 12, fontWeight: '700', color: '#00D285' }}>YES Decimal Odds</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-input-text"
+                        placeholder="1.85"
+                        value={tradeYesOdds}
+                        onChange={(e) => setTradeYesOdds(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="form-group-wrap">
+                      <label style={{ fontSize: 12, fontWeight: '700', color: '#EF4444' }}>NO Decimal Odds</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-input-text"
+                        placeholder="1.95"
+                        value={tradeNoOdds}
+                        onChange={(e) => setTradeNoOdds(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="form-group-wrap">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>Options &amp; Odds</label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTradeOptions([
+                            ...tradeOptions,
+                            { id: `opt_${tradeOptions.length + 1}`, label: '', odds: '2.00' },
+                          ])
+                        }
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#00D285',
+                          fontSize: 12,
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        + Add Choice
+                      </button>
+                    </div>
+                    {tradeOptions.map((opt, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          placeholder="Option Name (e.g. Drake, Taylor Swift...)"
+                          className="form-input-text"
+                          style={{ flex: 2 }}
+                          value={opt.label}
+                          onChange={(e) => {
+                            const next = [...tradeOptions];
+                            next[idx].label = e.target.value;
+                            setTradeOptions(next);
+                          }}
+                          required
+                        />
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Odds"
+                          className="form-input-text"
+                          style={{ flex: 1 }}
+                          value={opt.odds}
+                          onChange={(e) => {
+                            const next = [...tradeOptions];
+                            next[idx].odds = e.target.value;
+                            setTradeOptions(next);
+                          }}
+                          required
+                        />
+                        {tradeOptions.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => setTradeOptions(tradeOptions.filter((_, i) => i !== idx))}
+                            style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 4 }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Rules & Resolution Description */}
+                <div className="form-group-wrap">
+                  <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>
+                    Rules &amp; Resolution Criteria (Settlement Conditions)
+                  </label>
+                  <textarea
+                    className="form-input-text"
+                    style={{ height: 75, resize: 'vertical', paddingTop: 8 }}
+                    placeholder="Specify the exact rules under which this market resolves to YES, NO, or a specific option..."
+                    value={tradeRules}
+                    onChange={(e) => setTradeRules(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Resolution Source & Pool */}
                 <div className="form-row-split">
                   <div className="form-group-wrap">
-                    <label htmlFor="market-rate">Index Share Price (₦)</label>
+                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>
+                      Resolution Source / Oracle
+                    </label>
                     <input
-                      type="number"
-                      step="0.01"
-                      id="market-rate"
+                      type="text"
                       className="form-input-text"
-                      placeholder="Ex: 850"
-                      value={newMarketRate}
-                      onChange={(e) => setNewMarketRate(e.target.value)}
-                      required
+                      placeholder="e.g. Spotify for Artists, Grammy.com, Box Office Mojo..."
+                      value={tradeResolutionSource}
+                      onChange={(e) => setTradeResolutionSource(e.target.value)}
                     />
                   </div>
 
                   <div className="form-group-wrap">
-                    <label htmlFor="market-vol">24h Trading Volume (₦)</label>
+                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>
+                      Initial Seed Pool (₦)
+                    </label>
                     <input
                       type="number"
-                      id="market-vol"
                       className="form-input-text"
-                      placeholder="Ex: 5000000"
-                      value={newMarketVol}
-                      onChange={(e) => setNewMarketVol(e.target.value)}
-                      required
+                      placeholder="500000"
+                      value={tradePoolAmount}
+                      onChange={(e) => setTradePoolAmount(e.target.value)}
                     />
                   </div>
                 </div>
 
-                <div className="form-group-wrap">
-                  <label htmlFor="market-status">Status</label>
-                  <select
-                    id="market-status"
-                    className="dropdown-select"
-                    style={{ height: 42, width: '100%' }}
-                    value={newMarketStatus}
-                    onChange={(e) => setNewMarketStatus(e.target.value)}
-                  >
-                    <option value="ACTIVE">Active</option>
-                    <option value="MAINTENANCE">Maintenance</option>
-                  </select>
+                {/* Trading Window & Publication Status */}
+                <div className="form-row-split" style={{ alignItems: 'center' }}>
+                  <div className="form-group-wrap">
+                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>
+                      Trading Window (Hours until close)
+                    </label>
+                    <input
+                      type="number"
+                      className="form-input-text"
+                      placeholder="24"
+                      value={tradeClosingHours}
+                      onChange={(e) => setTradeClosingHours(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="form-group-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>Publication Mode</label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: tradePublishNow ? '#00D285' : '#F59E0B' }}>
+                      <input
+                        type="checkbox"
+                        checked={tradePublishNow}
+                        onChange={(e) => setTradePublishNow(e.target.checked)}
+                        style={{ width: 16, height: 16, accentColor: '#00D285' }}
+                      />
+                      <span>
+                        {tradePublishNow ? 'Publish Immediately (Live in App)' : 'Save as Backdoor Draft (Private)'}
+                      </span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <div className="modal-action-buttons">
+              <div className="modal-action-buttons" style={{ marginTop: 20 }}>
                 <button
                   type="button"
                   className="btn-secondary"
@@ -3295,10 +4201,140 @@ export default function App() {
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary">
-                  Create Listing
+                  {tradePublishNow ? 'Publish to Live Market' : 'Save Backdoor Draft'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Resolution & Payout Modal */}
+      {isResolveModalOpen && resolvingMarket && (
+        <div className="modal-overlay">
+          <div className="modal-content-card" style={{ maxWidth: 480 }}>
+            <div className="modal-title-row">
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: '800', color: '#ffffff' }}>Settle Trade &amp; Payout Winners</h2>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+                  Official market resolution and automated winnings distribution.
+                </p>
+              </div>
+              <button className="modal-close-btn" onClick={() => setIsResolveModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ margin: '16px 0', padding: 14, backgroundColor: 'rgba(255, 255, 255, 0.04)', borderRadius: 10 }}>
+              <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: '700' }}>
+                {resolvingMarket.category} • {resolvingMarket.subcategory}
+              </span>
+              <h3 style={{ color: '#ffffff', fontSize: 14, marginTop: 4, fontWeight: '700', lineHeight: 1.4 }}>
+                {resolvingMarket.title}
+              </h3>
+              {resolvingMarket.rules && (
+                <p style={{ fontSize: 12, color: '#cbd5e1', marginTop: 6, fontStyle: 'italic', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 6 }}>
+                  "{resolvingMarket.rules}"
+                </p>
+              )}
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 13, fontWeight: '700', color: '#ffffff', display: 'block', marginBottom: 8 }}>
+                Select Declared Winning Outcome:
+              </label>
+
+              {resolvingMarket.marketType === 'YES_NO' || (!resolvingMarket.marketType && resolvingMarket.options?.length === 2) ? (
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedWinningOption('yes')}
+                    style={{
+                      flex: 1,
+                      padding: '14px',
+                      borderRadius: 10,
+                      fontSize: 16,
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      backgroundColor: selectedWinningOption.toLowerCase() === 'yes' ? '#00D285' : 'rgba(0, 210, 133, 0.1)',
+                      color: selectedWinningOption.toLowerCase() === 'yes' ? '#000000' : '#00D285',
+                      border: '1px solid #00D285',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    YES (Winner)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedWinningOption('no')}
+                    style={{
+                      flex: 1,
+                      padding: '14px',
+                      borderRadius: 10,
+                      fontSize: 16,
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      backgroundColor: selectedWinningOption.toLowerCase() === 'no' ? '#EF4444' : 'rgba(239, 68, 68, 0.1)',
+                      color: selectedWinningOption.toLowerCase() === 'no' ? '#ffffff' : '#EF4444',
+                      border: '1px solid #EF4444',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    NO (Winner)
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {resolvingMarket.options?.map((opt) => {
+                    const isSelected = selectedWinningOption === opt.label || selectedWinningOption === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setSelectedWinningOption(opt.label)}
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: 8,
+                          fontSize: 13,
+                          fontWeight: '700',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          backgroundColor: isSelected ? '#00D285' : 'rgba(255, 255, 255, 0.05)',
+                          color: isSelected ? '#000000' : '#ffffff',
+                          border: isSelected ? '1px solid #00D285' : '1px solid rgba(255, 255, 255, 0.1)',
+                        }}
+                      >
+                        {opt.label} ({opt.odds?.toFixed(2)})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: 10, backgroundColor: 'rgba(245, 158, 11, 0.1)', borderRadius: 8, border: '1px solid rgba(245, 158, 11, 0.25)', marginBottom: 18 }}>
+              <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: '600', lineHeight: 1.4 }}>
+                ⚠️ Warning: Executing settlement will credit wallet balances of all winning users, mark losing bets as LOST, and send real-time in-app notifications.
+              </span>
+            </div>
+
+            <div className="modal-action-buttons">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setIsResolveModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleConfirmResolve}
+                style={{ backgroundColor: '#00D285', color: '#000000', fontWeight: '800' }}
+              >
+                Confirm &amp; Pay Out Winners
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -2,21 +2,24 @@ import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IBet extends Document {
   user: Types.ObjectId;
-  match: Types.ObjectId;
-  selection: 'HOME' | 'DRAW' | 'AWAY' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO';
+  match?: Types.ObjectId;
+  market?: Types.ObjectId;
+  selection: string;
   amount: number;
   potentialPayout: number;
   status: 'PENDING' | 'WON' | 'LOST' | 'VOID';
   odds: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const betSchema = new Schema(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    match: { type: mongoose.Schema.Types.ObjectId, ref: 'Match', required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    match: { type: mongoose.Schema.Types.ObjectId, ref: 'Match', index: true },
+    market: { type: mongoose.Schema.Types.ObjectId, ref: 'Market', index: true },
     selection: { 
       type: String, 
-      enum: ['HOME', 'DRAW', 'AWAY', 'OVER_25', 'UNDER_25', 'BTTS_YES', 'BTTS_NO'], 
       required: true 
     },
     amount: { type: Number, required: true },
@@ -25,7 +28,8 @@ const betSchema = new Schema(
     status: { 
       type: String, 
       enum: ['PENDING', 'WON', 'LOST', 'VOID'], 
-      default: 'PENDING' 
+      default: 'PENDING',
+      index: true 
     },
   },
   {

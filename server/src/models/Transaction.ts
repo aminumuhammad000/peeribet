@@ -14,7 +14,8 @@ export type TransactionType =
   | 'pool_entry_placed'
   | 'pool_jackpot_won'
   | 'bridge_pool_won'
-  | 'bridge_liquidity_converted';
+  | 'bridge_liquidity_converted'
+  | 'refund';
 
 export interface ITransaction extends Document {
   user: mongoose.Types.ObjectId;
@@ -47,6 +48,7 @@ const transactionSchema: Schema = new Schema(
         'pool_jackpot_won',
         'bridge_pool_won',
         'bridge_liquidity_converted',
+        'refund',
       ], 
       required: true 
     },

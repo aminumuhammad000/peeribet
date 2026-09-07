@@ -8,7 +8,12 @@ import {
   updateSettings,
   getMarkets,
   createMarket,
+  updateMarket,
   updateMarketStatus,
+  publishMarket,
+  resolveMarket,
+  voidMarket,
+  deleteMarket,
   getSecurityLogs,
   createSecurityLog,
   updateTradeStatus,
@@ -55,7 +60,12 @@ router.post('/settings', updateSettings);
 
 router.get('/markets', getMarkets);
 router.post('/markets', createMarket);
+router.put('/markets/:id', updateMarket);
 router.post('/markets/status', updateMarketStatus);
+router.post('/markets/:id/publish', publishMarket);
+router.post('/markets/:id/resolve', resolveMarket);
+router.post('/markets/:id/void', voidMarket);
+router.delete('/markets/:id', deleteMarket);
 
 router.get('/security-logs', getSecurityLogs);
 router.post('/security-logs', createSecurityLog);

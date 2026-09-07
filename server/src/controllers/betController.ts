@@ -99,6 +99,7 @@ export const getMyBets = async (req: AuthRequest, res: Response) => {
     const total = await Bet.countDocuments(query);
     const bets = await Bet.find(query)
       .populate('match')
+      .populate('market')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
