@@ -8,6 +8,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "rimraf dist && tsc && npm run seed:admin",
     "seed:admin": "ts-node src/scripts/seedAdmin.ts",
+    "create:admin": "ts-node src/scripts/createAdmin.ts",
     "fund:wallet": "ts-node src/scripts/fundWallet.ts",
     "sync:matches": "ts-node src/scripts/syncMatches.ts",
     "sync:odds": "ts-node src/scripts/syncLiveOdds.ts",
