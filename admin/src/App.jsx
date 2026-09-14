@@ -52,7 +52,9 @@ const avatarList = [
 
 export default function App() {
   // Session authentication state
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    !!(localStorage.getItem('token') || sessionStorage.getItem('token'))
+  );
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -122,9 +124,30 @@ export default function App() {
   const [dateRange, setDateRange] = useState('Today');
 
   // Admin profile state details
-  const [adminName, setAdminName] = useState('Admin');
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPhone, setAdminPhone] = useState('');
+  const [adminName, setAdminName] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('adminUser') || sessionStorage.getItem('adminUser') || '{}');
+      return (u.firstName ? `${u.firstName} ${u.lastName || ''}`.trim() : '') || 'Admin';
+    } catch {
+      return 'Admin';
+    }
+  });
+  const [adminEmail, setAdminEmail] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('adminUser') || sessionStorage.getItem('adminUser') || '{}');
+      return u.email || '';
+    } catch {
+      return '';
+    }
+  });
+  const [adminPhone, setAdminPhone] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('adminUser') || sessionStorage.getItem('adminUser') || '{}');
+      return u.phone || '';
+    } catch {
+      return '';
+    }
+  });
   const [adminAvatar, setAdminAvatar] = useState('https://ui-avatars.com/api/?name=Admin&background=00D285&color=000&bold=true');
 
   // Admin Profile Edit states
@@ -490,17 +513,33 @@ export default function App() {
         return;
       }
 
-      localStorage.setItem('token', data.token);
-      setAdminName(data.firstName + ' ' + data.lastName);
-      setAdminEmail(data.email);
-      setAdminPhone(data.phone);
+      const sessionUser = {
+        _id: data._id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        role: data.role
+      };
 
-      // Handle "Remember Me"
+      // Handle "Remember Me" session persistence
       if (rememberMe) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('adminUser', JSON.stringify(sessionUser));
         localStorage.setItem('rememberedEmail', emailInput);
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('adminUser');
       } else {
+        sessionStorage.setItem('token', data.token);
+        sessionStorage.setItem('adminUser', JSON.stringify(sessionUser));
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminUser');
         localStorage.removeItem('rememberedEmail');
       }
+
+      setAdminName((`${data.firstName || ''} ${data.lastName || ''}`).trim() || 'Admin');
+      setAdminEmail(data.email || '');
+      setAdminPhone(data.phone || '');
 
       setLoginSuccess('Authentication successful. Redirecting to terminal...');
 
@@ -1116,6 +1155,8 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('adminUser');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('adminUser');
     setIsLoggedIn(false);
     setIsSidebarOpen(false);
     showToast('Logged out of admin terminal successfully.', 'info');
@@ -1235,16 +1276,16 @@ export default function App() {
               </div>
             ) : null}
 
-            <div className="login-options" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+            <div className="login-options" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', marginBottom: '4px' }}>
               <input
                 type="checkbox"
                 id="remember-me"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: 'pointer', accentColor: '#00D285', width: '16px', height: '16px' }}
               />
-              <label htmlFor="remember-me" style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: '500' }}>
-                Remember my email
+              <label htmlFor="remember-me" style={{ fontSize: '13px', color: 'var(--text-muted, #94a3b8)', cursor: 'pointer', fontWeight: '500', userSelect: 'none' }}>
+                Remember me
               </label>
             </div>
 

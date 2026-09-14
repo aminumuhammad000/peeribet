@@ -1,11 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,8 +27,20 @@ export default function Login() {
         return;
       }
       
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data));
+      if (rememberMe) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data));
+        localStorage.setItem('rememberedEmail', email);
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+      } else {
+        sessionStorage.setItem('token', data.token);
+        sessionStorage.setItem('user', JSON.stringify(data));
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('rememberedEmail');
+      }
+
       navigate('/');
     } catch (err: any) {
       alert(err.response?.data?.message || 'Login failed');
@@ -40,7 +61,7 @@ export default function Login() {
           <div>
             <label className="block text-xs font-bold uppercase text-gray-400 mb-1.5 tracking-wider">Username / Email</label>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@peeritrade.com"
@@ -59,9 +80,21 @@ export default function Login() {
               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 placeholder-opacity-50 focus:outline-none focus:border-green-500 text-sm"
             />
           </div>
+          <div className="flex items-center">
+            <label className="flex items-center space-x-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                id="remember-me"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-700 bg-gray-900 text-green-500 focus:ring-green-500/20 focus:ring-offset-0 accent-green-500 cursor-pointer"
+              />
+              <span className="text-xs text-gray-400 font-medium">Remember me</span>
+            </label>
+          </div>
           <button
             type="submit"
-            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors mt-2"
+            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors mt-2 cursor-pointer"
           >
             Sign In
           </button>

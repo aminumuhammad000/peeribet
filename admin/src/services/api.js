@@ -7,7 +7,7 @@ const api = axios.create({
 // Add a request interceptor to include the auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -25,6 +25,8 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('adminUser');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('adminUser');
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('auth:expired'));
       }
