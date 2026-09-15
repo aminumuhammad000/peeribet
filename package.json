@@ -1,0 +1,14 @@
+{
+  "name": "peeribet-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Peeritrade / Peeribet Platform Workspace",
+  "scripts": {
+    "create:admin": "npm --prefix server run create:admin",
+    "seed:admin": "npm --prefix server run seed:admin",
+    "server": "npm --prefix server run dev",
+    "admin": "npm --prefix admin run dev",
+    "admin-dashboard": "npm --prefix admin-dashboard run dev",
+    "app": "npm --prefix app start"
+  }
+}
