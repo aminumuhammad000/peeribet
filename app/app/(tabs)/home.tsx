@@ -364,10 +364,11 @@ export default function HomeScreen() {
                       </View>
                     </View>
 
-                    <View style={styles.oddsRow}>
-                      <View style={styles.oddsPill}><Text style={styles.oddsLabel}>HOME</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.home)}</Text></View>
-                      <View style={styles.oddsPill}><Text style={styles.oddsLabel}>DRAW</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.draw)}</Text></View>
-                      <View style={styles.oddsPill}><Text style={styles.oddsLabel}>AWAY</Text><Text style={styles.oddsValue}>{formatOddsValue(featuredMatch.odds?.away)}</Text></View>
+                    <View style={styles.sharesBadgeRow}>
+                      <View style={styles.shareBadgePill}>
+                        <Text style={styles.shareBadgePillText}>1k = 1 Share</Text>
+                      </View>
+                      <Text style={styles.shareSubText}>Binary YES / NO Contracts</Text>
                     </View>
 
                     <View style={styles.featuredFooter}>
@@ -454,10 +455,8 @@ export default function HomeScreen() {
                       <Text style={styles.teamTextRight} numberOfLines={1}>{match.awayTeam}</Text>
                     </View>
 
-                    <View style={styles.oddsContainer}>
-                      <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.home)}</Text></View>
-                      <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.draw)}</Text></View>
-                      <View style={styles.oddsBox}><Text style={styles.oddsText}>{formatOddsValue(match.odds?.away)}</Text></View>
+                    <View style={styles.tradeContractBtnPill}>
+                      <Text style={styles.tradeContractBtnText}>YES / NO</Text>
                     </View>
 
                     <Text style={styles.marketText}>₦{(match.poolAmount || 0).toLocaleString()}</Text>
@@ -1001,6 +1000,53 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#000000',
+    fontFamily: 'Inter',
+  },
+  sharesBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  shareBadgePill: {
+    backgroundColor: 'rgba(0, 210, 133, 0.16)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+  },
+  shareBadgePillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  shareSubText: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '600',
+    fontFamily: 'Inter',
+  },
+  tradeContractBtnPill: {
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+    marginHorizontal: 6,
+  },
+  tradeContractBtnText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#00D285',
     fontFamily: 'Inter',
   },
   marketText: {

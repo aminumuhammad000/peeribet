@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, CheckCircle, Zap, Shield, TrendingUp, Layers, HelpCircle, Activity, Info, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, Zap, Shield, TrendingUp, Layers, HelpCircle, Activity, Info, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
 import { matchService, p2pService } from '../services/apiService';
@@ -328,62 +328,200 @@ export default function MatchDetailScreen() {
 
           {/* Section Header */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Prediction Markets</Text>
-            <Text style={styles.sectionNotice}>Tap YES or NO to trade</Text>
+            <Text style={styles.sectionTitle}>Prediction Contracts</Text>
+            <Text style={styles.sectionNotice}>Categorized Binary Escrow Markets</Text>
           </View>
 
-          {/* Prediction Contracts List (Slick and Not Bulky) */}
-          {contracts.map((contract) => (
-            <View key={contract.id} style={styles.contractCard}>
-              <View style={styles.contractHeader}>
-                <View style={styles.contractTextContainer}>
-                  <Text style={styles.contractTitle}>{contract.title}</Text>
-                  <Text style={styles.contractQuestion} numberOfLines={1}>{contract.question}</Text>
+          {/* ==================== CARD 1: MATCH CONTRACTS (YES/NO) ==================== */}
+          <View style={styles.contractShowcaseCard}>
+            <View style={styles.showcaseCardHeader}>
+              <View>
+                <View style={styles.showcaseBadgeTitleRow}>
+                  <Text style={styles.showcaseCardTitle}>Match Contracts</Text>
+                  <View style={styles.greenTagBadge}>
+                    <Text style={styles.greenTagText}>YES / NO</Text>
+                  </View>
                 </View>
-                <View style={styles.poolChip}>
-                  <Text style={styles.poolChipText}>
-                    ₦{contract.poolAmount.toLocaleString()}
-                  </Text>
-                </View>
+                <Text style={styles.showcaseCardSub}>Individual binary contracts for each team and draw</Text>
               </View>
-
-              <View style={styles.buttonsRow}>
-                {/* YES Button */}
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.btnWrapper}
-                  onPress={() => handleSelectOutcome(contract.marketName, 'Yes', contract.yesOdds)}
-                >
-                  <LinearGradient
-                    colors={['#00D285', '#009F65']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.yesButtonInner}
-                  >
-                    <Text style={styles.yesButtonTitle}>YES</Text>
-                    <Text style={styles.yesButtonSub}>{contract.yesOdds.toFixed(2)}x · ₦{Math.round(1000 / contract.yesOdds)}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                {/* NO Button */}
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.btnWrapper}
-                  onPress={() => handleSelectOutcome(contract.marketName, 'No', contract.noOdds)}
-                >
-                  <LinearGradient
-                    colors={['#172239', '#101728']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.noButtonInner}
-                  >
-                    <Text style={styles.noButtonTitle}>NO</Text>
-                    <Text style={styles.noButtonSub}>{contract.noOdds.toFixed(2)}x · ₦{Math.round(1000 / contract.noOdds)}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+              <View style={styles.shareUnitPill}>
+                <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
               </View>
             </View>
-          ))}
+
+            <View style={styles.showcaseRowsList}>
+              {/* Row 1: Home Win */}
+              <View style={styles.showcaseOutcomeRow}>
+                <View style={styles.outcomeInfoLeft}>
+                  <Text style={styles.outcomeName}>{homeTeam}</Text>
+                  <Text style={styles.outcomeSubLabel}>{homeTeam} to Win</Text>
+                  <Text style={styles.outcomeSharesCount}>18,400 Shares (₦18.4M)</Text>
+                </View>
+                <View style={styles.outcomeActionBtns}>
+                  <TouchableOpacity
+                    style={styles.actionBtnYes}
+                    onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'Yes', homeOdds)}
+                  >
+                    <Text style={styles.actionBtnYesText}>YES</Text>
+                    <Text style={styles.actionBtnSubYes}>1k / share</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionBtnNo}
+                    onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'No', calcNoOdds(homeOdds, 2.10))}
+                  >
+                    <Text style={styles.actionBtnNoText}>NO</Text>
+                    <Text style={styles.actionBtnSubNo}>1k / share</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Row 2: Away Win */}
+              <View style={styles.showcaseOutcomeRow}>
+                <View style={styles.outcomeInfoLeft}>
+                  <Text style={styles.outcomeName}>{awayTeam}</Text>
+                  <Text style={styles.outcomeSubLabel}>{awayTeam} to Win</Text>
+                  <Text style={styles.outcomeSharesCount}>22,100 Shares (₦22.1M)</Text>
+                </View>
+                <View style={styles.outcomeActionBtns}>
+                  <TouchableOpacity
+                    style={styles.actionBtnYes}
+                    onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'Yes', awayOdds)}
+                  >
+                    <Text style={styles.actionBtnYesText}>YES</Text>
+                    <Text style={styles.actionBtnSubYes}>1k / share</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionBtnNo}
+                    onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'No', calcNoOdds(awayOdds, 1.65))}
+                  >
+                    <Text style={styles.actionBtnNoText}>NO</Text>
+                    <Text style={styles.actionBtnSubNo}>1k / share</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Row 3: Draw */}
+              <View style={styles.showcaseOutcomeRow}>
+                <View style={styles.outcomeInfoLeft}>
+                  <Text style={styles.outcomeName}>Draw</Text>
+                  <Text style={styles.outcomeSubLabel}>Draw outcome contract</Text>
+                  <Text style={styles.outcomeSharesCount}>8,500 Shares (₦8.5M)</Text>
+                </View>
+                <View style={styles.outcomeActionBtns}>
+                  <TouchableOpacity
+                    style={styles.actionBtnYes}
+                    onPress={() => handleSelectOutcome('Match Draw', 'Yes', drawOdds)}
+                  >
+                    <Text style={styles.actionBtnYesText}>YES</Text>
+                    <Text style={styles.actionBtnSubYes}>1k / share</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionBtnNo}
+                    onPress={() => handleSelectOutcome('Match Draw', 'No', 1.35)}
+                  >
+                    <Text style={styles.actionBtnNoText}>NO</Text>
+                    <Text style={styles.actionBtnSubNo}>1k / share</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.showcaseCardFooter}>
+              <View style={styles.footerBlindInfo}>
+                <View style={styles.greenPulseDot} />
+                <Text style={styles.footerBlindText}>100% Blind Matching • Winner gets 2x payout</Text>
+              </View>
+              <TouchableOpacity style={styles.tradeLinkWrap} onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'Yes', homeOdds)}>
+                <Text style={styles.tradeLinkText}>Trade Contracts</Text>
+                <ArrowRight size={13} color="#00D285" style={{ marginLeft: 3 }} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ==================== CARD 2: OVER/UNDER 2.5 (GOALS LINE) ==================== */}
+          <View style={styles.contractShowcaseCard}>
+            <View style={styles.showcaseCardHeader}>
+              <View>
+                <View style={styles.showcaseBadgeTitleRow}>
+                  <Text style={styles.showcaseCardTitle}>Over/Under 2.5</Text>
+                  <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
+                    <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>GOALS LINE</Text>
+                  </View>
+                </View>
+                <Text style={styles.showcaseCardSub}>Total Match Goals</Text>
+              </View>
+              <Text style={styles.sharesCountTop}>15,800 Shares (₦15.8M)</Text>
+            </View>
+
+            <View style={styles.bigOptionsRow}>
+              <TouchableOpacity
+                style={[styles.bigOptionBtn, styles.bigOptionBtnActive]}
+                onPress={() => handleSelectOutcome('Over 2.5 Goals', 'Yes', over3Odds)}
+              >
+                <Text style={styles.bigOptionTitle}>Over 2.5</Text>
+                <Text style={styles.bigOptionSubActive}>YES • 1k / share</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.bigOptionBtn}
+                onPress={() => handleSelectOutcome('Under 2.5 Goals', 'No', under3Odds)}
+              >
+                <Text style={styles.bigOptionTitleDark}>Under 2.5</Text>
+                <Text style={styles.bigOptionSubDark}>NO • 1k / share</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.poolBranchSubBox}>
+              <Text style={styles.poolBranchTitle}>Pool . NO</Text>
+              <Text style={styles.poolBranchSub}>Unmatched shares auto-branch into shared pool</Text>
+            </View>
+
+            <View style={styles.showcaseCardFooter}>
+              <TouchableOpacity style={styles.tradeLinkWrap} onPress={() => handleSelectOutcome('Over 2.5 Goals', 'Yes', over3Odds)}>
+                <Text style={styles.tradeLinkText}>Trade Over/Under</Text>
+                <ArrowRight size={13} color="#00D285" style={{ marginLeft: 3 }} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ==================== CARD 3: BTTS (BOTH TEAMS TO SCORE) ==================== */}
+          <View style={styles.contractShowcaseCard}>
+            <View style={styles.showcaseCardHeader}>
+              <View>
+                <View style={styles.showcaseBadgeTitleRow}>
+                  <Text style={styles.showcaseCardTitle}>BTTS (Both Teams to Score)</Text>
+                  <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
+                    <Text style={[styles.greenTagText, { color: '#F59E0B' }]}>BOTH SCORE</Text>
+                  </View>
+                </View>
+                <Text style={styles.showcaseCardSub}>Both teams score at least 1 goal</Text>
+              </View>
+              <Text style={styles.sharesCountTop}>11,200 Shares (₦11.2M)</Text>
+            </View>
+
+            <View style={styles.bigOptionsRow}>
+              <TouchableOpacity
+                style={[styles.bigOptionBtn, styles.bigOptionBtnActive]}
+                onPress={() => handleSelectOutcome('Both Teams to Score', 'Yes', bttsYesOdds)}
+              >
+                <Text style={styles.bigOptionTitle}>YES</Text>
+                <Text style={styles.bigOptionSubActive}>Both Teams Score • 1k / share</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.bigOptionBtn}
+                onPress={() => handleSelectOutcome('Both Teams to Score', 'No', bttsNoOdds)}
+              >
+                <Text style={styles.bigOptionTitleDark}>NO</Text>
+                <Text style={styles.bigOptionSubDark}>At Least One Zero • 1k / share</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.showcaseCardFooter}>
+              <TouchableOpacity style={styles.tradeLinkWrap} onPress={() => handleSelectOutcome('Both Teams to Score', 'Yes', bttsYesOdds)}>
+                <Text style={styles.tradeLinkText}>Trade BTTS</Text>
+                <ArrowRight size={13} color="#00D285" style={{ marginLeft: 3 }} />
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {/* Market Resolution Explainer at the Bottom of the Menu */}
           <View style={styles.resolutionCard}>
@@ -1037,6 +1175,219 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     fontWeight: '600',
     lineHeight: 14,
+  },
+
+  /* Categorized Contract Showcase Card Styles (Image 3) */
+  contractShowcaseCard: {
+    backgroundColor: 'rgba(19, 28, 50, 0.94)',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  showcaseCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  showcaseBadgeTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  showcaseCardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  greenTagBadge: {
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+  },
+  greenTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  showcaseCardSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+    marginTop: 3,
+  },
+  sharesCountTop: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  showcaseRowsList: {
+    gap: 8,
+    marginBottom: 10,
+  },
+  showcaseOutcomeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  outcomeInfoLeft: {
+    flex: 1,
+    marginRight: 10,
+  },
+  outcomeName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  outcomeSubLabel: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+    marginTop: 1,
+  },
+  outcomeSharesCount: {
+    fontSize: 9,
+    color: '#64748B',
+    fontFamily: 'Inter',
+    marginTop: 2,
+  },
+  outcomeActionBtns: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  actionBtnYes: {
+    backgroundColor: '#00D285',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 74,
+  },
+  actionBtnYesText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0A1124',
+    fontFamily: 'Inter',
+  },
+  actionBtnSubYes: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#0A1124',
+    opacity: 0.85,
+    marginTop: 1,
+    fontFamily: 'Inter',
+  },
+  actionBtnNo: {
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 74,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  actionBtnNoText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  actionBtnSubNo: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginTop: 1,
+    fontFamily: 'Inter',
+  },
+  showcaseCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  bigOptionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  bigOptionBtn: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  bigOptionBtnActive: {
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    borderColor: '#00D285',
+  },
+  bigOptionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+    marginBottom: 2,
+  },
+  bigOptionSubActive: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  bigOptionTitleDark: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginBottom: 2,
+  },
+  bigOptionSubDark: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+  },
+  poolBranchSubBox: {
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  poolBranchTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+    marginBottom: 2,
+  },
+  poolBranchSub: {
+    fontSize: 10,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
   },
 });
 

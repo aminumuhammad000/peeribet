@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
+  ArrowRight,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
@@ -440,10 +441,10 @@ export default function MarketScreen() {
                         },
                       })
                     }
-                    activeOpacity={0.85}
+                    activeOpacity={0.88}
                     style={[styles.sportsCard, isSuspended && styles.sportsCardSuspended]}
                   >
-                    {/* Top League & Status Row */}
+                    {/* Top League & Status Bar */}
                     <View style={styles.sportsCardHeader}>
                       <View style={styles.sportsLeagueWrap}>
                         {isLive && <Flame size={13} color="#EF4444" style={{ marginRight: 4 }} />}
@@ -464,71 +465,148 @@ export default function MarketScreen() {
                       </View>
                     </View>
 
-                    {/* Competitors Row */}
-                    <View style={styles.competitorsRow}>
-                      <View style={styles.competitorBlock}>
-                        <Text style={styles.competitorName} numberOfLines={1}>
-                          {match.homeTeam}
-                        </Text>
-                        <Text style={styles.competitorRole}>
-                          {selectedCategory === 'UFC & Boxing' ? 'Fighter 1' : 'Home'}
-                        </Text>
+                    {/* Card Title & Shares Rate Pill */}
+                    <View style={styles.cardInnerHeader}>
+                      <View style={styles.cardHeaderTitleWrap}>
+                        <Text style={styles.cardMainTitle}>Match Contracts</Text>
+                        <View style={styles.yesNoTagBadge}>
+                          <Text style={styles.yesNoTagText}>YES / NO</Text>
+                        </View>
                       </View>
-
-                      <View style={styles.matchVsBadge}>
-                        {isLive ? (
-                          <Text style={styles.scoreText}>
-                            {match.scoreHome ?? 0} - {match.scoreAway ?? 0}
-                          </Text>
-                        ) : (
-                          <Text style={styles.vsText}>VS</Text>
-                        )}
-                      </View>
-
-                      <View style={styles.competitorBlockRight}>
-                        <Text style={styles.competitorName} numberOfLines={1}>
-                          {match.awayTeam}
-                        </Text>
-                        <Text style={styles.competitorRole}>
-                          {selectedCategory === 'UFC & Boxing' ? 'Fighter 2' : 'Away'}
-                        </Text>
+                      <View style={styles.shareUnitPill}>
+                        <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
                       </View>
                     </View>
+                    <Text style={styles.cardHeaderSubtitle}>
+                      Individual binary contracts for each team and draw
+                    </Text>
 
-                    {/* Odds Grid */}
                     {isSuspended ? (
                       <View style={styles.suspendedBanner}>
                         <Lock size={14} color="#64748B" style={{ marginRight: 6 }} />
                         <Text style={styles.suspendedBannerText}>MARKET SUSPENDED</Text>
                       </View>
                     ) : (
-                      <View style={styles.sportsOddsRow}>
-                        <View style={styles.sportsOddBox}>
-                          <Text style={styles.sportsOddLabel}>
-                            {selectedCategory === 'UFC & Boxing' ? '1 (Fighter 1)' : '1 (Home)'}
-                          </Text>
-                          <Text style={styles.sportsOddVal}>
-                            {match.odds?.home ? match.odds.home.toFixed(2) : '1.90'}
-                          </Text>
-                        </View>
-                        {selectedCategory === 'European Football' && (
-                          <View style={styles.sportsOddBox}>
-                            <Text style={styles.sportsOddLabel}>X (Draw)</Text>
-                            <Text style={styles.sportsOddVal}>
-                              {match.odds?.draw ? match.odds.draw.toFixed(2) : '3.10'}
-                            </Text>
+                      /* 3 Binary Outcome Rows */
+                      <View style={styles.binaryRowsContainer}>
+                        {/* Row 1: Home Team */}
+                        <View style={styles.binaryOutcomeRow}>
+                          <View style={styles.outcomeInfoCol}>
+                            <Text style={styles.outcomeTitle} numberOfLines={1}>{match.homeTeam}</Text>
+                            <Text style={styles.outcomeSubtitle}>{match.homeTeam} to Win</Text>
+                            <Text style={styles.outcomeSharesText}>18,400 Shares (₦18.4M)</Text>
                           </View>
-                        )}
-                        <View style={styles.sportsOddBox}>
-                          <Text style={styles.sportsOddLabel}>
-                            {selectedCategory === 'UFC & Boxing' ? '2 (Fighter 2)' : '2 (Away)'}
-                          </Text>
-                          <Text style={styles.sportsOddVal}>
-                            {match.odds?.away ? match.odds.away.toFixed(2) : '2.10'}
-                          </Text>
+                          <View style={styles.binaryActionBtns}>
+                            <TouchableOpacity
+                              style={styles.binaryBtnYes}
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/match-detail',
+                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                                })
+                              }
+                            >
+                              <Text style={styles.binaryBtnYesLabel}>YES</Text>
+                              <Text style={styles.binaryBtnSubTextYes}>1k / share</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.binaryBtnNo}
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/match-detail',
+                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                                })
+                              }
+                            >
+                              <Text style={styles.binaryBtnNoLabel}>NO</Text>
+                              <Text style={styles.binaryBtnSubTextNo}>1k / share</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+
+                        {/* Row 2: Away Team */}
+                        <View style={styles.binaryOutcomeRow}>
+                          <View style={styles.outcomeInfoCol}>
+                            <Text style={styles.outcomeTitle} numberOfLines={1}>{match.awayTeam}</Text>
+                            <Text style={styles.outcomeSubtitle}>{match.awayTeam} to Win</Text>
+                            <Text style={styles.outcomeSharesText}>22,100 Shares (₦22.1M)</Text>
+                          </View>
+                          <View style={styles.binaryActionBtns}>
+                            <TouchableOpacity
+                              style={styles.binaryBtnYes}
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/match-detail',
+                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                                })
+                              }
+                            >
+                              <Text style={styles.binaryBtnYesLabel}>YES</Text>
+                              <Text style={styles.binaryBtnSubTextYes}>1k / share</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.binaryBtnNo}
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/match-detail',
+                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                                })
+                              }
+                            >
+                              <Text style={styles.binaryBtnNoLabel}>NO</Text>
+                              <Text style={styles.binaryBtnSubTextNo}>1k / share</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+
+                        {/* Row 3: Draw */}
+                        <View style={styles.binaryOutcomeRow}>
+                          <View style={styles.outcomeInfoCol}>
+                            <Text style={styles.outcomeTitle}>Draw</Text>
+                            <Text style={styles.outcomeSubtitle}>Draw outcome contract</Text>
+                            <Text style={styles.outcomeSharesText}>8,500 Shares (₦8.5M)</Text>
+                          </View>
+                          <View style={styles.binaryActionBtns}>
+                            <TouchableOpacity
+                              style={styles.binaryBtnYes}
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/match-detail',
+                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                                })
+                              }
+                            >
+                              <Text style={styles.binaryBtnYesLabel}>YES</Text>
+                              <Text style={styles.binaryBtnSubTextYes}>1k / share</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.binaryBtnNo}
+                              onPress={() =>
+                                router.push({
+                                  pathname: '/match-detail',
+                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                                })
+                              }
+                            >
+                              <Text style={styles.binaryBtnNoLabel}>NO</Text>
+                              <Text style={styles.binaryBtnSubTextNo}>1k / share</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       </View>
                     )}
+
+                    {/* Card Footer */}
+                    <View style={styles.binaryCardFooter}>
+                      <View style={styles.footerBlindInfo}>
+                        <View style={styles.greenPulseDot} />
+                        <Text style={styles.footerBlindText}>100% Blind Matching • Winner gets 2x payout</Text>
+                      </View>
+                      <View style={styles.tradeLinkWrap}>
+                        <Text style={styles.tradeLinkText}>Trade Contracts</Text>
+                        <ArrowRight size={13} color="#00D285" style={{ marginLeft: 3 }} />
+                      </View>
+                    </View>
                   </TouchableOpacity>
                 );
               })
@@ -1679,6 +1757,181 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#0A1124',
+    fontFamily: 'Inter',
+  },
+
+  /* Binary Contract Card Styles (per Owner UI feedback) */
+  cardInnerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  cardHeaderTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardMainTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  yesNoTagBadge: {
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+  },
+  yesNoTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  shareUnitPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  shareUnitPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+  },
+  cardHeaderSubtitle: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+    marginBottom: 10,
+  },
+  binaryRowsContainer: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  binaryOutcomeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  outcomeInfoCol: {
+    flex: 1,
+    marginRight: 10,
+  },
+  outcomeTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  outcomeSubtitle: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+    marginTop: 1,
+  },
+  outcomeSharesText: {
+    fontSize: 9,
+    color: '#64748B',
+    fontFamily: 'Inter',
+    marginTop: 2,
+  },
+  binaryActionBtns: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  binaryBtnYes: {
+    backgroundColor: '#00D285',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 74,
+  },
+  binaryBtnYesLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0A1124',
+    fontFamily: 'Inter',
+  },
+  binaryBtnSubTextYes: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#0A1124',
+    opacity: 0.8,
+    marginTop: 1,
+    fontFamily: 'Inter',
+  },
+  binaryBtnNo: {
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 74,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  binaryBtnNoLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  binaryBtnSubTextNo: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: '#94A3B8',
+    marginTop: 1,
+    fontFamily: 'Inter',
+  },
+  binaryCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  footerBlindInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  greenPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#00D285',
+    marginRight: 6,
+  },
+  footerBlindText: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '600',
+    fontFamily: 'Inter',
+  },
+  tradeLinkWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tradeLinkText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#00D285',
     fontFamily: 'Inter',
   },
 });
