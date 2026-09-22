@@ -16,7 +16,10 @@ import notificationRoutes from './routes/notificationRoutes';
 import supportRoutes from './routes/supportRoutes';
 
 const app: Application = express();
-const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').filter(Boolean);
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 // Middleware
 app.use(helmet());
@@ -26,7 +29,10 @@ app.use(cors({
     if (
       allowedOrigins.length === 0 ||
       allowedOrigins.includes('*') ||
-      allowedOrigins.includes(origin)
+      allowedOrigins.includes(origin) ||
+      process.env.NODE_ENV !== 'production' ||
+      origin.startsWith('http://localhost') ||
+      origin.startsWith('http://127.0.0.1')
     ) {
       return callback(null, true);
     }

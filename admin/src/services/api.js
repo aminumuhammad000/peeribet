@@ -1,7 +1,17 @@
 import axios from 'axios';
 
+const getBaseURL = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (import.meta.env.DEV) {
+    return 'http://localhost:5000/api';
+  }
+  return 'https://api.peeritrade.com/api';
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://api.peeritrade.com/api',
+  baseURL: getBaseURL(),
 });
 
 // Add a request interceptor to include the auth token
