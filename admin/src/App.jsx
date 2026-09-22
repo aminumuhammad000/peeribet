@@ -28,6 +28,9 @@ import {
   Trash2,
   LogOut,
   Key,
+  PlusCircle,
+  CreditCard,
+  Save,
   Shield,
   Cpu,
   UserCheck,
@@ -206,6 +209,23 @@ export default function App() {
   const [kycStatusFilter, setKycStatusFilter] = useState('ALL');
   const [selectedKycUser, setSelectedKycUser] = useState(null);
 
+  // Credit User Popup Modal State
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+  const [creditTargetUser, setCreditTargetUser] = useState(null);
+  const [creditAmountInput, setCreditAmountInput] = useState('');
+  const [creditNoteInput, setCreditNoteInput] = useState('');
+  const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
+
+  // Payment Gateway Configuration State
+  const [activeGateway, setActiveGateway] = useState('vtstack');
+  const [paystackPublicKey, setPaystackPublicKey] = useState('');
+  const [paystackSecretKey, setPaystackSecretKey] = useState('');
+  const [vtstackApiKey, setVtstackApiKey] = useState('');
+  const [vtstackPayoutKey, setVtstackPayoutKey] = useState('');
+  const [vtstackWebhookSecret, setVtstackWebhookSecret] = useState('');
+  const [gatewayMode, setGatewayMode] = useState('TEST');
+  const [autoWithdrawalApproval, setAutoWithdrawalApproval] = useState(true);
+
   // Portfolio vault reserve states
   const [vaultBalances, setVaultBalances] = useState({
     custodyPool: 0,
@@ -337,6 +357,22 @@ export default function App() {
         status: u.isVerified ? 'Healthy' : 'Unverified'
       }));
       setUserBalances(mappedUsers);
+
+      const mappedKycUsers = list.map(u => ({
+        id: u._id,
+        name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'User',
+        email: u.email || 'N/A',
+        phone: u.phone || 'N/A',
+        balance: u.balance || 0,
+        documentType: u.kycDocument ? 'ID Document Uploaded' : 'NIN / National ID',
+        documentNumber: u._id ? u._id.substring(0, 10).toUpperCase() : 'N/A',
+        date: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A',
+        status: (u.kycStatus || (u.isVerified ? 'APPROVED' : 'PENDING')).toUpperCase(),
+        isVerified: u.isVerified,
+        idCardFront: u.kycDocument || '',
+        idCardBack: ''
+      }));
+      setKycUsers(mappedKycUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -428,6 +464,15 @@ export default function App() {
         setEditFee(data.platformFee ?? 0);
         setEditMode(data.settlementMode || 'AUTOMATED');
         setEditThreshold(data.complianceThreshold ?? 0);
+
+        setActiveGateway(data.activePaymentGateway || 'vtstack');
+        setPaystackPublicKey(data.paystackPublicKey || '');
+        setPaystackSecretKey(data.paystackSecretKey || '');
+        setVtstackApiKey(data.vtstackApiKey || '');
+        setVtstackPayoutKey(data.vtstackPayoutKey || '');
+        setVtstackWebhookSecret(data.vtstackWebhookSecret || '');
+        setGatewayMode(data.gatewayMode || 'TEST');
+        setAutoWithdrawalApproval(data.autoWithdrawalApproval !== false);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -734,6 +779,62 @@ export default function App() {
       logSecurityEvent('warning', `System configuration updated: ${feeNum}% fee, ${editMode} mode`, `Authorized by ${adminName}`, 'cpu');
     } catch (error) {
       showToast('Failed to commit system settings.', 'error');
+    }
+  };
+
+  // Handle saving payment gateway settings
+  const handleSaveGatewaySettings = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      await api.post('/admin/settings', {
+        activePaymentGateway: activeGateway,
+        paystackPublicKey,
+        paystackSecretKey,
+        vtstackApiKey,
+        vtstackPayoutKey,
+        vtstackWebhookSecret,
+        gatewayMode,
+        autoWithdrawalApproval,
+      });
+      showToast(`Payment Gateway set to ${activeGateway.toUpperCase()} (${gatewayMode} mode)`, 'success');
+      logSecurityEvent('warning', `Payment gateway provider updated to ${activeGateway}`, `Authorized by ${adminName}`, 'key');
+    } catch (error) {
+      showToast('Failed to save payment gateway settings.', 'error');
+    }
+  };
+
+  // Credit User Modal Handlers
+  const handleOpenCreditModal = (user) => {
+    setCreditTargetUser(user);
+    setCreditAmountInput('');
+    setCreditNoteInput('');
+    setIsCreditModalOpen(true);
+  };
+
+  const handleExecuteCredit = async (e) => {
+    if (e) e.preventDefault();
+    const amount = Number(creditAmountInput);
+    if (!creditTargetUser || isNaN(amount) || amount <= 0) {
+      showToast('Please enter a valid credit amount.', 'error');
+      return;
+    }
+
+    setIsSubmittingCredit(true);
+    try {
+      await api.post('/admin/users/credit', {
+        userId: creditTargetUser.id,
+        amount: amount,
+        description: creditNoteInput.trim() || `Manual wallet credit by ${adminName}`
+      });
+      showToast(`Successfully credited ₦${amount.toLocaleString()} to ${creditTargetUser.name}!`, 'success');
+      logSecurityEvent('success', `Manual balance credit: ₦${amount.toLocaleString()} added to ${creditTargetUser.name}`, `Authorized by ${adminName}`, 'wallet');
+      setIsCreditModalOpen(false);
+      setCreditTargetUser(null);
+      fetchUsers();
+    } catch (error) {
+      showToast(error?.response?.data?.message || 'Failed to credit user account.', 'error');
+    } finally {
+      setIsSubmittingCredit(false);
     }
   };
 
@@ -2640,6 +2741,165 @@ export default function App() {
                   </p>
                 </div>
               </div>
+
+              {/* Payment Gateway Configurations Card */}
+              <div className="settings-card" style={{ gridColumn: 'span 2', marginTop: 16 }}>
+                <div className="settings-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <CreditCard size={20} color="#00D285" />
+                  Payment Gateway &amp; Merchant Integrations
+                </div>
+                <p className="settings-card-sub" style={{ marginBottom: 20 }}>
+                  Configure active payment gateway providers (VTStack, Paystack, Flutterwave, Monnify, or Manual Transfer) used for deposits, virtual accounts, and automated user payouts.
+                </p>
+
+                <form onSubmit={handleSaveGatewaySettings}>
+                  {/* Gateway Selector Cards */}
+                  <div style={{ marginBottom: 20 }}>
+                    <label className="settings-label" style={{ marginBottom: 10, display: 'block' }}>
+                      Select Active Payment Gateway Provider
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                      {[
+                        { id: 'vtstack', name: 'VTStack', badge: 'Virtual Accounts & Instant Payouts', icon: '⚡' },
+                        { id: 'paystack', name: 'Paystack', badge: 'Cards, Bank Transfer & USSD', icon: '💳' },
+                        { id: 'flutterwave', name: 'Flutterwave', badge: 'Global & African Cards', icon: '🌍' },
+                        { id: 'monnify', name: 'Monnify', badge: 'Reserved Account Transfers', icon: '🏦' },
+                        { id: 'manual', name: 'Manual Transfer', badge: 'Admin Bank Verification', icon: '📝' },
+                      ].map((gw) => (
+                        <div
+                          key={gw.id}
+                          onClick={() => setActiveGateway(gw.id)}
+                          style={{
+                            padding: '14px 16px',
+                            borderRadius: 8,
+                            border: activeGateway === gw.id ? '2px solid #00D285' : '1px solid var(--border-color)',
+                            backgroundColor: activeGateway === gw.id ? 'rgba(0, 210, 133, 0.08)' : 'var(--bg-input)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <span style={{ fontSize: 14, fontWeight: 'bold', color: 'var(--text-white)' }}>
+                              {gw.icon} {gw.name}
+                            </span>
+                            {activeGateway === gw.id && (
+                              <span style={{ fontSize: 9, backgroundColor: '#00D285', color: '#090d16', fontWeight: 'bold', padding: '2px 6px', borderRadius: 10 }}>
+                                SELECTED
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{gw.badge}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Mode & Auto-Approval */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                    <div className="settings-field">
+                      <label className="settings-label">Environment Mode</label>
+                      <select
+                        className="vault-select"
+                        value={gatewayMode}
+                        onChange={(e) => setGatewayMode(e.target.value)}
+                      >
+                        <option value="TEST">Sandbox / Test Mode</option>
+                        <option value="LIVE">Production / Live Mode</option>
+                      </select>
+                    </div>
+
+                    <div className="settings-field">
+                      <label className="settings-label">Automated Withdrawal Payouts</label>
+                      <select
+                        className="vault-select"
+                        value={autoWithdrawalApproval ? 'true' : 'false'}
+                        onChange={(e) => setAutoWithdrawalApproval(e.target.value === 'true')}
+                      >
+                        <option value="true">Enabled (Instant payout via Gateway)</option>
+                        <option value="false">Disabled (Require Admin approval for payouts)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Dynamic API Credentials */}
+                  {activeGateway === 'vtstack' && (
+                    <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: 13, color: '#00D285', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        VTStack API Credentials
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="settings-field">
+                          <label className="settings-label">VTStack API Key</label>
+                          <input
+                            type="password"
+                            className="vault-input"
+                            placeholder="vts_live_..."
+                            value={vtstackApiKey}
+                            onChange={(e) => setVtstackApiKey(e.target.value)}
+                          />
+                        </div>
+                        <div className="settings-field">
+                          <label className="settings-label">VTStack Payout Key</label>
+                          <input
+                            type="password"
+                            className="vault-input"
+                            placeholder="vts_payout_..."
+                            value={vtstackPayoutKey}
+                            onChange={(e) => setVtstackPayoutKey(e.target.value)}
+                          />
+                        </div>
+                        <div className="settings-field" style={{ gridColumn: 'span 2' }}>
+                          <label className="settings-label">VTStack Webhook Signing Secret</label>
+                          <input
+                            type="password"
+                            className="vault-input"
+                            placeholder="whsec_..."
+                            value={vtstackWebhookSecret}
+                            onChange={(e) => setVtstackWebhookSecret(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeGateway === 'paystack' && (
+                    <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: 13, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        Paystack Merchant Credentials
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="settings-field">
+                          <label className="settings-label">Paystack Public Key</label>
+                          <input
+                            type="text"
+                            className="vault-input"
+                            placeholder="pk_live_..."
+                            value={paystackPublicKey}
+                            onChange={(e) => setPaystackPublicKey(e.target.value)}
+                          />
+                        </div>
+                        <div className="settings-field">
+                          <label className="settings-label">Paystack Secret Key</label>
+                          <input
+                            type="password"
+                            className="vault-input"
+                            placeholder="sk_live_..."
+                            value={paystackSecretKey}
+                            onChange={(e) => setPaystackSecretKey(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <button type="submit" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px' }}>
+                    <Save size={16} /> Update Payment Gateway
+                  </button>
+                </form>
+              </div>
             </div>
           </main>
         ) : activeTab === 'profile' ? (
@@ -3527,18 +3787,8 @@ export default function App() {
                           </span>
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <button className="notif-action-btn" onClick={async () => {
-                            const extraVal = 50000;
-                            try {
-                              await api.post('/admin/users/credit', { userId: user.id, amount: extraVal });
-                              fetchUsers();
-                              showToast(`₦${extraVal.toLocaleString()} credited to ${user.name} successfully!`, 'success');
-                              logSecurityEvent('success', `Manual balance credit: ₦${extraVal.toLocaleString()} added to ${user.name}`, `Authorized by ${adminName}`, 'wallet');
-                            } catch (error) {
-                              showToast('System failed to credit user account.', 'error');
-                            }
-                          }}>
-                            Credit
+                          <button className="notif-action-btn" onClick={() => handleOpenCreditModal(user)}>
+                            Credit Wallet
                           </button>
                         </td>
                       </tr>
@@ -3553,8 +3803,8 @@ export default function App() {
             {/* Header section */}
             <div className="section-header">
               <div>
-                <h2 className="overview-title">User Registration & Verification</h2>
-                <p className="overview-sub">Verify user identity registrations, review uploaded identification documents, and approve or reject access.</p>
+                <h2 className="overview-title">User Accounts &amp; Verification</h2>
+                <p className="overview-sub">Manage platform user accounts, credit user wallet balances, and review identity verification status.</p>
               </div>
             </div>
 
@@ -3588,9 +3838,10 @@ export default function App() {
                     value={kycStatusFilter}
                     onChange={(e) => setKycStatusFilter(e.target.value)}
                   >
-                    <option value="ALL">All Requests</option>
-                    <option value="PENDING">Pending Verification</option>
+                    <option value="ALL">All Users</option>
                     <option value="APPROVED">Approved</option>
+                    <option value="PENDING">Pending Verification</option>
+                    <option value="NONE">Unverified / None</option>
                     <option value="REJECTED">Rejected</option>
                   </select>
                 </div>
@@ -3598,23 +3849,23 @@ export default function App() {
               </div>
             </div>
 
-            {/* Verification Requests Registry Card */}
+            {/* Users Registry Card */}
             <section className="recent-trades-card">
               <div className="table-filter-row">
                 <div>
-                  <h3 className="card-heading">Verification Ledger</h3>
-                  <p className="card-subheading">Review identity status matching real-world verification nodes</p>
+                  <h3 className="card-heading">Registered Platform Users</h3>
+                  <p className="card-subheading">Comprehensive list of user accounts, balances, and actions</p>
                 </div>
               </div>
 
-              {/* KYC Users Table */}
+              {/* Users Table */}
               <div className="trades-table-container">
                 <table className="trades-table">
                   <thead>
                     <tr>
-                      <th>User Info</th>
-                      <th>Identification Document</th>
-                      <th>Document Number</th>
+                      <th>User Account</th>
+                      <th>Naira Balance</th>
+                      <th>Identification Doc</th>
                       <th>Submission Date</th>
                       <th>Status</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
@@ -3624,7 +3875,7 @@ export default function App() {
                     {filteredKycUsers.length === 0 ? (
                       <tr>
                         <td colSpan={6} style={{ textAlign: 'center', color: '#64748b', padding: '32px 0' }}>
-                          No registration verification records found.
+                          No user records found.
                         </td>
                       </tr>
                     ) : (
@@ -3636,10 +3887,10 @@ export default function App() {
                               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{user.email} • {user.phone}</span>
                             </div>
                           </td>
-                          <td style={{ color: 'var(--text-muted)' }}>{user.documentType}</td>
-                          <td style={{ fontFamily: 'monospace', color: 'var(--text-white)', fontWeight: '500' }}>
-                            {user.documentNumber}
+                          <td style={{ color: '#00D285', fontWeight: 'bold', fontSize: 13 }}>
+                            ₦{(user.balance || 0).toLocaleString()}
                           </td>
+                          <td style={{ color: 'var(--text-muted)' }}>{user.documentType}</td>
                           <td style={{ color: 'var(--text-muted)' }}>{user.date}</td>
                           <td>
                             <span
@@ -3658,6 +3909,24 @@ export default function App() {
                           </td>
                           <td style={{ textAlign: 'right' }}>
                             <div style={{ display: 'inline-flex', gap: 6 }}>
+                              <button
+                                style={{
+                                  backgroundColor: 'rgba(0, 210, 133, 0.15)',
+                                  border: '1px solid rgba(0, 210, 133, 0.4)',
+                                  color: '#00D285',
+                                  fontSize: 10,
+                                  fontWeight: 'bold',
+                                  padding: '6px 12px',
+                                  borderRadius: 4,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}
+                                onClick={() => handleOpenCreditModal(user)}
+                              >
+                                <PlusCircle size={12} /> Credit User
+                              </button>
                               <button
                                 style={{
                                   backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -4488,6 +4757,165 @@ export default function App() {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Credit User Modal Popup */}
+      {isCreditModalOpen && creditTargetUser && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(10, 15, 30, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: 20
+        }}>
+          <div style={{
+            backgroundColor: '#111827',
+            border: '1px solid #1e293b',
+            borderRadius: 12,
+            width: '100%',
+            maxWidth: 480,
+            padding: 24,
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
+            color: '#f8fafc'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 'bold', color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <PlusCircle size={20} color="#00D285" />
+                Credit User Wallet
+              </h3>
+              <button
+                onClick={() => { setIsCreditModalOpen(false); setCreditTargetUser(null); }}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', border: '1px solid #1e293b', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 'bold', color: '#f8fafc' }}>{creditTargetUser.name}</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{creditTargetUser.email} • {creditTargetUser.phone}</div>
+              <div style={{ fontSize: 13, color: '#00D285', fontWeight: 'bold', marginTop: 6 }}>
+                Current Balance: ₦{(creditTargetUser.balance || 0).toLocaleString()}
+              </div>
+            </div>
+
+            <form onSubmit={handleExecuteCredit}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#cbd5e1', marginBottom: 6 }}>
+                  Amount to Credit (₦)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="any"
+                  placeholder="e.g. 50000"
+                  value={creditAmountInput}
+                  onChange={(e) => setCreditAmountInput(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #334155',
+                    borderRadius: 6,
+                    padding: '10px 14px',
+                    color: '#ffffff',
+                    fontSize: 15,
+                    fontWeight: 'bold',
+                    outline: 'none'
+                  }}
+                />
+                
+                {/* Quick preset amount pills */}
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                  {[10000, 50000, 100000, 500000, 1000000].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCreditAmountInput(preset.toString())}
+                      style={{
+                        backgroundColor: creditAmountInput === preset.toString() ? 'rgba(0, 210, 133, 0.2)' : 'rgba(30, 41, 59, 0.8)',
+                        border: creditAmountInput === preset.toString() ? '1px solid #00D285' : '1px solid #334155',
+                        color: creditAmountInput === preset.toString() ? '#00D285' : '#94a3b8',
+                        borderRadius: 4,
+                        padding: '4px 8px',
+                        fontSize: 11,
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      +₦{preset.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#cbd5e1', marginBottom: 6 }}>
+                  Credit Note / Description (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Platform bonus credit / Manual deposit adjustment"
+                  value={creditNoteInput}
+                  onChange={(e) => setCreditNoteInput(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #334155',
+                    borderRadius: 6,
+                    padding: '10px 14px',
+                    color: '#ffffff',
+                    fontSize: 13,
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => { setIsCreditModalOpen(false); setCreditTargetUser(null); }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid #334155',
+                    color: '#94a3b8',
+                    borderRadius: 6,
+                    padding: '10px 18px',
+                    fontSize: 13,
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingCredit}
+                  style={{
+                    backgroundColor: '#00D285',
+                    border: 'none',
+                    color: '#090d16',
+                    borderRadius: 6,
+                    padding: '10px 20px',
+                    fontSize: 13,
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    opacity: isSubmittingCredit ? 0.7 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  {isSubmittingCredit ? 'Crediting...' : 'Confirm & Credit Wallet'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

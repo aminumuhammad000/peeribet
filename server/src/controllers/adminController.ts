@@ -189,14 +189,35 @@ export const getSettings = async (req: Request, res: Response) => {
 
 export const updateSettings = async (req: Request, res: Response) => {
   try {
-    const { platformFee, settlementMode, complianceThreshold } = req.body;
+    const { 
+      platformFee, 
+      settlementMode, 
+      complianceThreshold,
+      activePaymentGateway,
+      paystackPublicKey,
+      paystackSecretKey,
+      vtstackApiKey,
+      vtstackPayoutKey,
+      vtstackWebhookSecret,
+      gatewayMode,
+      autoWithdrawalApproval
+    } = req.body;
     let settings = await SystemSetting.findOne();
     if (!settings) {
       settings = new SystemSetting();
     }
-    settings.platformFee = platformFee;
-    settings.settlementMode = settlementMode;
-    settings.complianceThreshold = complianceThreshold;
+    if (platformFee !== undefined) settings.platformFee = platformFee;
+    if (settlementMode !== undefined) settings.settlementMode = settlementMode;
+    if (complianceThreshold !== undefined) settings.complianceThreshold = complianceThreshold;
+    if (activePaymentGateway !== undefined) settings.activePaymentGateway = activePaymentGateway;
+    if (paystackPublicKey !== undefined) settings.paystackPublicKey = paystackPublicKey;
+    if (paystackSecretKey !== undefined) settings.paystackSecretKey = paystackSecretKey;
+    if (vtstackApiKey !== undefined) settings.vtstackApiKey = vtstackApiKey;
+    if (vtstackPayoutKey !== undefined) settings.vtstackPayoutKey = vtstackPayoutKey;
+    if (vtstackWebhookSecret !== undefined) settings.vtstackWebhookSecret = vtstackWebhookSecret;
+    if (gatewayMode !== undefined) settings.gatewayMode = gatewayMode;
+    if (autoWithdrawalApproval !== undefined) settings.autoWithdrawalApproval = autoWithdrawalApproval;
+
     await settings.save();
     res.json(settings);
   } catch (error: any) {
@@ -829,12 +850,43 @@ export const updateVaultBalances = async (req: Request, res: Response) => {
 
 export const creditUser = async (req: Request, res: Response) => {
   try {
-    const { userId, amount } = req.body;
+    const { userId, amount, description } = req.body;
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
     
-    user.balance = (user.balance || 0) + amount;
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ message: 'Invalid credit amount. Please enter a positive number.' });
+    }
+
+    user.balance = (user.balance || 0) + numAmount;
     await user.save();
+
+    // Create a transaction log
+    try {
+      await Transaction.create({
+        user: user._id,
+        type: 'deposit',
+        amount: numAmount,
+        status: 'completed',
+        reference: `ADMIN_CREDIT_${Date.now()}`,
+        description: description || 'Manual wallet credit by Administrator',
+      });
+    } catch (txnErr) {
+      console.warn('Could not record credit transaction:', txnErr);
+    }
+
+    // Send in-app notification
+    try {
+      await createNotification(
+        user._id.toString(),
+        'Wallet Credited 💰',
+        `Your wallet has been credited with ₦${numAmount.toLocaleString()} by Admin.`,
+        'wallet'
+      );
+    } catch (notifErr) {
+      console.warn('Could not send credit notification:', notifErr);
+    }
     
     res.json(user);
   } catch (error: any) {
