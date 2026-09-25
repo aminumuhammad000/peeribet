@@ -110,7 +110,14 @@ export default function MatchDetailScreen() {
   const poolPercent = Math.max(15, Math.min(85, Math.round((poolLiquidity / totalLiquidity) * 100)));
   const p2pPercent = 100 - poolPercent;
 
-  // Contracts: Slick and not bulky
+  const getSharesDisplay = (potVal: number | undefined, ratio: number, totalPoolVal: number) => {
+    const val = potVal && potVal > 0 ? potVal : Math.round(totalPoolVal * ratio);
+    const shares = Math.max(10, Math.round(val / 1000));
+    const amountStr = val >= 1000000 ? `₦${(val / 1000000).toFixed(1)}M` : `₦${Math.round(val / 1000)}k`;
+    return `${shares.toLocaleString()} Shares (${amountStr})`;
+  };
+
+  // Contracts: Slick and not bulky (1X2 standard sequence: Home, Draw, Away)
   const contracts: ContractConfig[] = [
     {
       id: 'home_win',
@@ -119,8 +126,18 @@ export default function MatchDetailScreen() {
       question: `Will ${homeTeam} win the match in regular time?`,
       yesOdds: homeOdds,
       noOdds: calcNoOdds(homeOdds, 2.10),
-      poolAmount: Math.round(poolLiquidity * 0.32),
+      poolAmount: Math.round(poolLiquidity * 0.35),
       p2pShares: Math.round(p2pLiquidity * 0.30 / 1000),
+    },
+    {
+      id: 'draw',
+      marketName: 'Match Draw',
+      title: 'Match Draw',
+      question: 'Will the match end in a tie / draw at 90 mins?',
+      yesOdds: drawOdds,
+      noOdds: calcNoOdds(drawOdds, 1.35),
+      poolAmount: Math.round(poolLiquidity * 0.25),
+      p2pShares: Math.round(p2pLiquidity * 0.20 / 1000),
     },
     {
       id: 'away_win',
@@ -129,18 +146,8 @@ export default function MatchDetailScreen() {
       question: `Will ${awayTeam} win the match in regular time?`,
       yesOdds: awayOdds,
       noOdds: calcNoOdds(awayOdds, 1.65),
-      poolAmount: Math.round(poolLiquidity * 0.24),
+      poolAmount: Math.round(poolLiquidity * 0.40),
       p2pShares: Math.round(p2pLiquidity * 0.25 / 1000),
-    },
-    {
-      id: 'draw',
-      marketName: 'Match Draw',
-      title: 'Match Draw',
-      question: 'Will the match end in a tie / draw at 90 mins?',
-      yesOdds: drawOdds,
-      noOdds: 1.35,
-      poolAmount: Math.round(poolLiquidity * 0.16),
-      p2pShares: Math.round(p2pLiquidity * 0.15 / 1000),
     },
     {
       id: 'btts',
@@ -342,7 +349,7 @@ export default function MatchDetailScreen() {
                     <Text style={styles.greenTagText}>YES / NO</Text>
                   </View>
                 </View>
-                <Text style={styles.showcaseCardSub}>Individual binary contracts for each team and draw</Text>
+                <Text style={styles.showcaseCardSub}>Individual binary contracts for each match outcome</Text>
               </View>
               <View style={styles.shareUnitPill}>
                 <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -350,12 +357,14 @@ export default function MatchDetailScreen() {
             </View>
 
             <View style={styles.showcaseRowsList}>
-              {/* Row 1: Home Win */}
+              {/* Outcome 1: Home Win */}
               <View style={styles.showcaseOutcomeRow}>
                 <View style={styles.outcomeInfoLeft}>
-                  <Text style={styles.outcomeName}>{homeTeam}</Text>
-                  <Text style={styles.outcomeSubLabel}>{homeTeam} to Win</Text>
-                  <Text style={styles.outcomeSharesCount}>18,400 Shares (₦18.4M)</Text>
+                  <Text style={styles.outcomeName} numberOfLines={1}>{homeTeam} Win</Text>
+                  <Text style={styles.outcomeSubLabel}>{homeTeam} to Win regular time</Text>
+                  <Text style={styles.outcomeSharesCount}>
+                    {getSharesDisplay(match?.pool?.homePot, 0.35, poolLiquidity)}
+                  </Text>
                 </View>
                 <View style={styles.outcomeActionBtns}>
                   <TouchableOpacity
@@ -363,49 +372,26 @@ export default function MatchDetailScreen() {
                     onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'Yes', homeOdds)}
                   >
                     <Text style={styles.actionBtnYesText}>YES</Text>
-                    <Text style={styles.actionBtnSubYes}>1k / share</Text>
+                    <Text style={styles.actionBtnSubYes}>{homeOdds.toFixed(2)}x</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.actionBtnNo}
                     onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'No', calcNoOdds(homeOdds, 2.10))}
                   >
                     <Text style={styles.actionBtnNoText}>NO</Text>
-                    <Text style={styles.actionBtnSubNo}>1k / share</Text>
+                    <Text style={styles.actionBtnSubNo}>{calcNoOdds(homeOdds, 2.10).toFixed(2)}x</Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Row 2: Away Win */}
-              <View style={styles.showcaseOutcomeRow}>
-                <View style={styles.outcomeInfoLeft}>
-                  <Text style={styles.outcomeName}>{awayTeam}</Text>
-                  <Text style={styles.outcomeSubLabel}>{awayTeam} to Win</Text>
-                  <Text style={styles.outcomeSharesCount}>22,100 Shares (₦22.1M)</Text>
-                </View>
-                <View style={styles.outcomeActionBtns}>
-                  <TouchableOpacity
-                    style={styles.actionBtnYes}
-                    onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'Yes', awayOdds)}
-                  >
-                    <Text style={styles.actionBtnYesText}>YES</Text>
-                    <Text style={styles.actionBtnSubYes}>1k / share</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionBtnNo}
-                    onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'No', calcNoOdds(awayOdds, 1.65))}
-                  >
-                    <Text style={styles.actionBtnNoText}>NO</Text>
-                    <Text style={styles.actionBtnSubNo}>1k / share</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Row 3: Draw */}
+              {/* Outcome 2: Draw */}
               <View style={styles.showcaseOutcomeRow}>
                 <View style={styles.outcomeInfoLeft}>
                   <Text style={styles.outcomeName}>Draw</Text>
-                  <Text style={styles.outcomeSubLabel}>Draw outcome contract</Text>
-                  <Text style={styles.outcomeSharesCount}>8,500 Shares (₦8.5M)</Text>
+                  <Text style={styles.outcomeSubLabel}>Match ends in a tie / draw</Text>
+                  <Text style={styles.outcomeSharesCount}>
+                    {getSharesDisplay(match?.pool?.drawPot, 0.25, poolLiquidity)}
+                  </Text>
                 </View>
                 <View style={styles.outcomeActionBtns}>
                   <TouchableOpacity
@@ -413,14 +399,41 @@ export default function MatchDetailScreen() {
                     onPress={() => handleSelectOutcome('Match Draw', 'Yes', drawOdds)}
                   >
                     <Text style={styles.actionBtnYesText}>YES</Text>
-                    <Text style={styles.actionBtnSubYes}>1k / share</Text>
+                    <Text style={styles.actionBtnSubYes}>{drawOdds.toFixed(2)}x</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.actionBtnNo}
-                    onPress={() => handleSelectOutcome('Match Draw', 'No', 1.35)}
+                    onPress={() => handleSelectOutcome('Match Draw', 'No', calcNoOdds(drawOdds, 1.35))}
                   >
                     <Text style={styles.actionBtnNoText}>NO</Text>
-                    <Text style={styles.actionBtnSubNo}>1k / share</Text>
+                    <Text style={styles.actionBtnSubNo}>{calcNoOdds(drawOdds, 1.35).toFixed(2)}x</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Outcome 3: Away Win */}
+              <View style={styles.showcaseOutcomeRow}>
+                <View style={styles.outcomeInfoLeft}>
+                  <Text style={styles.outcomeName} numberOfLines={1}>{awayTeam} Win</Text>
+                  <Text style={styles.outcomeSubLabel}>{awayTeam} to Win regular time</Text>
+                  <Text style={styles.outcomeSharesCount}>
+                    {getSharesDisplay(match?.pool?.awayPot, 0.40, poolLiquidity)}
+                  </Text>
+                </View>
+                <View style={styles.outcomeActionBtns}>
+                  <TouchableOpacity
+                    style={styles.actionBtnYes}
+                    onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'Yes', awayOdds)}
+                  >
+                    <Text style={styles.actionBtnYesText}>YES</Text>
+                    <Text style={styles.actionBtnSubYes}>{awayOdds.toFixed(2)}x</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionBtnNo}
+                    onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'No', calcNoOdds(awayOdds, 1.65))}
+                  >
+                    <Text style={styles.actionBtnNoText}>NO</Text>
+                    <Text style={styles.actionBtnSubNo}>{calcNoOdds(awayOdds, 1.65).toFixed(2)}x</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1387,6 +1400,39 @@ const styles = StyleSheet.create({
   poolBranchSub: {
     fontSize: 10,
     color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  shareUnitPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+  },
+  footerBlindInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  greenPulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#00D285',
+    marginRight: 6,
+  },
+  footerBlindText: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '600',
+    fontFamily: 'Inter',
+  },
+  tradeLinkWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tradeLinkText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#00D285',
     fontFamily: 'Inter',
   },
 });

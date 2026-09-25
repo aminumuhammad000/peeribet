@@ -242,6 +242,48 @@ export default function MarketScreen() {
   const potentialPayout = Math.round(numericStake * currentOdds);
   const potentialProfit = Math.max(0, potentialPayout - numericStake);
 
+  const formatOdds = (val: number | undefined | null, fallback = 1.90) => {
+    if (typeof val !== 'number' || Number.isNaN(val) || val <= 1) return fallback;
+    return Number(val.toFixed(2));
+  };
+
+  const calcNoOdds = (yesOdds: number, fallback = 1.90) => {
+    if (yesOdds <= 1.05) return 15.0;
+    const impliedProb = 1 / yesOdds;
+    const noProb = Math.max(0.05, 1 - impliedProb);
+    return Number(((1 / noProb) * 0.95).toFixed(2)) || fallback;
+  };
+
+  const getOutcomeSharesText = (pot: number | undefined, ratio: number, totalPool: number) => {
+    const base = pot && pot > 0 ? pot : (totalPool > 0 ? Math.round(totalPool * ratio) : Math.round(250000 * ratio));
+    const shares = Math.max(10, Math.round(base / 1000));
+    const amountStr = base >= 1000000 ? `₦${(base / 1000000).toFixed(1)}M` : `₦${Math.round(base / 1000)}k`;
+    return `${shares.toLocaleString()} Shares (${amountStr})`;
+  };
+
+  const handleTradeOutcome = (
+    match: any,
+    marketName: string,
+    outcome: 'Yes' | 'No',
+    oddsVal: number
+  ) => {
+    router.push({
+      pathname: '/enter-amount',
+      params: {
+        matchId: match._id,
+        matchTitle: `${match.homeTeam} vs ${match.awayTeam}`,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        marketName,
+        outcome,
+        odds: oddsVal,
+        startTime: match?.startTime
+          ? new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : 'Upcoming',
+      },
+    });
+  };
+
   return (
     <LinearGradient
       colors={[Colors.dark.backgroundGradStart, Colors.dark.backgroundGradEnd]}
@@ -427,6 +469,16 @@ export default function MarketScreen() {
                 const isLive = match.status === 'LIVE';
                 const isSuspended = match.status === 'SUSPENDED';
 
+                const homeOdds = formatOdds(match.odds?.home, 1.85);
+                const drawOdds = formatOdds(match.odds?.draw, 3.10);
+                const awayOdds = formatOdds(match.odds?.away, 2.40);
+
+                const noHomeOdds = calcNoOdds(homeOdds, 2.10);
+                const noDrawOdds = calcNoOdds(drawOdds, 1.35);
+                const noAwayOdds = calcNoOdds(awayOdds, 1.65);
+
+                const totalMatchPool = match.poolAmount || match.pool?.totalPot || 250000;
+
                 return (
                   <TouchableOpacity
                     key={match._id}
@@ -465,6 +517,35 @@ export default function MarketScreen() {
                       </View>
                     </View>
 
+                    {/* Match Fixture Title / Preview */}
+                    <View style={styles.matchFixtureBanner}>
+                      <View style={styles.matchTeamHeaderWrap}>
+                        <View style={styles.teamMiniBadge}>
+                          <Text style={styles.teamMiniBadgeText}>
+                            {(match.homeTeam || 'H').slice(0, 2).toUpperCase()}
+                          </Text>
+                        </View>
+                        <Text style={styles.matchFixtureTeamName} numberOfLines={1}>
+                          {match.homeTeam}
+                        </Text>
+                      </View>
+
+                      <View style={styles.matchVsTag}>
+                        <Text style={styles.matchVsTagText}>VS</Text>
+                      </View>
+
+                      <View style={[styles.matchTeamHeaderWrap, { justifyContent: 'flex-end' }]}>
+                        <Text style={[styles.matchFixtureTeamName, { textAlign: 'right' }]} numberOfLines={1}>
+                          {match.awayTeam}
+                        </Text>
+                        <View style={styles.teamMiniBadge}>
+                          <Text style={styles.teamMiniBadgeText}>
+                            {(match.awayTeam || 'A').slice(0, 2).toUpperCase()}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
                     {/* Card Title & Shares Rate Pill */}
                     <View style={styles.cardInnerHeader}>
                       <View style={styles.cardHeaderTitleWrap}>
@@ -478,7 +559,7 @@ export default function MarketScreen() {
                       </View>
                     </View>
                     <Text style={styles.cardHeaderSubtitle}>
-                      Individual binary contracts for each team and draw
+                      Individual binary contracts for each match outcome
                     </Text>
 
                     {isSuspended ? (
@@ -487,109 +568,103 @@ export default function MarketScreen() {
                         <Text style={styles.suspendedBannerText}>MARKET SUSPENDED</Text>
                       </View>
                     ) : (
-                      /* 3 Binary Outcome Rows */
+                      /* 3 Binary Outcome Rows (1X2 standard sequence: Home Win, Draw, Away Win) */
                       <View style={styles.binaryRowsContainer}>
-                        {/* Row 1: Home Team */}
+                        {/* Outcome 1: Home Team Win */}
                         <View style={styles.binaryOutcomeRow}>
                           <View style={styles.outcomeInfoCol}>
-                            <Text style={styles.outcomeTitle} numberOfLines={1}>{match.homeTeam}</Text>
+                            <Text style={styles.outcomeTitle} numberOfLines={1}>{match.homeTeam} Win</Text>
                             <Text style={styles.outcomeSubtitle}>{match.homeTeam} to Win</Text>
-                            <Text style={styles.outcomeSharesText}>18,400 Shares (₦18.4M)</Text>
+                            <Text style={styles.outcomeSharesText}>
+                              {getOutcomeSharesText(match.pool?.homePot, 0.35, totalMatchPool)}
+                            </Text>
                           </View>
                           <View style={styles.binaryActionBtns}>
                             <TouchableOpacity
                               style={styles.binaryBtnYes}
                               onPress={() =>
-                                router.push({
-                                  pathname: '/match-detail',
-                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
-                                })
+                                handleTradeOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)
                               }
+                              activeOpacity={0.8}
                             >
                               <Text style={styles.binaryBtnYesLabel}>YES</Text>
-                              <Text style={styles.binaryBtnSubTextYes}>1k / share</Text>
+                              <Text style={styles.binaryBtnSubTextYes}>{homeOdds.toFixed(2)}x</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={styles.binaryBtnNo}
                               onPress={() =>
-                                router.push({
-                                  pathname: '/match-detail',
-                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
-                                })
+                                handleTradeOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)
                               }
+                              activeOpacity={0.8}
                             >
                               <Text style={styles.binaryBtnNoLabel}>NO</Text>
-                              <Text style={styles.binaryBtnSubTextNo}>1k / share</Text>
+                              <Text style={styles.binaryBtnSubTextNo}>{noHomeOdds.toFixed(2)}x</Text>
                             </TouchableOpacity>
                           </View>
                         </View>
 
-                        {/* Row 2: Away Team */}
-                        <View style={styles.binaryOutcomeRow}>
-                          <View style={styles.outcomeInfoCol}>
-                            <Text style={styles.outcomeTitle} numberOfLines={1}>{match.awayTeam}</Text>
-                            <Text style={styles.outcomeSubtitle}>{match.awayTeam} to Win</Text>
-                            <Text style={styles.outcomeSharesText}>22,100 Shares (₦22.1M)</Text>
-                          </View>
-                          <View style={styles.binaryActionBtns}>
-                            <TouchableOpacity
-                              style={styles.binaryBtnYes}
-                              onPress={() =>
-                                router.push({
-                                  pathname: '/match-detail',
-                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
-                                })
-                              }
-                            >
-                              <Text style={styles.binaryBtnYesLabel}>YES</Text>
-                              <Text style={styles.binaryBtnSubTextYes}>1k / share</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.binaryBtnNo}
-                              onPress={() =>
-                                router.push({
-                                  pathname: '/match-detail',
-                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
-                                })
-                              }
-                            >
-                              <Text style={styles.binaryBtnNoLabel}>NO</Text>
-                              <Text style={styles.binaryBtnSubTextNo}>1k / share</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-
-                        {/* Row 3: Draw */}
+                        {/* Outcome 2: Draw */}
                         <View style={styles.binaryOutcomeRow}>
                           <View style={styles.outcomeInfoCol}>
                             <Text style={styles.outcomeTitle}>Draw</Text>
-                            <Text style={styles.outcomeSubtitle}>Draw outcome contract</Text>
-                            <Text style={styles.outcomeSharesText}>8,500 Shares (₦8.5M)</Text>
+                            <Text style={styles.outcomeSubtitle}>Match ends in a draw</Text>
+                            <Text style={styles.outcomeSharesText}>
+                              {getOutcomeSharesText(match.pool?.drawPot, 0.25, totalMatchPool)}
+                            </Text>
                           </View>
                           <View style={styles.binaryActionBtns}>
                             <TouchableOpacity
                               style={styles.binaryBtnYes}
                               onPress={() =>
-                                router.push({
-                                  pathname: '/match-detail',
-                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
-                                })
+                                handleTradeOutcome(match, 'Match Draw', 'Yes', drawOdds)
                               }
+                              activeOpacity={0.8}
                             >
                               <Text style={styles.binaryBtnYesLabel}>YES</Text>
-                              <Text style={styles.binaryBtnSubTextYes}>1k / share</Text>
+                              <Text style={styles.binaryBtnSubTextYes}>{drawOdds.toFixed(2)}x</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={styles.binaryBtnNo}
                               onPress={() =>
-                                router.push({
-                                  pathname: '/match-detail',
-                                  params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
-                                })
+                                handleTradeOutcome(match, 'Match Draw', 'No', noDrawOdds)
                               }
+                              activeOpacity={0.8}
                             >
                               <Text style={styles.binaryBtnNoLabel}>NO</Text>
-                              <Text style={styles.binaryBtnSubTextNo}>1k / share</Text>
+                              <Text style={styles.binaryBtnSubTextNo}>{noDrawOdds.toFixed(2)}x</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+
+                        {/* Outcome 3: Away Team Win */}
+                        <View style={styles.binaryOutcomeRow}>
+                          <View style={styles.outcomeInfoCol}>
+                            <Text style={styles.outcomeTitle} numberOfLines={1}>{match.awayTeam} Win</Text>
+                            <Text style={styles.outcomeSubtitle}>{match.awayTeam} to Win</Text>
+                            <Text style={styles.outcomeSharesText}>
+                              {getOutcomeSharesText(match.pool?.awayPot, 0.40, totalMatchPool)}
+                            </Text>
+                          </View>
+                          <View style={styles.binaryActionBtns}>
+                            <TouchableOpacity
+                              style={styles.binaryBtnYes}
+                              onPress={() =>
+                                handleTradeOutcome(match, `${match.awayTeam} to Win`, 'Yes', awayOdds)
+                              }
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.binaryBtnYesLabel}>YES</Text>
+                              <Text style={styles.binaryBtnSubTextYes}>{awayOdds.toFixed(2)}x</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.binaryBtnNo}
+                              onPress={() =>
+                                handleTradeOutcome(match, `${match.awayTeam} to Win`, 'No', noAwayOdds)
+                              }
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.binaryBtnNoLabel}>NO</Text>
+                              <Text style={styles.binaryBtnSubTextNo}>{noAwayOdds.toFixed(2)}x</Text>
                             </TouchableOpacity>
                           </View>
                         </View>
@@ -602,10 +677,18 @@ export default function MarketScreen() {
                         <View style={styles.greenPulseDot} />
                         <Text style={styles.footerBlindText}>100% Blind Matching • Winner gets 2x payout</Text>
                       </View>
-                      <View style={styles.tradeLinkWrap}>
+                      <TouchableOpacity
+                        style={styles.tradeLinkWrap}
+                        onPress={() =>
+                          router.push({
+                            pathname: '/match-detail',
+                            params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                          })
+                        }
+                      >
                         <Text style={styles.tradeLinkText}>Trade Contracts</Text>
                         <ArrowRight size={13} color="#00D285" style={{ marginLeft: 3 }} />
-                      </View>
+                      </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
                 );
@@ -1218,6 +1301,62 @@ const styles = StyleSheet.create({
   sportsLiveTime: {
     color: '#EF4444',
     fontWeight: '700',
+  },
+  matchFixtureBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  matchTeamHeaderWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  teamMiniBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  teamMiniBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  matchFixtureTeamName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  matchVsTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0, 210, 133, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.25)',
+    marginHorizontal: 8,
+  },
+  matchVsTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
   },
   competitorsRow: {
     flexDirection: 'row',
