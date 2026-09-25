@@ -1,13 +1,20 @@
 import axios from 'axios';
 
 const getBaseURL = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+  const envUrl = (import.meta.env.VITE_API_URL || '').trim();
+
+  // In production builds, never allow localhost even if a legacy .env file exists on the host
+  if (import.meta.env.PROD) {
+    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+      return envUrl.replace(/\/+$/, '');
+    }
+    return 'https://api.peeritrade.com/api';
   }
-  if (import.meta.env.DEV) {
-    return 'http://localhost:5000/api';
+
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, '');
   }
-  return 'https://api.peeritrade.com/api';
+  return 'http://localhost:5000/api';
 };
 
 const api = axios.create({
