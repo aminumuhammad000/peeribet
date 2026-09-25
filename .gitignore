@@ -5,7 +5,8 @@ node_modules/
 
 # Expo
 .expo/
-dist/
+app/dist/
+!admin/dist/
 web-build/
 expo-env.d.ts
 
@@ -35,6 +36,7 @@ yarn-error.*
 .env.*
 !.env.example
 !.env.production.example
+!admin/.env.production
 !.env*.local
 
 # typescript
