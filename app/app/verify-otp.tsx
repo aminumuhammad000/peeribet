@@ -97,7 +97,7 @@ export default function VerifyOtpScreen() {
 
     setLoading(true);
     try {
-      if (context === 'reset_password') {
+      if (context === 'reset_password' || !context) {
         // For password reset: first verify the code is valid
         await authService.verifyResetOtp({ email, otp: code });
         setLoading(false);
@@ -119,7 +119,7 @@ export default function VerifyOtpScreen() {
     if (isResending || timer > 0) return;
     setIsResending(true);
     try {
-      if (context === 'reset_password') {
+      if (context === 'reset_password' || !context) {
         const res = await authService.forgotPassword(email);
         showToast(res?.message || 'Password reset OTP resent to your email.', 'success');
       } else {
@@ -161,7 +161,9 @@ export default function VerifyOtpScreen() {
 
             {/* Main Header typography */}
             <View style={styles.headerContainer}>
-              <Text style={styles.title}>OTP Verification</Text>
+              <Text style={styles.title}>
+                {context === 'reset_password' || !context ? 'Password Reset Code' : 'OTP Verification'}
+              </Text>
               <Text style={styles.subtitle}>
                 We have sent a verification code to your email:{'\n'}
                 <Text style={styles.emailHighlight}>{email}</Text>
@@ -222,11 +224,7 @@ export default function VerifyOtpScreen() {
             {/* Recheck link */}
             <TouchableOpacity
               onPress={() => {
-                if (context === 'reset_password') {
-                  router.replace('/forgot-password');
-                } else {
-                  router.replace('/signup-step2');
-                }
+                router.replace('/forgot-password');
               }}
               activeOpacity={0.7}
               style={styles.recheckContainer}

@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { authService } from '../services/apiService';
+import { authService, showToast } from '../services/apiService';
 
 export default function SignUpStep3Screen() {
   const router = useRouter();
@@ -101,9 +101,10 @@ export default function SignUpStep3Screen() {
         password,
       });
       setLoading(false);
-      router.push({
-        pathname: '/verify-otp',
-        params: { email, phone },
+      showToast('Account created successfully!', 'success');
+      router.replace({
+        pathname: '/welcome-user',
+        params: { type: 'signup' },
       });
     } catch (error: any) {
       setLoading(false);

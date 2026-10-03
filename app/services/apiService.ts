@@ -157,6 +157,10 @@ export const getApiErrorMessage = (error: any, fallback = 'Something went wrong.
 export const authService = {
   register: async (userData: any) => {
     const response = await apiRequest(api.post('/auth/register', userData));
+    if (response.data.token) {
+      await AsyncStorage.setItem('userToken', response.data.token);
+      await AsyncStorage.setItem('userData', JSON.stringify(response.data));
+    }
     return response.data;
   },
   login: async (credentials: any) => {
@@ -304,8 +308,8 @@ export const walletService = {
     const response = await apiRequest(api.get('/wallet/virtual-account'));
     return response.data;
   },
-  provisionVirtualAccount: async (bvn: string) => {
-    const response = await apiRequest(api.post('/wallet/virtual-account', { bvn }));
+  provisionVirtualAccount: async () => {
+    const response = await apiRequest(api.post('/wallet/virtual-account'));
     return response.data;
   },
   getBanks: async () => {

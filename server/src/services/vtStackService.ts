@@ -31,7 +31,6 @@ export const createVirtualAccount = async (payload: {
   lastName: string;
   email: string;
   phone: string;
-  bvn: string;
   reference: string;
 }) => {
   try {

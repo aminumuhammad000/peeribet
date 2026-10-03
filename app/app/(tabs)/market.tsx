@@ -549,7 +549,7 @@ export default function MarketScreen() {
                     {/* Card Title & Shares Rate Pill */}
                     <View style={styles.cardInnerHeader}>
                       <View style={styles.cardHeaderTitleWrap}>
-                        <Text style={styles.cardMainTitle}>Match Contracts</Text>
+                        <Text style={styles.cardMainTitle}>Match Contracts (1X2)</Text>
                         <View style={styles.yesNoTagBadge}>
                           <Text style={styles.yesNoTagText}>YES / NO</Text>
                         </View>
@@ -558,9 +558,6 @@ export default function MarketScreen() {
                         <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
                       </View>
                     </View>
-                    <Text style={styles.cardHeaderSubtitle}>
-                      Individual binary contracts for each match outcome
-                    </Text>
 
                     {isSuspended ? (
                       <View style={styles.suspendedBanner}>
@@ -574,10 +571,6 @@ export default function MarketScreen() {
                         <View style={styles.binaryOutcomeRow}>
                           <View style={styles.outcomeInfoCol}>
                             <Text style={styles.outcomeTitle} numberOfLines={1}>{match.homeTeam} Win</Text>
-                            <Text style={styles.outcomeSubtitle}>{match.homeTeam} to Win</Text>
-                            <Text style={styles.outcomeSharesText}>
-                              {getOutcomeSharesText(match.pool?.homePot, 0.35, totalMatchPool)}
-                            </Text>
                           </View>
                           <View style={styles.binaryActionBtns}>
                             <TouchableOpacity
@@ -607,10 +600,6 @@ export default function MarketScreen() {
                         <View style={styles.binaryOutcomeRow}>
                           <View style={styles.outcomeInfoCol}>
                             <Text style={styles.outcomeTitle}>Draw</Text>
-                            <Text style={styles.outcomeSubtitle}>Match ends in a draw</Text>
-                            <Text style={styles.outcomeSharesText}>
-                              {getOutcomeSharesText(match.pool?.drawPot, 0.25, totalMatchPool)}
-                            </Text>
                           </View>
                           <View style={styles.binaryActionBtns}>
                             <TouchableOpacity
@@ -640,10 +629,6 @@ export default function MarketScreen() {
                         <View style={styles.binaryOutcomeRow}>
                           <View style={styles.outcomeInfoCol}>
                             <Text style={styles.outcomeTitle} numberOfLines={1}>{match.awayTeam} Win</Text>
-                            <Text style={styles.outcomeSubtitle}>{match.awayTeam} to Win</Text>
-                            <Text style={styles.outcomeSharesText}>
-                              {getOutcomeSharesText(match.pool?.awayPot, 0.40, totalMatchPool)}
-                            </Text>
                           </View>
                           <View style={styles.binaryActionBtns}>
                             <TouchableOpacity
@@ -673,9 +658,10 @@ export default function MarketScreen() {
 
                     {/* Card Footer */}
                     <View style={styles.binaryCardFooter}>
-                      <View style={styles.footerBlindInfo}>
-                        <View style={styles.greenPulseDot} />
-                        <Text style={styles.footerBlindText}>100% Blind Matching • Winner gets 2x payout</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 10, color: '#8FA2C7', fontFamily: 'Inter', fontWeight: '600' }}>
+                          ₦{(totalMatchPool).toLocaleString()} Pool
+                        </Text>
                       </View>
                       <TouchableOpacity
                         style={styles.tradeLinkWrap}
@@ -686,7 +672,7 @@ export default function MarketScreen() {
                           })
                         }
                       >
-                        <Text style={styles.tradeLinkText}>Trade Contracts</Text>
+                        <Text style={styles.tradeLinkText}>All Markets</Text>
                         <ArrowRight size={13} color="#00D285" style={{ marginLeft: 3 }} />
                       </TouchableOpacity>
                     </View>
@@ -1958,84 +1944,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     borderRadius: 12,
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   outcomeInfoCol: {
     flex: 1,
     marginRight: 10,
+    justifyContent: 'center',
   },
   outcomeTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: 'Inter',
   },
-  outcomeSubtitle: {
-    fontSize: 10,
-    color: '#94A3B8',
-    fontFamily: 'Inter',
-    marginTop: 1,
-  },
-  outcomeSharesText: {
-    fontSize: 9,
-    color: '#64748B',
-    fontFamily: 'Inter',
-    marginTop: 2,
-  },
   binaryActionBtns: {
     flexDirection: 'row',
-    gap: 6,
+    alignItems: 'center',
+    gap: 8,
   },
   binaryBtnYes: {
     backgroundColor: '#00D285',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    width: 76,
+    height: 40,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 74,
   },
   binaryBtnYesLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: '#0A1124',
     fontFamily: 'Inter',
+    lineHeight: 14,
   },
   binaryBtnSubTextYes: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '700',
     color: '#0A1124',
-    opacity: 0.8,
+    opacity: 0.85,
     marginTop: 1,
     fontFamily: 'Inter',
+    lineHeight: 12,
   },
   binaryBtnNo: {
     backgroundColor: '#1E293B',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    width: 76,
+    height: 40,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 74,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   binaryBtnNoLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: '#FFFFFF',
     fontFamily: 'Inter',
+    lineHeight: 14,
   },
   binaryBtnSubTextNo: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '600',
     color: '#94A3B8',
     marginTop: 1,
     fontFamily: 'Inter',
+    lineHeight: 12,
   },
   binaryCardFooter: {
     flexDirection: 'row',
@@ -2045,23 +2024,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  footerBlindInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  greenPulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#00D285',
-    marginRight: 6,
-  },
-  footerBlindText: {
-    fontSize: 10,
-    color: '#94A3B8',
-    fontWeight: '600',
-    fontFamily: 'Inter',
   },
   tradeLinkWrap: {
     flexDirection: 'row',

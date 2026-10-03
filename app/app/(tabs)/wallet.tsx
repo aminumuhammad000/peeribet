@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Wallet, Copy, ArrowUpRight, ArrowDownLeft, Check, X, ShieldCheck } from 'lucide-react-native';
+import { Wallet, Copy, ArrowUpRight, ArrowDownLeft, Check, ShieldCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
 import { authService, transactionService, walletService } from '../../services/apiService';
-import { CustomButton } from '../../components/CustomButton';
-import { CustomInput } from '../../components/CustomInput';
 
 export default function WalletScreen() {
   const router = useRouter();
@@ -24,11 +22,6 @@ export default function WalletScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [autoPrompted, setAutoPrompted] = useState(false);
-  
-  // Provisioning state
-  const [showBvnModal, setShowBvnModal] = useState(false);
-  const [bvn, setBvn] = useState('');
-  const [bvnError, setBvnError] = useState('');
   const [provisioning, setProvisioning] = useState(false);
 
   const fetchData = async (pageNum = 1) => {
@@ -79,11 +72,11 @@ export default function WalletScreen() {
   const hasVirtualAccount = Boolean(virtualAccount?.accountNumber);
 
   useEffect(() => {
-    if (hasLoaded && user && !hasVirtualAccount && !autoPrompted) {
-      setShowBvnModal(true);
+    if (hasLoaded && user && !hasVirtualAccount && !autoPrompted && !provisioning) {
       setAutoPrompted(true);
+      handleProvision(true);
     }
-  }, [hasLoaded, user, hasVirtualAccount, autoPrompted]);
+  }, [hasLoaded, user, hasVirtualAccount, autoPrompted, provisioning]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -97,25 +90,21 @@ export default function WalletScreen() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleProvision = async () => {
-    if (!bvn || bvn.length !== 11) {
-      setBvnError('Please enter a valid 11-digit BVN');
-      return;
-    }
-
+  const handleProvision = async (isSilent = false) => {
     setProvisioning(true);
-    setBvnError('');
     try {
-      const res = await walletService.provisionVirtualAccount(bvn);
+      const res = await walletService.provisionVirtualAccount();
       const accountData = res?.data ?? res;
       setVirtualAccount(accountData);
-      setShowBvnModal(false);
-      setBvn('');
-      Alert.alert('Success', 'Your virtual account has been created successfully!');
+      if (!isSilent) {
+        Alert.alert('Success', 'Your virtual account has been generated successfully!');
+      }
       fetchData(1); // Refresh all data
     } catch (error: any) {
       const msg = error.response?.data?.message || 'Failed to create virtual account';
-      setBvnError(msg);
+      if (!isSilent) {
+        Alert.alert('Error', msg);
+      }
     } finally {
       setProvisioning(false);
     }
@@ -149,12 +138,15 @@ export default function WalletScreen() {
       {/* Action Row */}
       <View style={styles.actionsRow}>
         <TouchableOpacity
-          onPress={() => !hasVirtualAccount ? setShowBvnModal(true) : {}}
+          onPress={() => !hasVirtualAccount ? handleProvision() : {}}
           activeOpacity={0.8}
+          disabled={provisioning}
           style={[styles.actionButton, { marginRight: 12 }]}
         >
           <ArrowDownLeft size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-          <Text style={styles.actionButtonText}>Quick Deposit</Text>
+          <Text style={styles.actionButtonText}>
+            {provisioning && !hasVirtualAccount ? 'Generating...' : 'Quick Deposit'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -209,8 +201,9 @@ export default function WalletScreen() {
         </View>
       ) : (
         <TouchableOpacity 
-          onPress={() => setShowBvnModal(true)}
+          onPress={() => handleProvision()}
           activeOpacity={0.9} 
+          disabled={provisioning}
           style={styles.noAccountCard}
         >
           <View style={styles.noAccountIcon}>
@@ -219,7 +212,11 @@ export default function WalletScreen() {
           <Text style={styles.noAccountTitle}>Generate Virtual Account</Text>
           <Text style={styles.noAccountSub}>Securely fund your wallet by generating a dedicated bank account for your trades.</Text>
           <View style={styles.generateBtnInline}>
-             <Text style={styles.generateBtnText}>Get Started</Text>
+            {provisioning ? (
+              <ActivityIndicator size="small" color="#0A1124" />
+            ) : (
+              <Text style={styles.generateBtnText}>Get Started</Text>
+            )}
           </View>
         </TouchableOpacity>
       )}
@@ -283,50 +280,6 @@ export default function WalletScreen() {
             </View>
           )}
         />
-
-        {/* BVN Modal */}
-        <Modal
-          visible={showBvnModal}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowBvnModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Identification</Text>
-                <TouchableOpacity onPress={() => setShowBvnModal(false)}>
-                  <X size={20} color="#94A3B8" />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.modalSub}>Enter your 11-digit Bank Verification Number (BVN) to create your virtual funding account.</Text>
-              
-              <View style={styles.secureNotice}>
-                <ShieldCheck size={16} color="#00D285" />
-                <Text style={styles.secureText}>Standard identity verification secured by VTStack</Text>
-              </View>
-
-              <CustomInput
-                label="BVN Number"
-                placeholder="22XXXXXXXXX"
-                value={bvn}
-                onChangeText={(text) => setBvn(text.replace(/[^0-9]/g, ''))}
-                keyboardType="numeric"
-                maxLength={11}
-                error={bvnError}
-              />
-
-              <CustomButton
-                title="Generate Account"
-                variant="primary"
-                onPress={handleProvision}
-                loading={provisioning}
-                style={{ marginTop: 20 }}
-              />
-            </View>
-          </View>
-        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -600,54 +553,6 @@ const styles = StyleSheet.create({
   emptyStateText: {
     color: '#64748B',
     fontSize: 13,
-    fontFamily: 'Inter',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#0A1124',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    borderTopWidth: 1,
-    borderTopColor: '#1E293B',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    fontFamily: 'Inter',
-  },
-  modalSub: {
-    fontSize: 14,
-    color: '#94A3B8',
-    lineHeight: 22,
-    fontFamily: 'Inter',
-    marginBottom: 20,
-  },
-  secureNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 210, 133, 0.05)',
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 24,
-  },
-  secureText: {
-    fontSize: 11,
-    color: '#00D285',
-    fontWeight: '600',
-    marginLeft: 8,
     fontFamily: 'Inter',
   },
 });

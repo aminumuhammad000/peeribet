@@ -24,23 +24,39 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'User already exists with this email or phone' });
     }
 
-    const otp = generateOtp();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-
-    const user = await User.create({ firstName, lastName, email: cleanEmail, phone: cleanPhone, password, otp, otpExpires });
+    const user = await User.create({
+      firstName,
+      lastName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      password,
+      isVerified: true,
+    });
 
     if (user) {
-      sendOtpEmail(cleanEmail, firstName, otp).catch((err) =>
-        console.error('[Email] Failed to send registration OTP email:', err.message)
+      const token = generateToken((user._id as any).toString());
+
+      sendWelcomeEmail(cleanEmail, firstName).catch((err) =>
+        console.error('[Email] Failed to send welcome email:', err.message)
       );
+
+      createNotification(
+        (user._id as any).toString(),
+        'Welcome to Peeritrade! 🎉',
+        'Your account has been created. Start exploring live markets, fund your wallet, or create outcome orders.',
+        'system'
+      ).catch(() => {});
 
       res.status(201).json({
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
+        username: user.username,
         email: user.email,
         phone: user.phone,
-        message: 'Account created! Please check your email for verification OTP.',
+        role: user.role,
+        token,
+        message: 'Account created successfully!',
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
@@ -80,21 +96,10 @@ export const login = async (req: Request, res: Response) => {
     }
 
     if (!user.isVerified) {
-      // Re-issue OTP if unverified
-      const otp = generateOtp();
-      user.otp = otp;
-      user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+      user.isVerified = true;
+      user.otp = undefined;
+      user.otpExpires = undefined;
       await user.save();
-
-      sendOtpEmail(user.email, user.firstName, otp).catch((err) =>
-        console.error('[Email] Failed to send login verification OTP email:', err.message)
-      );
-
-      return res.status(403).json({
-        message: 'Account not verified. A new OTP has been sent to your email.',
-        unverified: true,
-        email: user.email,
-      });
     }
 
     res.json({
