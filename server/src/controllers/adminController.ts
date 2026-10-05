@@ -7,6 +7,7 @@ import Bet from '../models/Bet';
 import SystemSetting from '../models/SystemSetting';
 import SecurityLog from '../models/SecurityLog';
 import VaultBalance from '../models/VaultBalance';
+import AirdropLog from '../models/AirdropLog';
 import P2POrder from '../models/P2POrder';
 import PoolContract from '../models/PoolContract';
 import bcrypt from 'bcryptjs';
@@ -978,14 +979,20 @@ export const getVaultBalances = async (req: Request, res: Response) => {
     if (!vault) {
       // Create with 0 defaults if no vault record exists yet
       vault = await VaultBalance.create({
-          custodyPool: 0,
-          escrowLocked: liveEscrowLocked,
-          coldReserve: 0,
-          payoutBank: 0
+        custodyPool: 0,
+        escrowLocked: liveEscrowLocked,
+        coldReserve: 0,
+        payoutBank: 0,
+        promoReserve: 0,
+        totalPromoDeposited: 0,
+        totalPromoDisbursed: 0,
       });
     } else {
       // Sync escrowLocked with live trade data
       vault.escrowLocked = liveEscrowLocked;
+      if (vault.promoReserve === undefined) vault.promoReserve = 0;
+      if (vault.totalPromoDeposited === undefined) vault.totalPromoDeposited = 0;
+      if (vault.totalPromoDisbursed === undefined) vault.totalPromoDisbursed = 0;
       await vault.save();
     }
 
@@ -997,17 +1004,198 @@ export const getVaultBalances = async (req: Request, res: Response) => {
 
 export const updateVaultBalances = async (req: Request, res: Response) => {
   try {
-    const { custodyPool, escrowLocked, coldReserve, payoutBank } = req.body;
+    const { custodyPool, escrowLocked, coldReserve, payoutBank, promoReserve, totalPromoDeposited, totalPromoDisbursed } = req.body;
     let vault = await VaultBalance.findOne();
     if (!vault) {
       vault = new VaultBalance();
     }
-    vault.custodyPool = custodyPool;
-    vault.escrowLocked = escrowLocked;
-    vault.coldReserve = coldReserve;
-    vault.payoutBank = payoutBank;
+    if (custodyPool !== undefined) vault.custodyPool = custodyPool;
+    if (escrowLocked !== undefined) vault.escrowLocked = escrowLocked;
+    if (coldReserve !== undefined) vault.coldReserve = coldReserve;
+    if (payoutBank !== undefined) vault.payoutBank = payoutBank;
+    if (promoReserve !== undefined) vault.promoReserve = promoReserve;
+    if (totalPromoDeposited !== undefined) vault.totalPromoDeposited = totalPromoDeposited;
+    if (totalPromoDisbursed !== undefined) vault.totalPromoDisbursed = totalPromoDisbursed;
     await vault.save();
     res.json(vault);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const depositPromoVault = async (req: Request, res: Response) => {
+  try {
+    const { amount, note, reference } = req.body;
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ message: 'Invalid deposit amount. Must be a positive number.' });
+    }
+
+    let vault = await VaultBalance.findOne();
+    if (!vault) {
+      vault = await VaultBalance.create({
+        custodyPool: 0,
+        escrowLocked: 0,
+        coldReserve: 0,
+        payoutBank: 0,
+        promoReserve: 0,
+        totalPromoDeposited: 0,
+        totalPromoDisbursed: 0,
+      });
+    }
+
+    vault.promoReserve = (vault.promoReserve || 0) + numAmount;
+    vault.totalPromoDeposited = (vault.totalPromoDeposited || 0) + numAmount;
+    await vault.save();
+
+    res.json({
+      success: true,
+      message: `₦${numAmount.toLocaleString()} successfully deposited to Promotional Vault!`,
+      vault,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const executeAirdropBonus = async (req: Request, res: Response) => {
+  try {
+    const { campaignName, targetAudience, amountPerUser, count, note } = req.body;
+    const numAmount = Number(amountPerUser);
+
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ message: 'Invalid bonus amount per user. Must be a positive number.' });
+    }
+
+    // 1. Resolve eligible target users
+    let targetUsers: any[] = [];
+    if (targetAudience === 'random') {
+      const sampleSize = Math.max(1, Number(count) || 25);
+      targetUsers = await User.aggregate([
+        { $match: { role: 'user', isBanned: { $ne: true } } },
+        { $sample: { size: sampleSize } }
+      ]);
+    } else if (targetAudience === 'active_traders') {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const activeTraderUserIds = await Trade.find({ createdAt: { $gte: thirtyDaysAgo } }).distinct('user');
+      targetUsers = await User.find({ _id: { $in: activeTraderUserIds as any[] }, role: 'user', isBanned: { $ne: true } });
+    } else if (targetAudience === 'top_traders') {
+      const limitCount = Math.max(1, Number(count) || 25);
+      targetUsers = await User.find({ role: 'user', isBanned: { $ne: true } })
+        .sort({ balance: -1 })
+        .limit(limitCount);
+    } else {
+      // 'all_users'
+      targetUsers = await User.find({ role: 'user', isBanned: { $ne: true } });
+    }
+
+    if (!targetUsers || targetUsers.length === 0) {
+      return res.status(400).json({ message: 'No eligible users found for the selected audience criteria.' });
+    }
+
+    const totalRequired = targetUsers.length * numAmount;
+
+    // 2. Check Promotional Vault liquidity
+    let vault = await VaultBalance.findOne();
+    if (!vault) {
+      vault = await VaultBalance.create({
+        custodyPool: 0,
+        escrowLocked: 0,
+        coldReserve: 0,
+        payoutBank: 0,
+        promoReserve: 0,
+        totalPromoDeposited: 0,
+        totalPromoDisbursed: 0,
+      });
+    }
+
+    const currentPromoBalance = vault.promoReserve || 0;
+    if (currentPromoBalance < totalRequired) {
+      return res.status(400).json({
+        message: `Insufficient Promotional Vault balance. Required: ₦${totalRequired.toLocaleString()} (${targetUsers.length} users × ₦${numAmount.toLocaleString()}), but Vault only has ₦${currentPromoBalance.toLocaleString()}. Please deposit funds to the Promotional Vault first.`,
+        required: totalRequired,
+        available: currentPromoBalance,
+      });
+    }
+
+    // 3. Deduct from Promotional Vault
+    vault.promoReserve = currentPromoBalance - totalRequired;
+    vault.totalPromoDisbursed = (vault.totalPromoDisbursed || 0) + totalRequired;
+    await vault.save();
+
+    // 4. Distribute credits and notifications to all recipients
+    const recipientsList: any[] = [];
+    const campaignTitle = campaignName?.trim() || 'Community Trading Bonus';
+
+    for (const u of targetUsers) {
+      // Credit user wallet
+      await User.findByIdAndUpdate(u._id, { $inc: { balance: numAmount } });
+
+      // Transaction log
+      try {
+        await Transaction.create({
+          user: u._id,
+          type: 'airdrop_bonus',
+          amount: numAmount,
+          status: 'completed',
+          reference: `AIRDROP_${Date.now()}_${u._id.toString().slice(-4)}_${Math.floor(Math.random() * 1000)}`,
+          description: `Promotional Bonus: ${campaignTitle}`,
+        });
+      } catch (txnErr) {
+        console.warn('Error recording airdrop transaction for user:', u._id, txnErr);
+      }
+
+      // Notification
+      try {
+        await createNotification(
+          u._id.toString(),
+          '🎁 Surprise Bonus Received!',
+          `You received a ₦${numAmount.toLocaleString()} promotional bonus for "${campaignTitle}"! Your balance has been credited. Happy Trading!`,
+          'wallet'
+        );
+      } catch (notifErr) {
+        console.warn('Error creating airdrop notification for user:', u._id, notifErr);
+      }
+
+      recipientsList.push({
+        userId: u._id,
+        email: u.email || '',
+        name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'User',
+        amount: numAmount,
+      });
+    }
+
+    // 5. Create Airdrop History Log
+    const airdropLog = await AirdropLog.create({
+      campaignName: campaignTitle,
+      targetAudience: targetAudience || 'random',
+      amountPerUser: numAmount,
+      recipientCount: targetUsers.length,
+      totalDistributed: totalRequired,
+      note: note || '',
+      recipients: recipientsList.slice(0, 100),
+      executedBy: (req as any).user?.email || 'Admin',
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully distributed ₦${totalRequired.toLocaleString()} across ${targetUsers.length} users!`,
+      airdropLog,
+      vault: {
+        promoReserve: vault.promoReserve,
+        totalPromoDeposited: vault.totalPromoDeposited,
+        totalPromoDisbursed: vault.totalPromoDisbursed,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getAirdropHistory = async (req: Request, res: Response) => {
+  try {
+    const logs = await AirdropLog.find().sort({ createdAt: -1 }).limit(50);
+    res.json(logs);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

@@ -24,6 +24,9 @@ import {
   updateTransactionStatus,
   getVaultBalances,
   updateVaultBalances,
+  depositPromoVault,
+  executeAirdropBonus,
+  getAirdropHistory,
   creditUser,
   getUserById,
   getPendingKyc,
@@ -75,6 +78,9 @@ router.post('/trades/status', updateTradeStatus);
 
 router.get('/vaults', getVaultBalances);
 router.post('/vaults', updateVaultBalances);
+router.post('/vaults/deposit-promo', depositPromoVault);
+router.post('/bonuses/airdrop', executeAirdropBonus);
+router.get('/bonuses/airdrop/history', getAirdropHistory);
 
 router.post('/change-password', changeAdminPassword);
 router.post('/profile', updateAdminProfile);

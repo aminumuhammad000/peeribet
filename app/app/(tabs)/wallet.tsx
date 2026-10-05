@@ -261,24 +261,31 @@ export default function WalletScreen() {
               </View>
             ) : null
           }
-          renderItem={({ item: tx }) => (
-            <View style={styles.txCard}>
-              <View style={[styles.txIconBox, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txIconBoxCredit : styles.txIconBoxDebit]}>
-                {tx.type === 'deposit' || tx.type === 'bet_won' ? (
-                  <ArrowDownLeft size={16} color={Colors.dark.primary} />
-                ) : (
-                  <ArrowUpRight size={16} color={Colors.dark.red} />
-                )}
+          renderItem={({ item: tx }) => {
+            const isCredit = ['deposit', 'bet_won', 'airdrop_bonus', 'promo_reward', 'referral_bonus', 'p2p_trade_won', 'pool_jackpot_won', 'bridge_pool_won', 'refund', 'p2p_unmatched_refund'].includes(tx.type);
+            const isAirdrop = tx.type === 'airdrop_bonus' || tx.type === 'promo_reward';
+            const isReferral = tx.type === 'referral_bonus';
+            return (
+              <View style={styles.txCard}>
+                <View style={[styles.txIconBox, isCredit ? styles.txIconBoxCredit : styles.txIconBoxDebit]}>
+                  {isCredit ? (
+                    <ArrowDownLeft size={16} color={Colors.dark.primary} />
+                  ) : (
+                    <ArrowUpRight size={16} color={Colors.dark.red} />
+                  )}
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.txType}>
+                    {isAirdrop ? 'AIRDROP BONUS 🎁' : isReferral ? 'REFERRAL BONUS 👥' : tx.type.replace(/_/g, ' ').toUpperCase()}
+                  </Text>
+                  <Text style={styles.txMeta}>{tx.description || `${tx.status} • ${new Date(tx.createdAt).toLocaleDateString()}`}</Text>
+                </View>
+                <Text style={[styles.txAmount, isCredit ? styles.txAmountCredit : styles.txAmountDebit]}>
+                  {isCredit ? '+' : '-'}₦{tx.amount.toLocaleString()}
+                </Text>
               </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.txType}>{tx.type.replace('_', ' ').toUpperCase()}</Text>
-                <Text style={styles.txMeta}>{tx.status} • {new Date(tx.createdAt).toLocaleDateString()}</Text>
-              </View>
-              <Text style={[styles.txAmount, tx.type === 'deposit' || tx.type === 'bet_won' ? styles.txAmountCredit : styles.txAmountDebit]}>
-                {tx.type === 'deposit' || tx.type === 'bet_won' ? '+' : '-'}₦{tx.amount.toLocaleString()}
-              </Text>
-            </View>
-          )}
+            );
+          }}
         />
       </SafeAreaView>
     </LinearGradient>

@@ -43,7 +43,10 @@ import {
   Gift,
   Share2,
   UserPlus,
-  Award
+  Award,
+  Sparkles,
+  Send,
+  History
 } from 'lucide-react';
 import logo from './assets/logo.png';
 
@@ -244,11 +247,29 @@ export default function App() {
     custodyPool: 0,
     escrowLocked: 0,
     coldReserve: 0,
-    payoutBank: 0
+    payoutBank: 0,
+    promoReserve: 0,
+    totalPromoDeposited: 0,
+    totalPromoDisbursed: 0
   });
   const [transferSource, setTransferSource] = useState('payoutBank');
-  const [transferDest, setTransferDest] = useState('coldReserve');
+  const [transferDest, setTransferDest] = useState('promoReserve');
   const [transferAmount, setTransferAmount] = useState('');
+
+  // Promo Vault Deposit & Airdrop states
+  const [promoDepositAmount, setPromoDepositAmount] = useState('');
+  const [promoDepositNote, setPromoDepositNote] = useState('');
+  const [isDepositingPromo, setIsDepositingPromo] = useState(false);
+  const [showPromoDepositModal, setShowPromoDepositModal] = useState(false);
+
+  // Airdrop Bonus Launcher state
+  const [airdropCampaign, setAirdropCampaign] = useState('');
+  const [airdropAudience, setAirdropAudience] = useState('random');
+  const [airdropCount, setAirdropCount] = useState('25');
+  const [airdropAmount, setAirdropAmount] = useState('1000');
+  const [airdropNote, setAirdropNote] = useState('');
+  const [isLaunchingAirdrop, setIsLaunchingAirdrop] = useState(false);
+  const [airdropHistory, setAirdropHistory] = useState([]);
 
   // Security credentials form state
   const [oldPassword, setOldPassword] = useState('');
@@ -343,6 +364,7 @@ export default function App() {
       fetchSecurityLogs();
       fetchVaults();
       fetchReferralStats();
+      fetchAirdropHistory();
     }
   }, [isLoggedIn]);
 
@@ -549,13 +571,25 @@ export default function App() {
     try {
       const { data } = await api.get('/admin/vaults');
       setVaultBalances({
-        custodyPool: data.custodyPool,
-        escrowLocked: data.escrowLocked,
-        coldReserve: data.coldReserve,
-        payoutBank: data.payoutBank
+        custodyPool: data.custodyPool || 0,
+        escrowLocked: data.escrowLocked || 0,
+        coldReserve: data.coldReserve || 0,
+        payoutBank: data.payoutBank || 0,
+        promoReserve: data.promoReserve || 0,
+        totalPromoDeposited: data.totalPromoDeposited || 0,
+        totalPromoDisbursed: data.totalPromoDisbursed || 0
       });
     } catch (error) {
       console.error('Error fetching vaults:', error);
+    }
+  };
+
+  const fetchAirdropHistory = async () => {
+    try {
+      const { data } = await api.get('/admin/bonuses/airdrop/history');
+      setAirdropHistory(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching airdrop history:', error);
     }
   };
 
@@ -1194,6 +1228,64 @@ export default function App() {
       logSecurityEvent('success', `Internal vault reserve clearing: ₦${amountVal.toLocaleString()} moved from ${transferSource} to ${transferDest}`, `Authorized by ${adminName}`, 'shield');
     } catch (error) {
       showToast('Vault transfer synchronization failed.', 'error');
+    }
+  };
+
+  // Deposit real marketing funds into Promo Vault
+  const handleDepositPromo = async (e) => {
+    if (e) e.preventDefault();
+    const amountVal = parseFloat(promoDepositAmount) || 0;
+    if (amountVal <= 0) {
+      showToast('Please enter a valid deposit amount.', 'error');
+      return;
+    }
+    setIsDepositingPromo(true);
+    try {
+      const res = await api.post('/admin/vaults/deposit-promo', {
+        amount: amountVal,
+        note: promoDepositNote || 'Promotional marketing liquidity top-up'
+      });
+      setPromoDepositAmount('');
+      setPromoDepositNote('');
+      setShowPromoDepositModal(false);
+      await fetchVaults();
+      showToast(`Successfully deposited ₦${amountVal.toLocaleString()} to Promo Vault!`, 'success');
+      logSecurityEvent('success', `Promo Vault Liquidity Inflow: +₦${amountVal.toLocaleString()} deposited`, `Authorized by ${adminName}`, 'shield');
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Failed to deposit to Promo Vault.', 'error');
+    } finally {
+      setIsDepositingPromo(false);
+    }
+  };
+
+  // Dispatch community airdrop bonuses
+  const handleLaunchAirdrop = async (e) => {
+    if (e) e.preventDefault();
+    const amountVal = parseFloat(airdropAmount) || 0;
+    if (amountVal <= 0) {
+      showToast('Please enter a valid bonus amount per user.', 'error');
+      return;
+    }
+    const countVal = parseInt(airdropCount) || 25;
+
+    setIsLaunchingAirdrop(true);
+    try {
+      const res = await api.post('/admin/bonuses/airdrop', {
+        campaignName: airdropCampaign || 'Surprise Community Airdrop',
+        targetAudience: airdropAudience,
+        amountPerUser: amountVal,
+        count: countVal,
+        note: airdropNote
+      });
+      showToast(res.data?.message || 'Airdrop bonus executed successfully!', 'success');
+      setAirdropCampaign('');
+      setAirdropNote('');
+      await Promise.all([fetchVaults(), fetchAirdropHistory()]);
+      logSecurityEvent('success', `Airdrop Executed: ${res.data?.airdropLog?.campaignName} disbursed ₦${(res.data?.airdropLog?.totalDistributed || 0).toLocaleString()} to ${res.data?.airdropLog?.recipientCount} users`, `Authorized by ${adminName}`, 'shield');
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Airdrop failed.', 'error');
+    } finally {
+      setIsLaunchingAirdrop(false);
     }
   };
 
@@ -3709,7 +3801,7 @@ export default function App() {
             </div>
 
             {/* Vault Summary Cards */}
-            <div className="vault-cards-grid">
+            <div className="vault-cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
               <div className="vault-card">
                 <div className="vault-card-top">
                   <div className="vault-icon-box" style={{ background: 'rgba(0,210,133,0.1)', color: '#00D285' }}>
@@ -3718,7 +3810,7 @@ export default function App() {
                   <span className="vault-badge green">Active</span>
                 </div>
                 <span className="vault-label">Main Custody Pool</span>
-                <span className="vault-amount" style={{ color: '#00D285' }}>₦{vaultBalances.custodyPool.toLocaleString()}</span>
+                <span className="vault-amount" style={{ color: '#00D285' }}>₦{(vaultBalances.custodyPool || 0).toLocaleString()}</span>
                 <span className="vault-sublabel">Institutional Reserve Wallet</span>
               </div>
 
@@ -3730,7 +3822,7 @@ export default function App() {
                   <span className="vault-badge blue">{metrics.activeTrades} Trades</span>
                 </div>
                 <span className="vault-label">Active Escrow Locked</span>
-                <span className="vault-amount" style={{ color: '#3B82F6' }}>₦{vaultBalances.escrowLocked.toLocaleString()}</span>
+                <span className="vault-amount" style={{ color: '#3B82F6' }}>₦{(vaultBalances.escrowLocked || 0).toLocaleString()}</span>
                 <span className="vault-sublabel">Currently Locked in Trades</span>
               </div>
 
@@ -3742,7 +3834,7 @@ export default function App() {
                   <span className="vault-badge orange">Multi-Sig</span>
                 </div>
                 <span className="vault-label">Cold Vault Reserves</span>
-                <span className="vault-amount" style={{ color: '#F59E0B' }}>₦{vaultBalances.coldReserve.toLocaleString()}</span>
+                <span className="vault-amount" style={{ color: '#F59E0B' }}>₦{(vaultBalances.coldReserve || 0).toLocaleString()}</span>
                 <span className="vault-sublabel">Multi-Sig Hard Locked</span>
               </div>
 
@@ -3754,8 +3846,38 @@ export default function App() {
                   <span className="vault-badge purple">Live</span>
                 </div>
                 <span className="vault-label">Payout Bank Float</span>
-                <span className="vault-amount" style={{ color: 'var(--text-white)' }}>₦{vaultBalances.payoutBank.toLocaleString()}</span>
+                <span className="vault-amount" style={{ color: 'var(--text-white)' }}>₦{(vaultBalances.payoutBank || 0).toLocaleString()}</span>
                 <span className="vault-sublabel">Automated Releases Float</span>
+              </div>
+
+              {/* 5th Card: Promo & Airdrop Treasury Vault */}
+              <div className="vault-card" style={{ border: '1px solid rgba(236,72,153,0.3)', backgroundColor: 'rgba(236,72,153,0.03)' }}>
+                <div className="vault-card-top">
+                  <div className="vault-icon-box" style={{ background: 'rgba(236,72,153,0.15)', color: '#EC4899' }}>
+                    <Gift size={20} />
+                  </div>
+                  <button
+                    onClick={() => setShowPromoDepositModal(true)}
+                    style={{
+                      background: 'rgba(236,72,153,0.2)',
+                      border: '1px solid rgba(236,72,153,0.4)',
+                      color: '#EC4899',
+                      padding: '4px 10px',
+                      borderRadius: 12,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <Plus size={12} /> Top Up
+                  </button>
+                </div>
+                <span className="vault-label">Promo Treasury Vault</span>
+                <span className="vault-amount" style={{ color: '#EC4899' }}>₦{(vaultBalances.promoReserve || 0).toLocaleString()}</span>
+                <span className="vault-sublabel">Disbursed: ₦{(vaultBalances.totalPromoDisbursed || 0).toLocaleString()}</span>
               </div>
             </div>
 
@@ -3779,6 +3901,7 @@ export default function App() {
                     <option value="escrowLocked">Active Escrow</option>
                     <option value="coldReserve">Cold Vault</option>
                     <option value="payoutBank">Payout Float</option>
+                    <option value="promoReserve">Promo Treasury Vault</option>
                   </select>
                 </div>
                 <div className="vault-arrow-divider">
@@ -3787,6 +3910,7 @@ export default function App() {
                 <div className="vault-field-group">
                   <label className="vault-field-label">Destination Vault</label>
                   <select className="vault-select" value={transferDest} onChange={(e) => setTransferDest(e.target.value)}>
+                    <option value="promoReserve">Promo Treasury Vault</option>
                     <option value="custodyPool">Main Custody Pool</option>
                     <option value="escrowLocked">Active Escrow</option>
                     <option value="coldReserve">Cold Vault</option>
@@ -3807,6 +3931,198 @@ export default function App() {
                   <ArrowLeftRight size={14} />
                   Transfer
                 </button>
+              </div>
+            </section>
+
+            {/* Random Bonus & Airdrop Dispatcher */}
+            <section className="vault-transfer-card" style={{ border: '1px solid rgba(0,210,133,0.3)', backgroundColor: 'rgba(0,210,133,0.02)' }}>
+              <div className="table-filter-row" style={{ marginBottom: 16 }}>
+                <div>
+                  <h3 className="card-heading" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Sparkles size={18} color="#00D285" />
+                    Promotional Bonus &amp; Random Airdrop Launcher
+                  </h3>
+                  <p className="card-subheading">Reward random traders or user cohorts backed by the Promo Treasury Vault</p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(236,72,153,0.1)', border: '1px solid rgba(236,72,153,0.3)', padding: '6px 14px', borderRadius: 8 }}>
+                  <Gift size={14} color="#EC4899" />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#EC4899' }}>
+                    Available Vault: ₦{(vaultBalances.promoReserve || 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 16 }}>
+                <div className="vault-field-group">
+                  <label className="vault-field-label">Campaign Title</label>
+                  <input
+                    type="text"
+                    className="vault-input"
+                    placeholder="e.g. UCL Weekend Surge Bonus ⚽"
+                    value={airdropCampaign}
+                    onChange={(e) => setAirdropCampaign(e.target.value)}
+                  />
+                </div>
+
+                <div className="vault-field-group">
+                  <label className="vault-field-label">Target Audience</label>
+                  <select
+                    className="vault-select"
+                    value={airdropAudience}
+                    onChange={(e) => setAirdropAudience(e.target.value)}
+                  >
+                    <option value="random">🎲 Random Lucky Draw</option>
+                    <option value="active_traders">⚡ Active Traders (Past 30 Days)</option>
+                    <option value="top_traders">🏆 Top Tournament Traders</option>
+                    <option value="all_users">👥 All Registered Users</option>
+                  </select>
+                </div>
+
+                {(airdropAudience === 'random' || airdropAudience === 'top_traders') && (
+                  <div className="vault-field-group">
+                    <label className="vault-field-label">User Count</label>
+                    <input
+                      type="number"
+                      className="vault-input"
+                      placeholder="e.g. 25"
+                      value={airdropCount}
+                      onChange={(e) => setAirdropCount(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                <div className="vault-field-group">
+                  <label className="vault-field-label">Bonus Per User (₦)</label>
+                  <input
+                    type="number"
+                    className="vault-input"
+                    placeholder="1000"
+                    value={airdropAmount}
+                    onChange={(e) => setAirdropAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Live Cost & Liquidity Check Banner */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 18px',
+                backgroundColor: 'rgba(255,255,255,0.03)',
+                borderRadius: 8,
+                border: '1px solid #1e293b',
+                marginBottom: 16,
+                flexWrap: 'wrap',
+                gap: 12
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Est. Recipients</span>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#e2e8f0' }}>
+                      {airdropAudience === 'random' || airdropAudience === 'top_traders' ? (airdropCount || 0) : 'All Eligible'} Users
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Per User</span>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#00D285' }}>
+                      ₦{parseFloat(airdropAmount || 0).toLocaleString()}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Total Budget Required</span>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: ((airdropAudience === 'random' || airdropAudience === 'top_traders') ? (parseInt(airdropCount) || 0) * (parseFloat(airdropAmount) || 0) : (parseFloat(airdropAmount) || 0)) > (vaultBalances.promoReserve || 0) ? '#EF4444' : '#3B82F6' }}>
+                      ₦{((airdropAudience === 'random' || airdropAudience === 'top_traders') ? ((parseInt(airdropCount) || 0) * (parseFloat(airdropAmount) || 0)).toLocaleString() : 'Calculated on launch')}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  className="btn-primary"
+                  onClick={handleLaunchAirdrop}
+                  disabled={isLaunchingAirdrop || (vaultBalances.promoReserve || 0) <= 0}
+                  style={{
+                    backgroundColor: '#00D285',
+                    color: '#090d16',
+                    fontWeight: 800,
+                    padding: '12px 24px',
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    cursor: (vaultBalances.promoReserve || 0) <= 0 ? 'not-allowed' : 'pointer',
+                    opacity: isLaunchingAirdrop || (vaultBalances.promoReserve || 0) <= 0 ? 0.6 : 1
+                  }}
+                >
+                  <Send size={15} />
+                  {isLaunchingAirdrop ? 'Dispatching...' : 'Launch Airdrop 🚀'}
+                </button>
+              </div>
+            </section>
+
+            {/* Airdrop Distribution History */}
+            <section className="recent-trades-card" style={{ marginBottom: 24 }}>
+              <div className="table-filter-row">
+                <div>
+                  <h3 className="card-heading" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <History size={16} color="#3B82F6" />
+                    Airdrop Distribution History
+                  </h3>
+                  <p className="card-subheading">Audit trail of promotional rewards disbursed from the treasury</p>
+                </div>
+                <button className="export-btn" onClick={fetchAirdropHistory}>
+                  <RefreshCw size={14} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+              <div className="trades-table-container">
+                {airdropHistory.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 16px', color: '#64748b' }}>
+                    <Gift size={36} strokeWidth={1} style={{ marginBottom: 8, opacity: 0.5 }} />
+                    <p style={{ fontSize: 13 }}>No airdrop events yet. Launch your first random community bonus above!</p>
+                  </div>
+                ) : (
+                  <table className="trades-table">
+                    <thead>
+                      <tr>
+                        <th>Campaign</th>
+                        <th>Audience</th>
+                        <th>Per User</th>
+                        <th>Recipients</th>
+                        <th>Total Disbursed</th>
+                        <th>Executed By</th>
+                        <th style={{ textAlign: 'right' }}>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {airdropHistory.map((item, idx) => (
+                        <tr key={item._id || idx}>
+                          <td style={{ fontWeight: 600, color: 'var(--text-white)' }}>{item.campaignName}</td>
+                          <td>
+                            <span style={{
+                              padding: '3px 8px',
+                              borderRadius: 12,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              backgroundColor: item.targetAudience === 'random' ? 'rgba(0,210,133,0.1)' : 'rgba(59,130,246,0.1)',
+                              color: item.targetAudience === 'random' ? '#00D285' : '#3B82F6',
+                              textTransform: 'uppercase'
+                            }}>
+                              {item.targetAudience?.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td style={{ color: '#00D285', fontWeight: 700 }}>₦{(item.amountPerUser || 0).toLocaleString()}</td>
+                          <td style={{ fontWeight: 600 }}>{item.recipientCount} traders</td>
+                          <td style={{ color: '#EC4899', fontWeight: 800 }}>₦{(item.totalDistributed || 0).toLocaleString()}</td>
+                          <td style={{ color: '#94a3b8', fontSize: 12 }}>{item.executedBy || 'Admin'}</td>
+                          <td style={{ color: '#64748b', fontSize: 12, textAlign: 'right' }}>
+                            {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </section>
 
@@ -5185,6 +5501,145 @@ export default function App() {
                   }}
                 >
                   {isSubmittingCredit ? 'Crediting...' : 'Confirm & Credit Wallet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Promo Vault Top-Up Modal */}
+      {showPromoDepositModal && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(10, 15, 30, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: 20
+        }}>
+          <div style={{
+            backgroundColor: '#111827',
+            border: '1px solid #1e293b',
+            borderRadius: 12,
+            width: '100%',
+            maxWidth: 480,
+            padding: 24,
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
+            color: '#f8fafc'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 'bold', color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Gift size={20} color="#EC4899" />
+                Deposit to Promo Treasury Vault
+              </h3>
+              <button
+                onClick={() => setShowPromoDepositModal(false)}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ backgroundColor: 'rgba(236, 72, 153, 0.08)', border: '1px solid rgba(236, 72, 153, 0.25)', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>Current Promo Liquidity Reserve:</div>
+              <div style={{ fontSize: 20, color: '#EC4899', fontWeight: 800, marginTop: 4 }}>
+                ₦{(vaultBalances.promoReserve || 0).toLocaleString()}
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                All random bonuses, referral payouts, and airdrops are deducted from this pool.
+              </div>
+            </div>
+
+            <form onSubmit={handleDepositPromo}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#cbd5e1', marginBottom: 6 }}>
+                  Deposit Amount (₦)
+                </label>
+                <input
+                  type="number"
+                  min="1000"
+                  step="any"
+                  placeholder="e.g. 500000"
+                  value={promoDepositAmount}
+                  onChange={(e) => setPromoDepositAmount(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #334155',
+                    borderRadius: 6,
+                    padding: '10px 14px',
+                    color: '#ffffff',
+                    fontSize: 15,
+                    fontWeight: 'bold',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#cbd5e1', marginBottom: 6 }}>
+                  Reference / Campaign Note
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Marketing Liquidity Q4 Allocation"
+                  value={promoDepositNote}
+                  onChange={(e) => setPromoDepositNote(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #334155',
+                    borderRadius: 6,
+                    padding: '10px 14px',
+                    color: '#ffffff',
+                    fontSize: 14,
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPromoDepositModal(false)}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid #334155',
+                    color: '#94a3b8',
+                    borderRadius: 6,
+                    padding: '10px 16px',
+                    fontSize: 13,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDepositingPromo}
+                  style={{
+                    backgroundColor: '#EC4899',
+                    border: 'none',
+                    color: '#ffffff',
+                    borderRadius: 6,
+                    padding: '10px 20px',
+                    fontSize: 13,
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    opacity: isDepositingPromo ? 0.7 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  {isDepositingPromo ? 'Depositing...' : 'Confirm Deposit to Vault'}
                 </button>
               </div>
             </form>

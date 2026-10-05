@@ -7,6 +7,8 @@ export type TransactionType =
   | 'bet_won'
   | 'bet_lost'
   | 'referral_bonus'
+  | 'airdrop_bonus'
+  | 'promo_reward'
   | 'p2p_order_placed'
   | 'p2p_trade_won'
   | 'p2p_order_cancelled'
@@ -40,6 +42,8 @@ const transactionSchema: Schema = new Schema(
         'bet_won',
         'bet_lost',
         'referral_bonus',
+        'airdrop_bonus',
+        'promo_reward',
         'p2p_order_placed',
         'p2p_trade_won',
         'p2p_order_cancelled',
