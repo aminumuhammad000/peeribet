@@ -4144,47 +4144,54 @@ export default function App() {
             </div>
 
             {/* Stats Cards */}
-            <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 24 }}>
+            <section className="metrics-grid" style={{ marginBottom: 24 }}>
               <div className="metric-card">
-                <div className="metric-icon-box" style={{ backgroundColor: 'rgba(0, 210, 133, 0.15)' }}>
-                  <UserPlus size={20} color="#00D285" />
+                <div className="metric-top">
+                  <div className="metric-icon-box">
+                    <UserPlus size={16} color="#00D285" />
+                  </div>
+                  <span className="metric-change-badge positive">All Time</span>
                 </div>
-                <div className="metric-info">
-                  <span className="metric-label">Total Referrals</span>
-                  <span className="metric-value">{(referralStats.totalReferrals || 0).toLocaleString()}</span>
-                </div>
+                <span className="metric-label">Total Referrals</span>
+                <span className="metric-value">{(referralStats.totalReferrals || 0).toLocaleString()}</span>
               </div>
+
               <div className="metric-card">
-                <div className="metric-icon-box" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}>
-                  <Award size={20} color="#3B82F6" />
+                <div className="metric-top">
+                  <div className="metric-icon-box">
+                    <Award size={16} color="#3B82F6" />
+                  </div>
+                  <span className="metric-change-badge positive">Rewarded</span>
                 </div>
-                <div className="metric-info">
-                  <span className="metric-label">Total Bonus Paid</span>
-                  <span className="metric-value">₦{(referralStats.totalBonusPaid || 0).toLocaleString()}</span>
-                </div>
+                <span className="metric-label">Total Bonus Paid</span>
+                <span className="metric-value">₦{(referralStats.totalBonusPaid || 0).toLocaleString()}</span>
               </div>
+
               <div className="metric-card">
-                <div className="metric-icon-box" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)' }}>
-                  <Share2 size={20} color="#F59E0B" />
+                <div className="metric-top">
+                  <div className="metric-icon-box">
+                    <Share2 size={16} color="#F59E0B" />
+                  </div>
+                  <span className="metric-change-badge positive">Active</span>
                 </div>
-                <div className="metric-info">
-                  <span className="metric-label">Active Referrers</span>
-                  <span className="metric-value">{(referralStats.activeReferrers || 0).toLocaleString()}</span>
-                </div>
+                <span className="metric-label">Active Referrers</span>
+                <span className="metric-value">{(referralStats.activeReferrers || 0).toLocaleString()}</span>
               </div>
+
               <div className="metric-card">
-                <div className="metric-icon-box" style={{ backgroundColor: 'rgba(139, 92, 246, 0.15)' }}>
-                  <Gift size={20} color="#8B5CF6" />
+                <div className="metric-top">
+                  <div className="metric-icon-box">
+                    <Gift size={16} color="#8B5CF6" />
+                  </div>
+                  <span className="metric-change-badge" style={{ color: '#8B5CF6' }}>In Queue</span>
                 </div>
-                <div className="metric-info">
-                  <span className="metric-label">Pending Referrals</span>
-                  <span className="metric-value">{(referralStats.pendingReferrals || 0).toLocaleString()}</span>
-                </div>
+                <span className="metric-label">Pending Referrals</span>
+                <span className="metric-value">{(referralStats.pendingReferrals || 0).toLocaleString()}</span>
               </div>
-            </div>
+            </section>
 
             {/* Settings & Tables Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 24 }}>
 
               {/* Configuration Card */}
               <div className="table-card" style={{ padding: 24 }}>
