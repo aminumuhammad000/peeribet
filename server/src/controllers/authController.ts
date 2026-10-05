@@ -1,8 +1,12 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
+import Referral from '../models/Referral';
+import SystemSetting from '../models/SystemSetting';
+import Transaction from '../models/Transaction';
 import { generateToken } from '../utils/generateToken';
 import { sendOtpEmail, sendWelcomeEmail, sendPasswordResetEmail } from '../services/emailService';
 import { createNotification } from '../services/notificationService';
+import { generateUniqueReferralCode } from './referralController';
 
 // ─── Helper: generate OTP ────────────────────────────────────────────────────
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -11,9 +15,10 @@ const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
 // @route  POST /api/auth/register
 export const register = async (req: Request, res: Response) => {
   try {
-    const { firstName, lastName, email, phone, password } = req.body;
+    const { firstName, lastName, email, phone, password, referralCode } = req.body;
     const cleanEmail = email ? String(email).trim().toLowerCase() : '';
     const cleanPhone = phone ? String(phone).trim() : '';
+    const cleanReferralCode = referralCode ? String(referralCode).trim().toUpperCase() : '';
 
     if (!cleanEmail || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
@@ -21,8 +26,25 @@ export const register = async (req: Request, res: Response) => {
 
     const userExists = await User.findOne({ $or: [{ email: cleanEmail }, { phone: cleanPhone }] });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists with this email or phone' });
+      if (userExists.email === cleanEmail) {
+        return res.status(400).json({ message: 'Email is already registered' });
+      }
+      return res.status(400).json({ message: 'Phone number is already registered' });
     }
+
+    // Check optional referral code
+    let referrerUser: any = null;
+    if (cleanReferralCode) {
+      referrerUser = await User.findOne({ referralCode: cleanReferralCode });
+    }
+
+    // Fetch referral system settings
+    const settings = await SystemSetting.findOne();
+    const isReferralActive = settings?.referralEnabled ?? true;
+    const refereeBonus = (referrerUser && isReferralActive) ? (settings?.refereeBonus ?? 1000) : 0;
+    const referrerBonus = (referrerUser && isReferralActive) ? (settings?.referrerBonus ?? 1000) : 0;
+
+    const myReferralCode = await generateUniqueReferralCode(firstName);
 
     const user = await User.create({
       firstName,
@@ -31,10 +53,69 @@ export const register = async (req: Request, res: Response) => {
       phone: cleanPhone,
       password,
       isVerified: true,
+      referralCode: myReferralCode,
+      referredBy: referrerUser ? referrerUser._id : undefined,
+      balance: refereeBonus, // Credit welcome bonus immediately if registered with code
     });
 
     if (user) {
       const token = generateToken((user._id as any).toString());
+
+      // If registered with valid referral code, credit bonus and record transactions
+      if (referrerUser && isReferralActive && refereeBonus > 0) {
+        // Record transaction for new referee
+        await Transaction.create({
+          user: user._id,
+          type: 'referral_bonus',
+          amount: refereeBonus,
+          status: 'completed',
+          reference: `REF-WELCOME-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+          description: `Referral welcome bonus for joining with code ${cleanReferralCode}`,
+        });
+
+        // Record notification for new referee
+        createNotification(
+          (user._id as any).toString(),
+          'Welcome Bonus Credited! 🎁',
+          `You received ₦${refereeBonus.toLocaleString()} welcome bonus for signing up with referral code ${cleanReferralCode}!`,
+          'system'
+        ).catch(() => {});
+
+        // Credit referrer user
+        if (referrerBonus > 0) {
+          referrerUser.balance = (referrerUser.balance || 0) + referrerBonus;
+          referrerUser.referralEarnings = (referrerUser.referralEarnings || 0) + referrerBonus;
+          referrerUser.referralCount = (referrerUser.referralCount || 0) + 1;
+          await referrerUser.save();
+
+          await Transaction.create({
+            user: referrerUser._id,
+            type: 'referral_bonus',
+            amount: referrerBonus,
+            status: 'completed',
+            reference: `REF-BONUS-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            description: `Referral reward from friend ${firstName} ${lastName}`,
+          });
+
+          createNotification(
+            (referrerUser._id as any).toString(),
+            'Referral Reward Received! 🎁',
+            `Your friend ${firstName} joined Peeritrade using your referral code! ₦${referrerBonus.toLocaleString()} has been credited to your balance.`,
+            'system'
+          ).catch(() => {});
+        }
+
+        // Record Referral relationship
+        await Referral.create({
+          referrer: referrerUser._id,
+          referee: user._id,
+          referralCode: cleanReferralCode,
+          referrerBonus,
+          refereeBonus,
+          status: 'rewarded',
+          rewardedAt: new Date(),
+        });
+      }
 
       sendWelcomeEmail(cleanEmail, firstName).catch((err) =>
         console.error('[Email] Failed to send welcome email:', err.message)
@@ -55,6 +136,8 @@ export const register = async (req: Request, res: Response) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        balance: user.balance,
+        referralCode: user.referralCode,
         token,
         message: 'Account created successfully!',
       });

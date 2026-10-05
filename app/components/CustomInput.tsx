@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import { Eye, EyeOff } from 'lucide-react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ViewStyle, ActivityIndicator } from 'react-native';
+import { Eye, EyeOff, CheckCircle } from 'lucide-react-native';
 import { Colors } from '../constants/Colors';
 
 interface CustomInputProps {
@@ -8,9 +8,13 @@ interface CustomInputProps {
   placeholder: string;
   value: string;
   onChangeText: (text: string) => void;
+  onBlur?: () => void;
   secureTextEntry?: boolean;
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   error?: string;
+  success?: boolean;
+  successMessage?: string;
+  loading?: boolean;
   style?: ViewStyle;
   maxLength?: number;
   autoFocus?: boolean;
@@ -26,9 +30,13 @@ export const CustomInput: React.FC<CustomInputProps> = ({
   placeholder,
   value,
   onChangeText,
+  onBlur,
   secureTextEntry = false,
   keyboardType = 'default',
   error,
+  success = false,
+  successMessage,
+  loading = false,
   style,
   maxLength,
   autoFocus = false,
@@ -46,10 +54,16 @@ export const CustomInput: React.FC<CustomInputProps> = ({
       <Text style={styles.label}>{label}</Text>
 
       {/* Input wrapper with solid white background */}
-      <View style={[styles.inputWrapper, error ? styles.inputErrorBorder : null]}>
+      <View
+        style={[
+          styles.inputWrapper,
+          error ? styles.inputErrorBorder : success ? styles.inputSuccessBorder : null,
+        ]}
+      >
         <TextInput
           value={value}
           onChangeText={onChangeText}
+          onBlur={onBlur}
           placeholder={placeholder}
           placeholderTextColor="#94A3B8"
           secureTextEntry={secureTextEntry && !isPasswordVisible}
@@ -63,6 +77,20 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           autoFocus={autoFocus}
           style={styles.textInput}
         />
+
+        {/* Loading Spinner */}
+        {loading && (
+          <View style={styles.iconContainer}>
+            <ActivityIndicator size="small" color="#00D285" />
+          </View>
+        )}
+
+        {/* Success Icon */}
+        {!loading && success && !error && (
+          <View style={styles.iconContainer}>
+            <CheckCircle size={18} color="#00D285" />
+          </View>
+        )}
 
         {/* Eye/Eye-off switch for passwords */}
         {secureTextEntry && (
@@ -80,8 +108,12 @@ export const CustomInput: React.FC<CustomInputProps> = ({
         )}
       </View>
 
-      {/* Validation error display */}
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {/* Feedback message display */}
+      {error ? (
+        <Text style={styles.errorText}>{error}</Text>
+      ) : successMessage ? (
+        <Text style={styles.successText}>{successMessage}</Text>
+      ) : null}
     </View>
   );
 };
@@ -112,6 +144,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.red,
     borderWidth: 1.5,
   },
+  inputSuccessBorder: {
+    borderColor: '#00D285',
+    borderWidth: 1.5,
+  },
   textInput: {
     flex: 1,
     height: '100%',
@@ -127,6 +163,14 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: Colors.dark.red,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+    marginLeft: 4,
+    fontFamily: 'Inter',
+  },
+  successText: {
+    color: '#00D285',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 4,

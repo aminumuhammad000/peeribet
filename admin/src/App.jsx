@@ -39,7 +39,11 @@ import {
   Sun,
   Moon,
   Eye,
-  EyeOff
+  EyeOff,
+  Gift,
+  Share2,
+  UserPlus,
+  Award
 } from 'lucide-react';
 import logo from './assets/logo.png';
 
@@ -216,6 +220,15 @@ export default function App() {
   const [creditNoteInput, setCreditNoteInput] = useState('');
   const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
 
+  // Referral System State
+  const [referralStats, setReferralStats] = useState({ totalReferrals: 0, totalBonusPaid: 0, activeReferrers: 0, pendingReferrals: 0, recentReferrals: [], topReferrers: [] });
+  const [referralSettings, setReferralSettings] = useState({ referralEnabled: true, referrerBonus: 1000, refereeBonus: 1000, referralDescription: '' });
+  const [editReferralEnabled, setEditReferralEnabled] = useState(true);
+  const [editReferrerBonus, setEditReferrerBonus] = useState('1000');
+  const [editRefereeBonus, setEditRefereeBonus] = useState('1000');
+  const [editReferralDescription, setEditReferralDescription] = useState('');
+  const [isSavingReferral, setIsSavingReferral] = useState(false);
+
   // Payment Gateway Configuration State
   const [activeGateway, setActiveGateway] = useState('vtstack');
   const [paystackPublicKey, setPaystackPublicKey] = useState('');
@@ -329,6 +342,7 @@ export default function App() {
       fetchSettings();
       fetchSecurityLogs();
       fetchVaults();
+      fetchReferralStats();
     }
   }, [isLoggedIn]);
 
@@ -476,6 +490,41 @@ export default function App() {
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
+    }
+  };
+
+  const fetchReferralStats = async () => {
+    try {
+      const [statsRes, settingsRes] = await Promise.all([
+        api.get('/admin/referrals/stats'),
+        api.get('/admin/referrals/settings')
+      ]);
+      setReferralStats(statsRes.data);
+      setReferralSettings(settingsRes.data);
+      setEditReferralEnabled(settingsRes.data.referralEnabled ?? true);
+      setEditReferrerBonus(String(settingsRes.data.referrerBonus ?? 1000));
+      setEditRefereeBonus(String(settingsRes.data.refereeBonus ?? 1000));
+      setEditReferralDescription(settingsRes.data.referralDescription || '');
+    } catch (error) {
+      console.error('Error fetching referral data:', error);
+    }
+  };
+
+  const saveReferralSettings = async () => {
+    setIsSavingReferral(true);
+    try {
+      await api.post('/admin/referrals/settings', {
+        referralEnabled: editReferralEnabled,
+        referrerBonus: Number(editReferrerBonus),
+        refereeBonus: Number(editRefereeBonus),
+        referralDescription: editReferralDescription
+      });
+      await fetchReferralStats();
+      showToast('Referral settings saved successfully', 'success');
+    } catch (error) {
+      showToast('Failed to save referral settings', 'error');
+    } finally {
+      setIsSavingReferral(false);
     }
   };
 
@@ -1512,6 +1561,20 @@ export default function App() {
             >
               <ShieldCheck className="menu-icon" size={16} />
               <span>Security</span>
+            </button>
+          </li>
+          <li>
+            <button
+              onClick={() => {
+                setActiveTab('referrals');
+                setIsSidebarOpen(false);
+                fetchReferralStats();
+              }}
+              className={`menu-item-btn ${activeTab === 'referrals' ? 'active' : ''}`}
+              title="Referral Management"
+            >
+              <Gift className="menu-icon" size={16} />
+              <span>Referrals</span>
             </button>
           </li>
         </ul>
@@ -4063,6 +4126,208 @@ export default function App() {
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+          </main>
+        ) : activeTab === 'referrals' ? (
+          <main className="dashboard-container">
+            {/* Referral Management Header */}
+            <div className="section-header">
+              <div>
+                <h2 className="overview-title">Referral Program</h2>
+                <p className="overview-sub">Manage referral bonuses, track performance, and configure the referral system.</p>
+              </div>
+              <button className="export-btn" onClick={fetchReferralStats}>
+                <RefreshCw size={14} />
+                <span>Refresh</span>
+              </button>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="metrics-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 24 }}>
+              <div className="metric-card">
+                <div className="metric-icon-box" style={{ backgroundColor: 'rgba(0, 210, 133, 0.15)' }}>
+                  <UserPlus size={20} color="#00D285" />
+                </div>
+                <div className="metric-info">
+                  <span className="metric-label">Total Referrals</span>
+                  <span className="metric-value">{(referralStats.totalReferrals || 0).toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-icon-box" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}>
+                  <Award size={20} color="#3B82F6" />
+                </div>
+                <div className="metric-info">
+                  <span className="metric-label">Total Bonus Paid</span>
+                  <span className="metric-value">₦{(referralStats.totalBonusPaid || 0).toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-icon-box" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)' }}>
+                  <Share2 size={20} color="#F59E0B" />
+                </div>
+                <div className="metric-info">
+                  <span className="metric-label">Active Referrers</span>
+                  <span className="metric-value">{(referralStats.activeReferrers || 0).toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-icon-box" style={{ backgroundColor: 'rgba(139, 92, 246, 0.15)' }}>
+                  <Gift size={20} color="#8B5CF6" />
+                </div>
+                <div className="metric-info">
+                  <span className="metric-label">Pending Referrals</span>
+                  <span className="metric-value">{(referralStats.pendingReferrals || 0).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Settings & Tables Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+
+              {/* Configuration Card */}
+              <div className="table-card" style={{ padding: 24 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Settings size={16} color="#00D285" />
+                  Referral Configuration
+                </h3>
+
+                {/* Enable Toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid #1e293b' }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>Referral Program Status</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Enable or disable the entire referral system</div>
+                  </div>
+                  <button
+                    onClick={() => setEditReferralEnabled(!editReferralEnabled)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >
+                    <ToggleLeft size={36} color={editReferralEnabled ? '#00D285' : '#64748b'} style={{ transform: editReferralEnabled ? 'scaleX(-1)' : 'none' }} />
+                  </button>
+                </div>
+
+                {/* Referrer Bonus */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Referrer Bonus (₦)</label>
+                  <input
+                    type="number"
+                    value={editReferrerBonus}
+                    onChange={(e) => setEditReferrerBonus(e.target.value)}
+                    placeholder="1000"
+                    style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '10px 14px', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Amount credited to the user who shared their referral code</p>
+                </div>
+
+                {/* Referee Bonus */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Member Bonus (₦)</label>
+                  <input
+                    type="number"
+                    value={editRefereeBonus}
+                    onChange={(e) => setEditRefereeBonus(e.target.value)}
+                    placeholder="1000"
+                    style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '10px 14px', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Amount credited to the newly joined user who used a referral code</p>
+                </div>
+
+                {/* Description */}
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Program Description</label>
+                  <textarea
+                    value={editReferralDescription}
+                    onChange={(e) => setEditReferralDescription(e.target.value)}
+                    placeholder="Describe the referral program to users..."
+                    rows={3}
+                    style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '10px 14px', color: '#ffffff', fontSize: 14, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <button
+                  onClick={saveReferralSettings}
+                  disabled={isSavingReferral}
+                  style={{ backgroundColor: '#00D285', border: 'none', color: '#090d16', borderRadius: 8, padding: '12px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: isSavingReferral ? 0.7 : 1 }}
+                >
+                  <Save size={14} />
+                  {isSavingReferral ? 'Saving...' : 'Save Configuration'}
+                </button>
+              </div>
+
+              {/* Top Referrers Card */}
+              <div className="table-card" style={{ padding: 24 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Award size={16} color="#F59E0B" />
+                  Top Referrers
+                </h3>
+                {(referralStats.topReferrers || []).length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                    <UserPlus size={40} strokeWidth={1} style={{ marginBottom: 12, opacity: 0.5 }} />
+                    <p style={{ fontSize: 14 }}>No referral data yet.</p>
+                    <p style={{ fontSize: 12 }}>Users who refer friends will appear here.</p>
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                        <th style={{ textAlign: 'left', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>User</th>
+                        <th style={{ textAlign: 'center', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Referrals</th>
+                        <th style={{ textAlign: 'right', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Earned</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(referralStats.topReferrers || []).map((r, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid rgba(30,41,59,0.5)' }}>
+                          <td style={{ padding: '10px 12px', color: '#e2e8f0', fontWeight: 600 }}>{r.name || r.email}</td>
+                          <td style={{ padding: '10px 12px', color: '#00D285', fontWeight: 700, textAlign: 'center' }}>{r.referralCount}</td>
+                          <td style={{ padding: '10px 12px', color: '#F59E0B', fontWeight: 700, textAlign: 'right' }}>₦{(r.referralEarnings || 0).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Referral Activity */}
+            <div className="table-card" style={{ padding: 24 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Activity size={16} color="#3B82F6" />
+                Recent Referral Activity
+              </h3>
+              {(referralStats.recentReferrals || []).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                  <Gift size={40} strokeWidth={1} style={{ marginBottom: 12, opacity: 0.5 }} />
+                  <p style={{ fontSize: 14 }}>No referral activity yet.</p>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                      <th style={{ textAlign: 'left', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Referrer</th>
+                      <th style={{ textAlign: 'left', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>New Member</th>
+                      <th style={{ textAlign: 'center', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Bonus Paid</th>
+                      <th style={{ textAlign: 'center', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Status</th>
+                      <th style={{ textAlign: 'right', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(referralStats.recentReferrals || []).map((ref, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid rgba(30,41,59,0.5)' }}>
+                        <td style={{ padding: '10px 12px', color: '#e2e8f0' }}>{ref.referrerName || 'N/A'}</td>
+                        <td style={{ padding: '10px 12px', color: '#94a3b8' }}>{ref.refereeName || 'N/A'}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <span style={{ color: '#00D285', fontWeight: 700 }}>₦{((ref.referrerBonus || 0) + (ref.refereeBonus || 0)).toLocaleString()}</span>
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, backgroundColor: ref.status === 'completed' ? 'rgba(0,210,133,0.15)' : 'rgba(245,158,11,0.15)', color: ref.status === 'completed' ? '#00D285' : '#F59E0B', textTransform: 'uppercase' }}>{ref.status || 'pending'}</span>
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#64748b', textAlign: 'right', fontSize: 12 }}>{ref.createdAt ? new Date(ref.createdAt).toLocaleDateString() : 'N/A'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
           </main>

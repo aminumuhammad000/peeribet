@@ -37,9 +37,15 @@ router.put('/profile/password', protect, changePassword);
 router.post('/profile/push-token', protect, updatePushToken);
 router.get('/me', protect, async (req: any, res: Response) => {
   // Fetch user again to include pin (since it's select: false)
-  const user = await User.findById(req.user._id).select('+pin');
+  let user = await User.findById(req.user._id).select('+pin');
   if (!user) return res.status(404).json({ message: 'User not found' });
   
+  if (!user.referralCode) {
+    const { generateUniqueReferralCode } = await import('../controllers/referralController');
+    user.referralCode = await generateUniqueReferralCode(user.firstName);
+    await user.save();
+  }
+
   const userObj = { ...user.toJSON(), hasPin: !!user.pin } as Record<string, any>;
   delete userObj.pin; // Ensure pin is never sent to the client
   res.json(userObj);

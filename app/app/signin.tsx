@@ -80,19 +80,11 @@ export default function SignInScreen() {
         }
 
         setLoading(false);
-        router.replace({ pathname: '/welcome-user', params: { type: 'login' } });
+        // Directly access the dashboard upon correct login
+        router.replace('/(tabs)/home');
       } catch (err: any) {
         setLoading(false);
-        const errorMsg = getApiErrorMessage(err, 'Invalid email or password');
-
-        if (err?.response?.data?.unverified) {
-          showToast('Please verify your account OTP', 'info');
-          router.push({
-            pathname: '/verify-otp',
-            params: { email: err.response.data.email || cleanIdentifier, type: 'signup' }
-          });
-          return;
-        }
+        const errorMsg = getApiErrorMessage(err, 'Invalid email, username, or password');
 
         setGeneralError(errorMsg);
         if (Platform.OS !== 'web') {

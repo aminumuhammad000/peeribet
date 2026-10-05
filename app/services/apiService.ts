@@ -158,8 +158,14 @@ export const authService = {
   register: async (userData: any) => {
     const response = await apiRequest(api.post('/auth/register', userData));
     if (response.data.token) {
-      await AsyncStorage.setItem('userToken', response.data.token);
-      await AsyncStorage.setItem('userData', JSON.stringify(response.data));
+      api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      await AsyncStorage.multiSet([
+        ['userToken', response.data.token],
+        ['userData', JSON.stringify(response.data)],
+        ['user', JSON.stringify(response.data.user || response.data)],
+        ['isLoggedIn', 'true'],
+        ['hasSeenOnboarding', 'true'],
+      ]);
     }
     return response.data;
   },
@@ -172,15 +178,28 @@ export const authService = {
       console.debug('Login Response:', response.data);
     }
     if (response.data.token) {
-      await AsyncStorage.setItem('userToken', response.data.token);
-      await AsyncStorage.setItem('userData', JSON.stringify(response.data));
+      api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      await AsyncStorage.multiSet([
+        ['userToken', response.data.token],
+        ['userData', JSON.stringify(response.data)],
+        ['user', JSON.stringify(response.data.user || response.data)],
+        ['isLoggedIn', 'true'],
+        ['hasSeenOnboarding', 'true'],
+      ]);
     }
     return response.data;
   },
   verifyOtp: async (data: any) => {
     const response = await apiRequest(api.post('/auth/verify-otp', data));
     if (response.data.token) {
-      await AsyncStorage.setItem('userToken', response.data.token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      await AsyncStorage.multiSet([
+        ['userToken', response.data.token],
+        ['userData', JSON.stringify(response.data)],
+        ['user', JSON.stringify(response.data.user || response.data)],
+        ['isLoggedIn', 'true'],
+        ['hasSeenOnboarding', 'true'],
+      ]);
     }
     return response.data;
   },
@@ -281,8 +300,18 @@ export const authService = {
       email: data.email ? data.email.trim().toLowerCase() : undefined,
       phone: data.phone ? data.phone.trim() : undefined,
     };
-    const response = await apiRequest(api.post('/auth/check-availability', cleanData));
-    return response.data;
+    try {
+      const response = await apiRequest(api.post('/auth/check-availability', cleanData));
+      return response.data;
+    } catch (err: any) {
+      if (err.response?.data) {
+        return err.response.data;
+      }
+      return {
+        available: false,
+        message: err.message || 'Unable to check availability at this moment',
+      };
+    }
   },
 };
 
@@ -452,6 +481,22 @@ export const supportService = {
   createTicket: async (data: { subject: string; category: string; description: string }) => {
     const response = await apiRequest(api.post('/support/tickets', data));
     return response.data;
+  },
+};
+
+export const referralService = {
+  getMyReferrals: async () => {
+    const response = await apiRequest(api.get('/referrals/my-referrals'));
+    return response.data;
+  },
+  validateCode: async (code: string) => {
+    try {
+      const response = await apiRequest(api.get(`/referrals/validate/${encodeURIComponent(code)}`));
+      return response.data;
+    } catch (err: any) {
+      if (err.response?.data) return err.response.data;
+      return { valid: false, message: 'Invalid or inactive referral code' };
+    }
   },
 };
 

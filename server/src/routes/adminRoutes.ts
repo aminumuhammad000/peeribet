@@ -79,5 +79,17 @@ router.post('/vaults', updateVaultBalances);
 router.post('/change-password', changeAdminPassword);
 router.post('/profile', updateAdminProfile);
 
+// Referral administration routes
+import { 
+  getAdminReferralStats, 
+  getAdminReferralSettings, 
+  updateAdminReferralSettings 
+} from '../controllers/referralController';
+
+router.get('/referrals/stats', getAdminReferralStats);
+router.get('/referrals/settings', getAdminReferralSettings);
+router.post('/referrals/settings', updateAdminReferralSettings);
+router.put('/referrals/settings', updateAdminReferralSettings);
+
 export default router;
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl, Image, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, ShieldCheck, Key, Settings, HelpCircle, FileText, LogOut, ChevronRight, Edit2, Check, X, Lock, Camera, Sparkles } from 'lucide-react-native';
+import { User, ShieldCheck, Key, Settings, HelpCircle, FileText, LogOut, ChevronRight, Edit2, Check, X, Lock, Camera, Sparkles, Gift } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../constants/Colors';
@@ -258,6 +258,13 @@ export default function ProfileScreen() {
       icon: <FileText size={20} color="#10B981" />,
       badge: null,
     },
+    {
+      id: '7',
+      title: 'Referral Program',
+      sub: 'Invite friends & earn ₦1,000 bonus per referral',
+      icon: <Gift size={20} color="#00D285" />,
+      badge: 'Earn',
+    },
   ];
 
   return (
@@ -427,6 +434,8 @@ export default function ProfileScreen() {
                   router.push('/helpdesk');
                 } else if (item.id === '5') {
                   router.push('/legal');
+                } else if (item.id === '7') {
+                  router.push('/referrals');
                 }
               }}
             >

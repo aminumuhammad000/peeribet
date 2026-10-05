@@ -14,7 +14,7 @@ const getBaseURL = () => {
   if (envUrl) {
     return envUrl.replace(/\/+$/, '');
   }
-  return 'http://localhost:5000/api';
+  return 'https://api.peeritrade.com/api';
 };
 
 const api = axios.create({

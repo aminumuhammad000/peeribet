@@ -12,6 +12,11 @@ export interface ISystemSetting extends Document {
   vtstackWebhookSecret?: string;
   gatewayMode: 'TEST' | 'LIVE';
   autoWithdrawalApproval: boolean;
+  referralEnabled: boolean;
+  referrerBonus: number;
+  refereeBonus: number;
+  referralMinTradeRequirement: number;
+  referralDescription?: string;
 }
 
 const systemSettingSchema = new Schema(
@@ -35,6 +40,14 @@ const systemSettingSchema = new Schema(
     vtstackWebhookSecret: { type: String, default: '' },
     gatewayMode: { type: String, enum: ['TEST', 'LIVE'], default: 'TEST' },
     autoWithdrawalApproval: { type: Boolean, default: true },
+    referralEnabled: { type: Boolean, default: true },
+    referrerBonus: { type: Number, default: 1000 },
+    refereeBonus: { type: Number, default: 1000 },
+    referralMinTradeRequirement: { type: Number, default: 0 },
+    referralDescription: { 
+      type: String, 
+      default: 'Invite friends to Peeritrade. Both you and your friend receive ₦1,000 bonus upon registration!' 
+    },
   },
   {
     timestamps: true,

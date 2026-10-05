@@ -28,6 +28,10 @@ export interface IUser extends Document {
   kycDocument?: string;
   pushToken?: string;
   virtualAccount?: IVirtualAccount;
+  referralCode?: string;
+  referredBy?: mongoose.Types.ObjectId;
+  referralCount?: number;
+  referralEarnings?: number;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -52,6 +56,10 @@ const userSchema: Schema = new Schema(
     kycStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
     kycDocument: { type: String },
     pushToken: { type: String },
+    referralCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
+    referredBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    referralCount: { type: Number, default: 0 },
+    referralEarnings: { type: Number, default: 0 },
     virtualAccount: {
       accountNumber: { type: String },
       accountName: { type: String },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { authService, showToast } from '../services/apiService';
+import { authService, showToast, getApiErrorMessage, referralService } from '../services/apiService';
 
 export default function SignUpStep3Screen() {
   const router = useRouter();
@@ -22,6 +22,82 @@ export default function SignUpStep3Screen() {
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [referralCode, setReferralCode] = useState('');
+  const [referralStatus, setReferralStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [referralMessage, setReferralMessage] = useState('');
+  const [referralError, setReferralError] = useState('');
+  const referralDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const checkReferral = async (code: string) => {
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) {
+      setReferralStatus('idle');
+      setReferralError('');
+      setReferralMessage('');
+      return;
+    }
+
+    setReferralStatus('checking');
+    setReferralError('');
+    setReferralMessage('');
+
+    try {
+      const res = await referralService.validateCode(trimmed);
+      if (res && res.valid) {
+        setReferralStatus('valid');
+        setReferralError('');
+        setReferralMessage(res.message || `Valid code from ${res.referrerName}! Bonus will be credited.`);
+      } else {
+        setReferralStatus('invalid');
+        setReferralError(res?.message || 'Invalid or expired referral code');
+        setReferralMessage('');
+      }
+    } catch {
+      setReferralStatus('invalid');
+      setReferralError('Invalid referral code');
+    }
+  };
+
+  const handleReferralChange = (text: string) => {
+    const uppercaseText = text.toUpperCase();
+    setReferralCode(uppercaseText);
+
+    if (referralDebounceRef.current) {
+      clearTimeout(referralDebounceRef.current);
+    }
+
+    if (!uppercaseText.trim()) {
+      setReferralStatus('idle');
+      setReferralError('');
+      setReferralMessage('');
+      return;
+    }
+
+    if (uppercaseText.trim().length >= 4) {
+      setReferralStatus('checking');
+      referralDebounceRef.current = setTimeout(() => {
+        checkReferral(uppercaseText);
+      }, 350);
+    } else {
+      setReferralStatus('idle');
+      setReferralError('');
+      setReferralMessage('');
+    }
+  };
+
+  const handleReferralBlur = () => {
+    if (referralCode.trim().length >= 3 && referralStatus !== 'valid') {
+      checkReferral(referralCode);
+    }
+  };
+
+  // Clean up debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (referralDebounceRef.current) clearTimeout(referralDebounceRef.current);
+    };
+  }, []);
 
   // ── Real-time validators ──────────────────────────────────────────
   const validatePassword = (value: string) => {
@@ -79,7 +155,8 @@ export default function SignUpStep3Screen() {
 
   const strength = getPasswordStrength();
 
-  // Button enabled only when all fields pass and terms agreed
+  // Button enabled only when all required fields pass and terms agreed.
+  // Referral code is purely optional: only blocks if an invalid code was typed and not cleared
   const isFormValid =
     password.length >= 6 &&
     /[A-Z]/.test(password) &&
@@ -87,6 +164,8 @@ export default function SignUpStep3Screen() {
     !passwordError &&
     confirmPassword === password &&
     !confirmPasswordError &&
+    !referralError &&
+    referralStatus !== 'checking' &&
     agreeTerms;
 
   const handleSignUp = async () => {
@@ -99,16 +178,14 @@ export default function SignUpStep3Screen() {
         email,
         phone,
         password,
+        referralCode: referralCode.trim() ? referralCode.trim().toUpperCase() : undefined,
       });
       setLoading(false);
       showToast('Account created successfully!', 'success');
-      router.replace({
-        pathname: '/welcome-user',
-        params: { type: 'signup' },
-      });
+      router.replace('/(tabs)/home');
     } catch (error: any) {
       setLoading(false);
-      const errorMsg = error.response?.data?.message || 'Something went wrong. Please try again.';
+      const errorMsg = getApiErrorMessage(error, 'Something went wrong. Please try again.');
       Alert.alert('Registration Failed', errorMsg);
     }
   };
@@ -176,6 +253,21 @@ export default function SignUpStep3Screen() {
                 <CriteriaRow met={/[0-9]/.test(password)} text="One number" />
                 <CriteriaRow met={confirmPassword.length > 0 && confirmPassword === password} text="Passwords match" />
               </View>
+
+              {/* Optional Referral Code Input */}
+              <CustomInput
+                label="Referral Code (Optional)"
+                placeholder="e.g. JOHAB12"
+                value={referralCode}
+                onChangeText={handleReferralChange}
+                onBlur={handleReferralBlur}
+                error={referralError}
+                success={referralStatus === 'valid'}
+                successMessage={referralMessage || undefined}
+                loading={referralStatus === 'checking'}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
 
               {/* Custom terms & condition selection row */}
               <View style={styles.checkboxContainer}>

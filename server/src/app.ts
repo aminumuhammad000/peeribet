@@ -14,6 +14,7 @@ import matchRoutes from './routes/matchRoutes';
 import betRoutes from './routes/betRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import supportRoutes from './routes/supportRoutes';
+import referralRoutes from './routes/referralRoutes';
 
 const app: Application = express();
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
@@ -77,6 +78,7 @@ app.use('/api/pool', poolRoutes);
 app.use('/api/bridge', bridgeRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/referrals', referralRoutes);
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'OK', message: 'Server is running smoothly' });

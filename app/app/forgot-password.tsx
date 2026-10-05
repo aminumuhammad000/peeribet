@@ -33,7 +33,7 @@ export default function ForgotPasswordScreen() {
   const cleanEmail = email.trim().toLowerCase();
   const isFormValid = cleanEmail.length > 0 && /\S+@\S+\.\S+/.test(cleanEmail) && !emailError;
 
-  const handleSendResetLink = async () => {
+  const handleSendResetOtp = async () => {
     if (!isFormValid) return;
     setLoading(true);
     try {
@@ -71,7 +71,7 @@ export default function ForgotPasswordScreen() {
               {/* Typography headers */}
               <View style={styles.headerContainer}>
                 <Text style={styles.title}>Forgot Password</Text>
-                <Text style={styles.subtitle}>Enter your email address to receive a password reset link.</Text>
+                <Text style={styles.subtitle}>Enter your email address to receive a 6-digit password reset OTP.</Text>
               </View>
 
               {/* Input Forms */}
@@ -87,9 +87,9 @@ export default function ForgotPasswordScreen() {
 
                 {/* Submit Control */}
                 <CustomButton
-                  title="Send Reset Link"
+                  title="Send Reset OTP"
                   variant="primary"
-                  onPress={handleSendResetLink}
+                  onPress={handleSendResetOtp}
                   loading={loading}
                   disabled={!isFormValid}
                   style={styles.submitButton}
