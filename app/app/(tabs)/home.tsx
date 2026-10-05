@@ -87,42 +87,93 @@ const FALLBACK_POLITICS_MARKETS = [
 const FALLBACK_COMBAT_MARKETS = [
   {
     _id: 'combat_1',
-    title: 'UFC 308: Ilia Topuria vs Max Holloway (Main Event Winner)',
+    title: 'UFC 308: Ilia Topuria vs Max Holloway (Fight Winner)',
     category: 'UFC & Boxing',
-    subcategory: 'Championship Fight',
+    subcategory: 'Championship Matchup',
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 4650000,
     closingDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    yesLabel: 'Ilia Topuria',
+    noLabel: 'Max Holloway',
     yesOdds: 1.78,
     noOdds: 2.05,
-    rules: 'Resolves to the official UFC in-octagon decision.',
+    rules: 'Resolves to the official UFC in-octagon winner decision.',
+  },
+  {
+    _id: 'combat_1_method',
+    title: 'UFC 308: Method of Settlement (Stoppage vs Decision)',
+    category: 'UFC & Boxing',
+    subcategory: 'Settlement Method',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 3120000,
+    closingDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    yesLabel: 'KO / TKO / Sub (Finish)',
+    noLabel: 'Goes to Decision',
+    yesOdds: 1.62,
+    noOdds: 2.25,
+    rules: 'Resolves to YES if the fight finishes before the final bell.',
+  },
+  {
+    _id: 'combat_1_rounds',
+    title: 'UFC 308: Total Rounds Contract (Over / Under 2.5 Rounds)',
+    category: 'UFC & Boxing',
+    subcategory: 'Round Duration',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 2480000,
+    closingDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    yesLabel: 'Over 2.5 Rounds',
+    noLabel: 'Under 2.5 Rounds',
+    yesOdds: 1.88,
+    noOdds: 1.92,
+    rules: 'Resolves to YES if the fight enters the second half of Round 3.',
   },
   {
     _id: 'combat_2',
-    title: 'Heavyweight Championship: Tyson Fury vs Oleksandr Usyk II',
+    title: 'Heavyweight Championship: Fury vs Usyk II (Match Winner)',
     category: 'UFC & Boxing',
     subcategory: 'Heavyweight Boxing',
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 7890000,
     closingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    yesLabel: 'Tyson Fury Win',
+    noLabel: 'Oleksandr Usyk Win',
     yesOdds: 1.90,
     noOdds: 1.90,
-    rules: 'Resolves according to the official WBA/WBC/WBO sanctioning body decision.',
+    rules: 'Resolves according to the official sanctioning body decision.',
   },
   {
-    _id: 'combat_3',
-    title: 'NBA Eastern Conference Finals: Boston Celtics to reach finals?',
+    _id: 'combat_3_total',
+    title: 'NBA: Celtics vs Nuggets — Total Game Points (Over / Under 218.5)',
     category: 'NBA Basketball',
-    subcategory: 'Playoffs Outcome',
+    subcategory: 'Total Points',
     marketType: 'YES_NO',
     status: 'ACTIVE',
-    poolAmount: 3200000,
-    closingDate: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000).toISOString(),
-    yesOdds: 1.65,
-    noOdds: 2.20,
-    rules: 'Resolves when the Eastern Conference champion is confirmed by NBA.',
+    poolAmount: 3820000,
+    closingDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    yesLabel: 'Over 218.5 Points',
+    noLabel: 'Under 218.5 Points',
+    yesOdds: 1.90,
+    noOdds: 1.90,
+    rules: 'Resolves based on official NBA aggregate final game score.',
+  },
+  {
+    _id: 'combat_3_halftime',
+    title: 'NBA: Celtics vs Nuggets — Halftime Leader Contract',
+    category: 'NBA Basketball',
+    subcategory: 'Halftime Settlement',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 2150000,
+    closingDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    yesLabel: 'Celtics Lead at Half',
+    noLabel: 'Nuggets Lead / Tie',
+    yesOdds: 1.75,
+    noOdds: 2.05,
+    rules: 'Resolves according to the score at the end of the 2nd quarter.',
   },
 ];
 
@@ -819,18 +870,22 @@ export default function HomeScreen() {
                         <TouchableOpacity
                           style={[styles.binaryOptionBtn, styles.binaryOptionYes]}
                           activeOpacity={0.8}
-                          onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.8 })}
+                          onPress={() => handleOpenTradeModal(market, { label: market.yesLabel || 'YES', odds: market.yesOdds || 1.8 })}
                         >
-                          <Text style={styles.binaryOptionLabelYes}>OPTION A</Text>
+                          <Text style={styles.binaryOptionLabelYes} numberOfLines={1}>
+                            {market.yesLabel || 'YES'}
+                          </Text>
                           <Text style={styles.binaryOptionOdds}>₦1k = ₦{Math.round((market.yesOdds || 1.8) * 1000)}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                           style={[styles.binaryOptionBtn, styles.binaryOptionNo]}
                           activeOpacity={0.8}
-                          onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.9 })}
+                          onPress={() => handleOpenTradeModal(market, { label: market.noLabel || 'NO', odds: market.noOdds || 1.9 })}
                         >
-                          <Text style={styles.binaryOptionLabelNo}>OPTION B</Text>
+                          <Text style={styles.binaryOptionLabelNo} numberOfLines={1}>
+                            {market.noLabel || 'NO'}
+                          </Text>
                           <Text style={styles.binaryOptionOdds}>₦1k = ₦{Math.round((market.noOdds || 1.9) * 1000)}</Text>
                         </TouchableOpacity>
                       </View>

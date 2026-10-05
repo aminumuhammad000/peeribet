@@ -205,7 +205,7 @@ export default function MarketScreen() {
         amount: numericStake,
       });
 
-      showToast(`Prediction placed successfully! 🎯`, 'success');
+      showToast(`Trade position executed successfully! 🎯`, 'success');
       if (res?.newBalance !== undefined) {
         setUser((prev: any) => ({ ...prev, balance: res.newBalance }));
       } else {
@@ -412,7 +412,7 @@ export default function MarketScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.heroBannerTitle}>
                 {selectedCategory === 'Entertainment'
-                  ? 'Entertainment & Spotify Bets'
+                  ? 'Entertainment & Spotify Trades'
                   : selectedCategory === 'Politics'
                   ? 'Verified Backdoor Political Trades'
                   : selectedCategory === 'Real Life Events'
