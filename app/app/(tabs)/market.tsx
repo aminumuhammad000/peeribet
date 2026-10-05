@@ -568,91 +568,112 @@ export default function MarketScreen() {
                       /* 3 Binary Outcome Rows (1X2 standard sequence: Home Win, Draw, Away Win) */
                       <View style={styles.binaryRowsContainer}>
                         {/* Outcome 1: Home Team Win */}
-                        <View style={styles.binaryOutcomeRow}>
-                          <View style={styles.outcomeInfoCol}>
-                            <Text style={styles.outcomeTitle} numberOfLines={1}>{match.homeTeam} Win</Text>
-                          </View>
-                          <View style={styles.binaryActionBtns}>
-                            <TouchableOpacity
-                              style={styles.binaryBtnYes}
-                              onPress={() =>
-                                handleTradeOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)
-                              }
-                              activeOpacity={0.8}
-                            >
-                              <Text style={styles.binaryBtnYesLabel}>YES</Text>
-                              <Text style={styles.binaryBtnSubTextYes}>{homeOdds.toFixed(2)}x</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.binaryBtnNo}
-                              onPress={() =>
-                                handleTradeOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)
-                              }
-                              activeOpacity={0.8}
-                            >
-                              <Text style={styles.binaryBtnNoLabel}>NO</Text>
-                              <Text style={styles.binaryBtnSubTextNo}>{noHomeOdds.toFixed(2)}x</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
+                        {(() => {
+                          const isHomeOverpowered = homeOdds <= 1.08;
+                          return (
+                            <View style={styles.binaryOutcomeRow}>
+                              <View style={styles.outcomeInfoCol}>
+                                <Text style={styles.outcomeTitle} numberOfLines={1}>{match.homeTeam} Win</Text>
+                              </View>
+                              <View style={styles.binaryActionBtns}>
+                                <TouchableOpacity
+                                  style={[styles.binaryBtnYes, isHomeOverpowered && { opacity: 0.5 }]}
+                                  onPress={() =>
+                                    handleTradeOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)
+                                  }
+                                  disabled={isHomeOverpowered}
+                                  activeOpacity={0.8}
+                                >
+                                  <Text style={styles.binaryBtnYesLabel}>YES</Text>
+                                  <Text style={styles.binaryBtnSubTextYes}>{isHomeOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={[styles.binaryBtnNo, isHomeOverpowered && { opacity: 0.5 }]}
+                                  onPress={() =>
+                                    handleTradeOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)
+                                  }
+                                  disabled={isHomeOverpowered}
+                                  activeOpacity={0.8}
+                                >
+                                  <Text style={styles.binaryBtnNoLabel}>NO</Text>
+                                  <Text style={styles.binaryBtnSubTextNo}>{isHomeOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          );
+                        })()}
 
                         {/* Outcome 2: Draw */}
-                        <View style={styles.binaryOutcomeRow}>
-                          <View style={styles.outcomeInfoCol}>
-                            <Text style={styles.outcomeTitle}>Draw</Text>
-                          </View>
-                          <View style={styles.binaryActionBtns}>
-                            <TouchableOpacity
-                              style={styles.binaryBtnYes}
-                              onPress={() =>
-                                handleTradeOutcome(match, 'Match Draw', 'Yes', drawOdds)
-                              }
-                              activeOpacity={0.8}
-                            >
-                              <Text style={styles.binaryBtnYesLabel}>YES</Text>
-                              <Text style={styles.binaryBtnSubTextYes}>{drawOdds.toFixed(2)}x</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.binaryBtnNo}
-                              onPress={() =>
-                                handleTradeOutcome(match, 'Match Draw', 'No', noDrawOdds)
-                              }
-                              activeOpacity={0.8}
-                            >
-                              <Text style={styles.binaryBtnNoLabel}>NO</Text>
-                              <Text style={styles.binaryBtnSubTextNo}>{noDrawOdds.toFixed(2)}x</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
+                        {(() => {
+                          const isDrawOverpowered = drawOdds <= 1.08;
+                          return (
+                            <View style={styles.binaryOutcomeRow}>
+                              <View style={styles.outcomeInfoCol}>
+                                <Text style={styles.outcomeTitle}>Draw</Text>
+                              </View>
+                              <View style={styles.binaryActionBtns}>
+                                <TouchableOpacity
+                                  style={[styles.binaryBtnYes, isDrawOverpowered && { opacity: 0.5 }]}
+                                  onPress={() =>
+                                    handleTradeOutcome(match, 'Match Draw', 'Yes', drawOdds)
+                                  }
+                                  disabled={isDrawOverpowered}
+                                  activeOpacity={0.8}
+                                >
+                                  <Text style={styles.binaryBtnYesLabel}>YES</Text>
+                                  <Text style={styles.binaryBtnSubTextYes}>{isDrawOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={[styles.binaryBtnNo, isDrawOverpowered && { opacity: 0.5 }]}
+                                  onPress={() =>
+                                    handleTradeOutcome(match, 'Match Draw', 'No', noDrawOdds)
+                                  }
+                                  disabled={isDrawOverpowered}
+                                  activeOpacity={0.8}
+                                >
+                                  <Text style={styles.binaryBtnNoLabel}>NO</Text>
+                                  <Text style={styles.binaryBtnSubTextNo}>{isDrawOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          );
+                        })()}
 
                         {/* Outcome 3: Away Team Win */}
-                        <View style={styles.binaryOutcomeRow}>
-                          <View style={styles.outcomeInfoCol}>
-                            <Text style={styles.outcomeTitle} numberOfLines={1}>{match.awayTeam} Win</Text>
-                          </View>
-                          <View style={styles.binaryActionBtns}>
-                            <TouchableOpacity
-                              style={styles.binaryBtnYes}
-                              onPress={() =>
-                                handleTradeOutcome(match, `${match.awayTeam} to Win`, 'Yes', awayOdds)
-                              }
-                              activeOpacity={0.8}
-                            >
-                              <Text style={styles.binaryBtnYesLabel}>YES</Text>
-                              <Text style={styles.binaryBtnSubTextYes}>{awayOdds.toFixed(2)}x</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.binaryBtnNo}
-                              onPress={() =>
-                                handleTradeOutcome(match, `${match.awayTeam} to Win`, 'No', noAwayOdds)
-                              }
-                              activeOpacity={0.8}
-                            >
-                              <Text style={styles.binaryBtnNoLabel}>NO</Text>
-                              <Text style={styles.binaryBtnSubTextNo}>{noAwayOdds.toFixed(2)}x</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
+                        {(() => {
+                          const isAwayOverpowered = awayOdds <= 1.08;
+                          return (
+                            <View style={styles.binaryOutcomeRow}>
+                              <View style={styles.outcomeInfoCol}>
+                                <Text style={styles.outcomeTitle} numberOfLines={1}>{match.awayTeam} Win</Text>
+                              </View>
+                              <View style={styles.binaryActionBtns}>
+                                <TouchableOpacity
+                                  style={[styles.binaryBtnYes, isAwayOverpowered && { opacity: 0.5 }]}
+                                  onPress={() =>
+                                    handleTradeOutcome(match, `${match.awayTeam} to Win`, 'Yes', awayOdds)
+                                  }
+                                  disabled={isAwayOverpowered}
+                                  activeOpacity={0.8}
+                                >
+                                  <Text style={styles.binaryBtnYesLabel}>YES</Text>
+                                  <Text style={styles.binaryBtnSubTextYes}>{isAwayOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={[styles.binaryBtnNo, isAwayOverpowered && { opacity: 0.5 }]}
+                                  onPress={() =>
+                                    handleTradeOutcome(match, `${match.awayTeam} to Win`, 'No', noAwayOdds)
+                                  }
+                                  disabled={isAwayOverpowered}
+                                  activeOpacity={0.8}
+                                >
+                                  <Text style={styles.binaryBtnNoLabel}>NO</Text>
+                                  <Text style={styles.binaryBtnSubTextNo}>{isAwayOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          );
+                        })()}
                       </View>
                     )}
 
@@ -793,57 +814,68 @@ export default function MarketScreen() {
                         </View>
 
                         {/* Large YES & NO Trade Buttons */}
-                        <View style={styles.binaryBtnsRow}>
-                          <TouchableOpacity
-                            onPress={() => handleOpenTrade(market, yesOption || { label: 'Yes', odds: 1.9 })}
-                            activeOpacity={0.8}
-                            style={styles.btnYes}
-                          >
-                            <Text style={styles.btnYesLabel}>TRADE YES</Text>
-                            <Text style={styles.btnOddsText}>
-                              {yesOption?.odds ? `${yesOption.odds.toFixed(2)}x` : '1.85x'}
-                            </Text>
-                          </TouchableOpacity>
+                        {(() => {
+                          const isOverpowered = (yesOption?.odds && yesOption.odds <= 1.08) || (noOption?.odds && noOption.odds <= 1.08) || market.status === 'SUSPENDED';
+                          return (
+                            <View style={styles.binaryBtnsRow}>
+                              <TouchableOpacity
+                                onPress={() => handleOpenTrade(market, yesOption || { label: 'Yes', odds: 1.9 })}
+                                activeOpacity={0.8}
+                                disabled={isOverpowered}
+                                style={[styles.btnYes, isOverpowered && { opacity: 0.5 }]}
+                              >
+                                <Text style={styles.btnYesLabel}>TRADE YES</Text>
+                                <Text style={styles.btnOddsText}>
+                                  {isOverpowered ? 'Locked' : '₦1,000 / Share'}
+                                </Text>
+                              </TouchableOpacity>
 
-                          <TouchableOpacity
-                            onPress={() => handleOpenTrade(market, noOption || { label: 'No', odds: 1.9 })}
-                            activeOpacity={0.8}
-                            style={styles.btnNo}
-                          >
-                            <Text style={styles.btnNoLabel}>TRADE NO</Text>
-                            <Text style={styles.btnOddsText}>
-                              {noOption?.odds ? `${noOption.odds.toFixed(2)}x` : '1.95x'}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
+                              <TouchableOpacity
+                                onPress={() => handleOpenTrade(market, noOption || { label: 'No', odds: 1.9 })}
+                                activeOpacity={0.8}
+                                disabled={isOverpowered}
+                                style={[styles.btnNo, isOverpowered && { opacity: 0.5 }]}
+                              >
+                                <Text style={styles.btnNoLabel}>TRADE NO</Text>
+                                <Text style={styles.btnOddsText}>
+                                  {isOverpowered ? 'Locked' : '₦1,000 / Share'}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          );
+                        })()}
                       </View>
                     ) : (
                       /* Multiple Choice Options List */
                       <View style={styles.mcContainer}>
                         <Text style={styles.mcHeaderLabel}>Select an Outcome:</Text>
                         <View style={styles.mcList}>
-                          {(market.options || []).map((opt: any) => (
-                            <TouchableOpacity
-                              key={opt.id || opt.label}
-                              onPress={() => handleOpenTrade(market, opt)}
-                              activeOpacity={0.8}
-                              style={styles.mcItem}
-                            >
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.mcItemLabel}>{opt.label}</Text>
-                                {opt.totalStaked ? (
-                                  <Text style={styles.mcItemVolume}>
-                                    ₦{(opt.totalStaked).toLocaleString()} Staked
+                          {(market.options || []).map((opt: any) => {
+                            const isOptOverpowered = (opt.odds && opt.odds <= 1.08) || market.status === 'SUSPENDED';
+                            return (
+                              <TouchableOpacity
+                                key={opt.id || opt.label}
+                                onPress={() => handleOpenTrade(market, opt)}
+                                activeOpacity={0.8}
+                                disabled={isOptOverpowered}
+                                style={[styles.mcItem, isOptOverpowered && { opacity: 0.5 }]}
+                              >
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.mcItemLabel}>{opt.label}</Text>
+                                  {opt.totalStaked ? (
+                                    <Text style={styles.mcItemVolume}>
+                                      ₦{(opt.totalStaked).toLocaleString()} Pool
+                                    </Text>
+                                  ) : null}
+                                </View>
+                                <View style={styles.mcItemOddsBadge}>
+                                  <Text style={styles.mcItemOddsText}>
+                                    {isOptOverpowered ? 'Locked' : '₦1k / Share'}
                                   </Text>
-                                ) : null}
-                              </View>
-                              <View style={styles.mcItemOddsBadge}>
-                                <Text style={styles.mcItemOddsText}>
-                                  {opt.odds ? `${opt.odds.toFixed(2)}x` : '2.50x'}
-                                </Text>
-                              </View>
-                            </TouchableOpacity>
-                          ))}
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })}
                         </View>
                       </View>
                     )}
@@ -883,7 +915,7 @@ export default function MarketScreen() {
               {/* Modal Header */}
               <View style={styles.modalHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.modalHeaderSubtitle}>CONFIRM PREDICTION</Text>
+                  <Text style={styles.modalHeaderSubtitle}>CONFIRM CONTRACT POSITION</Text>
                   <Text style={styles.modalHeaderTitle} numberOfLines={2}>
                     {activeMarket?.title}
                   </Text>
@@ -899,14 +931,14 @@ export default function MarketScreen() {
               {/* Selected Position Pill */}
               <View style={styles.modalSelectionBanner}>
                 <View style={styles.modalSelectionLeft}>
-                  <Text style={styles.modalSelectionLabel}>Your Prediction:</Text>
+                  <Text style={styles.modalSelectionLabel}>Selected Outcome:</Text>
                   <Text style={styles.modalSelectionVal}>
                     {selectedOption?.label}
                   </Text>
                 </View>
                 <View style={styles.modalOddsBadge}>
                   <Text style={styles.modalOddsText}>
-                    {currentOdds.toFixed(2)}x Odds
+                    ₦1,000 / Share
                   </Text>
                 </View>
               </View>
@@ -964,15 +996,15 @@ export default function MarketScreen() {
               {/* Live Calculations: Return & Profit */}
               <View style={styles.calculationsBox}>
                 <View style={styles.calcRow}>
-                  <Text style={styles.calcLabel}>Total Potential Return</Text>
+                  <Text style={styles.calcLabel}>Total Projected Return</Text>
                   <Text style={styles.calcValueHighlight}>
-                    ₦{potentialPayout.toLocaleString()}
+                    ₦{Math.round(numericStake * 1.9).toLocaleString()}
                   </Text>
                 </View>
                 <View style={styles.calcRow}>
-                  <Text style={styles.calcLabel}>Estimated Net Profit</Text>
+                  <Text style={styles.calcLabel}>Estimated Net Yield</Text>
                   <Text style={styles.calcProfitVal}>
-                    +₦{potentialProfit.toLocaleString()}
+                    +₦{Math.round(numericStake * 0.9).toLocaleString()}
                   </Text>
                 </View>
               </View>
@@ -991,7 +1023,7 @@ export default function MarketScreen() {
                   <ActivityIndicator color="#0A1124" />
                 ) : (
                   <Text style={styles.confirmTradeBtnText}>
-                    Place Prediction • ₦{numericStake.toLocaleString()}
+                    Confirm Contract • ₦{numericStake.toLocaleString()}
                   </Text>
                 )}
               </TouchableOpacity>

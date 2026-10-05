@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
+  Lock,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
@@ -761,58 +762,71 @@ export default function HomeScreen() {
                   {(expandedPolitics || searchText.trim()
                     ? filteredPolitics
                     : filteredPolitics.slice(0, CARDS_PER_CATEGORY)
-                  ).map((market) => (
-                    <View key={market._id} style={styles.richMarketCard}>
-                      <View style={styles.cardTopRow}>
-                        <Text style={styles.cardCategoryBadge}>
-                          {(market.subcategory || 'POLICY & GOVERNANCE').toUpperCase()}
-                        </Text>
-                        <View style={styles.closingBadge}>
-                          <Clock size={11} color="#64748B" />
-                          <Text style={styles.closingBadgeText}>Closes Soon</Text>
-                        </View>
-                      </View>
-
-                      <Text style={styles.marketTitleText}>{market.title}</Text>
-
-                      {/* Outcomes & Trade Buttons */}
-                      <View style={styles.binaryChoiceRow}>
-                        <TouchableOpacity
-                          style={[styles.binaryOptionBtn, styles.binaryOptionYes]}
-                          activeOpacity={0.8}
-                          onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
-                        >
-                          <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                          <Text style={styles.binaryOptionOdds}>₦1k = ₦{Math.round((market.yesOdds || 1.85) * 1000)}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.binaryOptionBtn, styles.binaryOptionNo]}
-                          activeOpacity={0.8}
-                          onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.95 })}
-                        >
-                          <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                          <Text style={styles.binaryOptionOdds}>₦1k = ₦{Math.round((market.noOdds || 1.95) * 1000)}</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style={styles.cardFooterRow}>
-                        <View>
-                          <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
-                          <Text style={styles.cardPoolValue}>
-                            ₦{(market.poolAmount || 2500000).toLocaleString()}
+                  ).map((market) => {
+                    const isOverpowered = (market.yesOdds && market.yesOdds <= 1.08) || (market.noOdds && market.noOdds <= 1.08) || market.status === 'SUSPENDED';
+                    return (
+                      <View key={market._id} style={styles.richMarketCard}>
+                        <View style={styles.cardTopRow}>
+                          <Text style={styles.cardCategoryBadge}>
+                            {(market.subcategory || 'POLICY & GOVERNANCE').toUpperCase()}
                           </Text>
+                          {isOverpowered ? (
+                            <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                              <Lock size={11} color="#EF4444" />
+                              <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.closingBadge}>
+                              <Clock size={11} color="#64748B" />
+                              <Text style={styles.closingBadgeText}>Closes Soon</Text>
+                            </View>
+                          )}
                         </View>
-                        <TouchableOpacity
-                          onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
-                          style={styles.quickTradePill}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.quickTradePillText}>Trade Outcome</Text>
-                        </TouchableOpacity>
+
+                        <Text style={styles.marketTitleText}>{market.title}</Text>
+
+                        {/* Outcomes & Trade Buttons */}
+                        <View style={styles.binaryChoiceRow}>
+                          <TouchableOpacity
+                            style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                          >
+                            <Text style={styles.binaryOptionLabelYes}>YES</Text>
+                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                            onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.95 })}
+                          >
+                            <Text style={styles.binaryOptionLabelNo}>NO</Text>
+                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.cardFooterRow}>
+                          <View>
+                            <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
+                            <Text style={styles.cardPoolValue}>
+                              ₦{(market.poolAmount || 2500000).toLocaleString()}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                            style={[styles.quickTradePill, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                          >
+                            <Text style={styles.quickTradePillText}>{isOverpowered ? 'Locked' : 'Trade Outcome'}</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               </View>
             )}
@@ -852,61 +866,74 @@ export default function HomeScreen() {
                   {(expandedCombat || searchText.trim()
                     ? filteredCombat
                     : filteredCombat.slice(0, CARDS_PER_CATEGORY)
-                  ).map((market) => (
-                    <View key={market._id} style={styles.richMarketCard}>
-                      <View style={styles.cardTopRow}>
-                        <Text style={styles.cardCategoryBadge}>
-                          {(market.subcategory || 'CHAMPIONSHIP MATCHUP').toUpperCase()}
-                        </Text>
-                        <View style={styles.closingBadge}>
-                          <Flame size={11} color="#F59E0B" />
-                          <Text style={[styles.closingBadgeText, { color: '#F59E0B' }]}>High Volume</Text>
+                  ).map((market) => {
+                    const isOverpowered = (market.yesOdds && market.yesOdds <= 1.08) || (market.noOdds && market.noOdds <= 1.08) || market.status === 'SUSPENDED';
+                    return (
+                      <View key={market._id} style={styles.richMarketCard}>
+                        <View style={styles.cardTopRow}>
+                          <Text style={styles.cardCategoryBadge}>
+                            {(market.subcategory || 'CHAMPIONSHIP MATCHUP').toUpperCase()}
+                          </Text>
+                          {isOverpowered ? (
+                            <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                              <Lock size={11} color="#EF4444" />
+                              <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.closingBadge}>
+                              <Flame size={11} color="#F59E0B" />
+                              <Text style={[styles.closingBadgeText, { color: '#F59E0B' }]}>High Volume</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <Text style={styles.marketTitleText}>{market.title}</Text>
+
+                        <View style={styles.binaryChoiceRow}>
+                          <TouchableOpacity
+                            style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                            onPress={() => handleOpenTradeModal(market, { label: market.yesLabel || 'YES', odds: market.yesOdds || 1.8 })}
+                          >
+                            <Text style={styles.binaryOptionLabelYes} numberOfLines={1}>
+                              {market.yesLabel || 'YES'}
+                            </Text>
+                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                            onPress={() => handleOpenTradeModal(market, { label: market.noLabel || 'NO', odds: market.noOdds || 1.9 })}
+                          >
+                            <Text style={styles.binaryOptionLabelNo} numberOfLines={1}>
+                              {market.noLabel || 'NO'}
+                            </Text>
+                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.cardFooterRow}>
+                          <View>
+                            <Text style={styles.cardPoolLabel}>FIGHT POOL</Text>
+                            <Text style={styles.cardPoolValue}>
+                              ₦{(market.poolAmount || 3200000).toLocaleString()}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.8 })}
+                            style={[styles.quickTradePill, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                          >
+                            <Text style={styles.quickTradePillText}>{isOverpowered ? 'Locked' : 'Trade Contract'}</Text>
+                          </TouchableOpacity>
                         </View>
                       </View>
-
-                      <Text style={styles.marketTitleText}>{market.title}</Text>
-
-                      <View style={styles.binaryChoiceRow}>
-                        <TouchableOpacity
-                          style={[styles.binaryOptionBtn, styles.binaryOptionYes]}
-                          activeOpacity={0.8}
-                          onPress={() => handleOpenTradeModal(market, { label: market.yesLabel || 'YES', odds: market.yesOdds || 1.8 })}
-                        >
-                          <Text style={styles.binaryOptionLabelYes} numberOfLines={1}>
-                            {market.yesLabel || 'YES'}
-                          </Text>
-                          <Text style={styles.binaryOptionOdds}>₦1k = ₦{Math.round((market.yesOdds || 1.8) * 1000)}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.binaryOptionBtn, styles.binaryOptionNo]}
-                          activeOpacity={0.8}
-                          onPress={() => handleOpenTradeModal(market, { label: market.noLabel || 'NO', odds: market.noOdds || 1.9 })}
-                        >
-                          <Text style={styles.binaryOptionLabelNo} numberOfLines={1}>
-                            {market.noLabel || 'NO'}
-                          </Text>
-                          <Text style={styles.binaryOptionOdds}>₦1k = ₦{Math.round((market.noOdds || 1.9) * 1000)}</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style={styles.cardFooterRow}>
-                        <View>
-                          <Text style={styles.cardPoolLabel}>FIGHT POOL</Text>
-                          <Text style={styles.cardPoolValue}>
-                            ₦{(market.poolAmount || 3200000).toLocaleString()}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.8 })}
-                          style={styles.quickTradePill}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.quickTradePillText}>Trade Contract</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               </View>
             )}
@@ -946,57 +973,70 @@ export default function HomeScreen() {
                   {(expandedEntertainment || searchText.trim()
                     ? filteredEntertainment
                     : filteredEntertainment.slice(0, CARDS_PER_CATEGORY)
-                  ).map((market) => (
-                    <View key={market._id} style={styles.richMarketCard}>
-                      <View style={styles.cardTopRow}>
-                        <Text style={styles.cardCategoryBadge}>
-                          {(market.subcategory || 'MUSIC & CULTURE').toUpperCase()}
-                        </Text>
-                        <View style={styles.closingBadge}>
-                          <Sparkles size={11} color="#8B5CF6" />
-                          <Text style={[styles.closingBadgeText, { color: '#8B5CF6' }]}>Trending</Text>
-                        </View>
-                      </View>
-
-                      <Text style={styles.marketTitleText}>{market.title}</Text>
-
-                      <View style={styles.binaryChoiceRow}>
-                        <TouchableOpacity
-                          style={[styles.binaryOptionBtn, styles.binaryOptionYes]}
-                          activeOpacity={0.8}
-                          onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
-                        >
-                          <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                          <Text style={styles.binaryOptionOdds}>₦1k = ₦{Math.round((market.yesOdds || 1.85) * 1000)}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.binaryOptionBtn, styles.binaryOptionNo]}
-                          activeOpacity={0.8}
-                          onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.95 })}
-                        >
-                          <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                          <Text style={styles.binaryOptionOdds}>₦1k = ₦{Math.round((market.noOdds || 1.95) * 1000)}</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style={styles.cardFooterRow}>
-                        <View>
-                          <Text style={styles.cardPoolLabel}>MARKET VOLUME</Text>
-                          <Text style={styles.cardPoolValue}>
-                            ₦{(market.poolAmount || 1950000).toLocaleString()}
+                  ).map((market) => {
+                    const isOverpowered = (market.yesOdds && market.yesOdds <= 1.08) || (market.noOdds && market.noOdds <= 1.08) || market.status === 'SUSPENDED';
+                    return (
+                      <View key={market._id} style={styles.richMarketCard}>
+                        <View style={styles.cardTopRow}>
+                          <Text style={styles.cardCategoryBadge}>
+                            {(market.subcategory || 'MUSIC & CULTURE').toUpperCase()}
                           </Text>
+                          {isOverpowered ? (
+                            <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                              <Lock size={11} color="#EF4444" />
+                              <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.closingBadge}>
+                              <Sparkles size={11} color="#8B5CF6" />
+                              <Text style={[styles.closingBadgeText, { color: '#8B5CF6' }]}>Trending</Text>
+                            </View>
+                          )}
                         </View>
-                        <TouchableOpacity
-                          onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
-                          style={styles.quickTradePill}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.quickTradePillText}>Trade Contract</Text>
-                        </TouchableOpacity>
+
+                        <Text style={styles.marketTitleText}>{market.title}</Text>
+
+                        <View style={styles.binaryChoiceRow}>
+                          <TouchableOpacity
+                            style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                          >
+                            <Text style={styles.binaryOptionLabelYes}>YES</Text>
+                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                            onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.95 })}
+                          >
+                            <Text style={styles.binaryOptionLabelNo}>NO</Text>
+                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.cardFooterRow}>
+                          <View>
+                            <Text style={styles.cardPoolLabel}>MARKET VOLUME</Text>
+                            <Text style={styles.cardPoolValue}>
+                              ₦{(market.poolAmount || 1950000).toLocaleString()}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                            style={[styles.quickTradePill, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                          >
+                            <Text style={styles.quickTradePillText}>{isOverpowered ? 'Locked' : 'Trade Contract'}</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               </View>
             )}
@@ -1034,7 +1074,7 @@ export default function HomeScreen() {
             <View style={styles.selectedPositionBox}>
               <Text style={styles.positionBoxLabel}>SELECTED POSITION</Text>
               <Text style={styles.positionBoxValue}>
-                {selectedOption?.label || 'YES'} (Estimated Yield: {selectedOption?.odds || '1.85'}x)
+                {selectedOption?.label || 'YES'} • ₦1,000 / Share
               </Text>
             </View>
 
@@ -1082,11 +1122,11 @@ export default function HomeScreen() {
 
             {/* Projected Payout */}
             <View style={styles.payoutPreviewRow}>
-              <Text style={styles.payoutPreviewLabel}>Projected Settlement Return</Text>
+              <Text style={styles.payoutPreviewLabel}>Projected Contract Yield</Text>
               <Text style={styles.payoutPreviewValue}>
                 ₦
                 {Math.round(
-                  (parseFloat(stakeAmount) || 0) * (selectedOption?.odds || 1.85)
+                  (parseFloat(stakeAmount) || 0) * 1.9
                 ).toLocaleString()}
               </Text>
             </View>

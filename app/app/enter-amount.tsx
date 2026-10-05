@@ -143,9 +143,15 @@ export default function EnterAmountScreen() {
   const projectedPoolMultiplier = outcomeTotalStake > 0 ? (netPoolPot / outcomeTotalStake).toFixed(2) : '2.00';
   const estimatedPoolPayout = Math.round(parsedPoolStake * parseFloat(projectedPoolMultiplier));
 
+  const isOverpowered = odds <= 1.08;
+
   // Handle Submission
   const handleSubmitTrade = async () => {
     setError('');
+    if (isOverpowered) {
+      setError('Trading is currently locked on this outcome due to extreme probability imbalance.');
+      return;
+    }
     if (!matchId) {
       setError('Please select a valid match');
       return;
@@ -208,7 +214,7 @@ export default function EnterAmountScreen() {
 
         Alert.alert(
           'Pool Entry Confirmed 💰',
-          `Stake: ₦${parsedPoolStake.toLocaleString()}\nOutcome: ${currentSelection}\nProjected Return: ~${projectedPoolMultiplier}x\n\n*Payouts will be distributed pro-rata from the giant pot upon match finish.*`,
+          `Stake: ₦${parsedPoolStake.toLocaleString()}\nOutcome: ${currentSelection}\nProjected Return: ~₦${estimatedPoolPayout.toLocaleString()}\n\n*Payouts will be distributed pro-rata from the giant pot upon match finish.*`,
           [{ text: 'View Trades', onPress: () => router.replace('/(tabs)/trades') }]
         );
       } catch (err: any) {
@@ -266,6 +272,13 @@ export default function EnterAmountScreen() {
             {/* ─── P2P MODE UI ─── */}
             {tradingMode === 'P2P' ? (
               <View style={styles.cardContainer}>
+                {isOverpowered && (
+                  <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', borderRadius: 12, padding: 12, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ShieldCheck size={18} color="#EF4444" />
+                    <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700', flex: 1 }}>Trading on this outcome is locked due to extreme probability imbalance.</Text>
+                  </View>
+                )}
+
                 <View style={styles.badgeRow}>
                   <View style={styles.p2pTag}>
                     <Zap size={12} color="#00D285" />
@@ -361,19 +374,28 @@ export default function EnterAmountScreen() {
                 <TouchableOpacity
                   onPress={handleSubmitTrade}
                   activeOpacity={0.8}
-                  style={styles.p2pSubmitButton}
-                  disabled={loading}
+                  style={[styles.p2pSubmitButton, isOverpowered && { opacity: 0.5 }]}
+                  disabled={loading || isOverpowered}
                 >
                   {loading ? (
                     <ActivityIndicator color="#050811" />
                   ) : (
-                    <Text style={styles.p2pSubmitText}>Place P2P Order (₦{p2pTotalAmount.toLocaleString()})</Text>
+                    <Text style={styles.p2pSubmitText}>
+                      {isOverpowered ? 'Trading Locked (Overpowered)' : `Place P2P Order (₦${p2pTotalAmount.toLocaleString()})`}
+                    </Text>
                   )}
                 </TouchableOpacity>
               </View>
             ) : (
               /* ─── POOL JACKPOT MODE UI ─── */
               <View style={styles.cardContainer}>
+                {isOverpowered && (
+                  <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', borderRadius: 12, padding: 12, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ShieldCheck size={18} color="#EF4444" />
+                    <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700', flex: 1 }}>Trading on this outcome is locked due to extreme probability imbalance.</Text>
+                  </View>
+                )}
+
                 <View style={styles.badgeRow}>
                   <View style={styles.poolTag}>
                     <Layers size={12} color="#3B82F6" />
@@ -388,7 +410,7 @@ export default function EnterAmountScreen() {
                   <Text style={styles.potVisualizerAmount}>₦{totalPoolPot.toLocaleString()}</Text>
                   <View style={styles.multiplierBadge}>
                     <TrendingUp size={14} color="#00D285" />
-                    <Text style={styles.multiplierBadgeText}>Est. Multiplier: {projectedPoolMultiplier}x</Text>
+                    <Text style={styles.multiplierBadgeText}>Pro-Rata Pot Share</Text>
                   </View>
                 </View>
 
@@ -456,14 +478,14 @@ export default function EnterAmountScreen() {
                 <TouchableOpacity
                   onPress={handleSubmitTrade}
                   activeOpacity={0.8}
-                  style={styles.poolSubmitButton}
-                  disabled={loading}
+                  style={[styles.poolSubmitButton, isOverpowered && { opacity: 0.5 }]}
+                  disabled={loading || isOverpowered}
                 >
                   {loading ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <Text style={styles.poolSubmitText}>
-                      Enter Jackpot Pool (₦{parsedPoolStake.toLocaleString()})
+                      {isOverpowered ? 'Trading Locked (Overpowered)' : `Enter Jackpot Pool (₦${parsedPoolStake.toLocaleString()})`}
                     </Text>
                   )}
                 </TouchableOpacity>
