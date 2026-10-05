@@ -7,6 +7,8 @@ import Bet from '../models/Bet';
 import SystemSetting from '../models/SystemSetting';
 import SecurityLog from '../models/SecurityLog';
 import VaultBalance from '../models/VaultBalance';
+import P2POrder from '../models/P2POrder';
+import PoolContract from '../models/PoolContract';
 import bcrypt from 'bcryptjs';
 import { createNotification } from '../services/notificationService';
 import { getIO } from '../services/socketService';
@@ -458,11 +460,174 @@ export const resolveMarket = async (req: Request, res: Response) => {
 
     const normWinning = String(winningOption).trim().toUpperCase();
 
-    // Find all pending bets placed on this market
-    const pendingBets = await Bet.find({ market: market._id, status: 'PENDING' });
     let totalPaidOut = 0;
     let winnersCount = 0;
     let losersCount = 0;
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 1. SETTLE P2P ORDERS FOR THIS PREDICTION MARKET
+    // ────────────────────────────────────────────────────────────────────────
+    const p2pOrders = await P2POrder.find({
+      predictionMarket: market._id as any,
+      status: { $in: ['OPEN', 'PARTIALLY_MATCHED', 'MATCHED'] },
+    });
+
+    for (const order of p2pOrders) {
+      const normSel = String(order.selection).trim().toUpperCase();
+      const isWinner =
+        normSel === normWinning ||
+        (normWinning === 'YES' && (normSel === 'YES' || normSel === '1')) ||
+        (normWinning === 'NO' && (normSel === 'NO' || normSel === '2'));
+
+      const user = await User.findById(order.user);
+      if (!user) continue;
+
+      if (isWinner) {
+        order.outcomeResult = 'WON';
+        order.status = 'SETTLED';
+
+        const grossWinning = order.matchedShares * 2 * 1000;
+        const fee = grossWinning * 0.05; // 5% platform fee
+        const netWinning = grossWinning - fee;
+        const unmatchedRefund = order.unmatchedShares * 1000; // Unmatched shares refunded in full
+        const totalPayout = netWinning + unmatchedRefund;
+
+        order.payout = totalPayout;
+        order.grossProfit = grossWinning - order.matchedShares * 1000;
+        order.feePaid = fee;
+        await order.save();
+
+        user.balance += totalPayout;
+        await user.save();
+
+        totalPaidOut += totalPayout;
+        winnersCount++;
+
+        await Transaction.create({
+          user: user._id,
+          type: 'p2p_trade_won',
+          amount: totalPayout,
+          status: 'completed',
+          reference: order._id.toString(),
+          description: `P2P Outcome Contract WON: "${market.title}" (${order.selection})`,
+        });
+
+        createNotification(
+          user._id.toString(),
+          'P2P Contract Won! ⚡',
+          `Your P2P contract on "${market.title}" won! ₦${Math.round(totalPayout).toLocaleString()} has been credited to your wallet.`,
+          'bet'
+        ).catch(() => {});
+      } else {
+        order.outcomeResult = 'LOST';
+        order.status = 'SETTLED';
+
+        // Refund any unmatched shares that were never paired
+        const unmatchedRefund = order.unmatchedShares * 1000;
+        if (unmatchedRefund > 0) {
+          user.balance += unmatchedRefund;
+          await user.save();
+          order.payout = unmatchedRefund;
+
+          await Transaction.create({
+            user: user._id,
+            type: 'p2p_unmatched_refund',
+            amount: unmatchedRefund,
+            status: 'completed',
+            reference: `p2p_refund_${order._id}`,
+            description: `Unmatched shares refunded for "${market.title}"`,
+          });
+        }
+        await order.save();
+        losersCount++;
+
+        createNotification(
+          user._id.toString(),
+          'P2P Contract Result',
+          `Your P2P contract on "${market.title}" (${order.selection}) resolved to ${winningOption}.`,
+          'bet'
+        ).catch(() => {});
+      }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 2. SETTLE PRO-RATA POOL CONTRACTS FOR THIS PREDICTION MARKET
+    // ────────────────────────────────────────────────────────────────────────
+    const poolContracts = await PoolContract.find({
+      predictionMarket: market._id as any,
+      status: 'PENDING',
+    });
+
+    if (poolContracts.length > 0) {
+      const winningPoolContracts = poolContracts.filter((c: any) => {
+        const normSel = String(c.selection).trim().toUpperCase();
+        return (
+          normSel === normWinning ||
+          (normWinning === 'YES' && (normSel === 'YES' || normSel === '1')) ||
+          (normWinning === 'NO' && (normSel === 'NO' || normSel === '2'))
+        );
+      });
+      const losingPoolContracts = poolContracts.filter((c: any) => !winningPoolContracts.includes(c));
+
+      const totalPoolPot = poolContracts.reduce((sum: number, c: any) => sum + c.stake, 0);
+      const winningPotStake = winningPoolContracts.reduce((sum: number, c: any) => sum + c.stake, 0);
+      const netPotAfterFee = totalPoolPot * 0.95; // 5% fee
+
+      for (const contract of winningPoolContracts) {
+        contract.status = 'WON';
+        const shareRatio = winningPotStake > 0 ? contract.stake / winningPotStake : 1;
+        const payout = netPotAfterFee * shareRatio;
+
+        contract.payout = payout;
+        contract.proRataShare = shareRatio;
+        contract.payoutType = 'PRO_RATA';
+        await contract.save();
+
+        const user = await User.findById(contract.user);
+        if (user) {
+          user.balance += payout;
+          await user.save();
+
+          totalPaidOut += payout;
+          winnersCount++;
+
+          await Transaction.create({
+            user: user._id,
+            type: 'pool_jackpot_won',
+            amount: payout,
+            status: 'completed',
+            reference: contract._id.toString(),
+            description: `Pro-Rata Pool Jackpot WON: "${market.title}" (${contract.selection})`,
+          });
+
+          createNotification(
+            user._id.toString(),
+            'Pool Jackpot Won! 💰',
+            `Congratulations! Your pool share on "${market.title}" won! ₦${Math.round(payout).toLocaleString()} credited to wallet.`,
+            'bet'
+          ).catch(() => {});
+        }
+      }
+
+      for (const contract of losingPoolContracts) {
+        contract.status = 'LOST';
+        contract.payout = 0;
+        await contract.save();
+        losersCount++;
+
+        createNotification(
+          contract.user.toString(),
+          'Pool Trade Result',
+          `Your pool contract on "${market.title}" (${contract.selection}) did not win.`,
+          'bet'
+        ).catch(() => {});
+      }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 3. SETTLE LEGACY BETS (Backward Compatibility)
+    // ────────────────────────────────────────────────────────────────────────
+    const pendingBets = await Bet.find({ market: market._id, status: 'PENDING' });
 
     for (const bet of pendingBets) {
       const normSelection = String(bet.selection).trim().toUpperCase();

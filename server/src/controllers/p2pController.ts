@@ -8,10 +8,11 @@ import { placeP2POrder, getOrderBook, cancelP2POrder } from '../services/p2pEngi
 export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
-    const { matchId, market, selection, shares } = req.body;
+    const { matchId, marketId, market, selection, shares } = req.body;
     const result = await placeP2POrder({
       userId: req.user._id.toString(),
-      matchId,
+      matchId: matchId || marketId,
+      marketId: marketId || matchId,
       market,
       selection,
       shares,

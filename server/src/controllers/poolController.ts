@@ -8,10 +8,11 @@ import { enterPool, getPoolDetails } from '../services/poolEngine';
 export const enterMatchPool = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
-    const { matchId, market, selection, amount } = req.body;
+    const { matchId, marketId, market, selection, amount } = req.body;
     const result = await enterPool({
       userId: req.user._id.toString(),
-      matchId,
+      matchId: matchId || marketId,
+      marketId: marketId || matchId,
       market,
       selection,
       amount,

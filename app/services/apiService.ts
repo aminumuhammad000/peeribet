@@ -395,16 +395,17 @@ export const predictionMarketService = {
 // P2P Flow Trading Service (Atomized Shares ₦1,000 = 1 Share)
 export const p2pService = {
   placeOrder: async (data: {
-    matchId: string;
-    market?: 'MATCH_OUTCOME' | 'OVER_UNDER_25' | 'BTTS';
-    selection: 'HOME' | 'DRAW' | 'AWAY' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO';
+    matchId?: string;
+    marketId?: string;
+    market?: string;
+    selection: string;
     shares: number;
   }) => {
     const response = await apiRequest(api.post('/p2p/orders', data));
     return response.data;
   },
-  getOrderBook: async (matchId: string, market = 'MATCH_OUTCOME') => {
-    const response = await apiRequest(api.get(`/p2p/orderbook/${matchId}`, { params: { market } }));
+  getOrderBook: async (matchOrMarketId: string, market = 'MATCH_OUTCOME') => {
+    const response = await apiRequest(api.get(`/p2p/orderbook/${matchOrMarketId}`, { params: { market } }));
     return response.data;
   },
   getMyOrders: async (params?: { page?: number; limit?: number; status?: string }) => {
@@ -420,16 +421,17 @@ export const p2pService = {
 // Pool Jackpot Pro-Rata Service
 export const poolService = {
   enterPool: async (data: {
-    matchId: string;
-    market?: 'MATCH_OUTCOME' | 'OVER_UNDER_25' | 'BTTS';
-    selection: 'HOME' | 'DRAW' | 'AWAY' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO';
+    matchId?: string;
+    marketId?: string;
+    market?: string;
+    selection: string;
     amount: number;
   }) => {
     const response = await apiRequest(api.post('/pool/enter', data));
     return response.data;
   },
-  getPoolBreakdown: async (matchId: string, market = 'MATCH_OUTCOME') => {
-    const response = await apiRequest(api.get(`/pool/${matchId}`, { params: { market } }));
+  getPoolBreakdown: async (matchOrMarketId: string, market = 'MATCH_OUTCOME') => {
+    const response = await apiRequest(api.get(`/pool/${matchOrMarketId}`, { params: { market } }));
     return response.data;
   },
   getMyPoolContracts: async (params?: { page?: number; limit?: number; isBridged?: boolean }) => {

@@ -21,11 +21,20 @@ export interface IMarket extends Document {
   marketType: 'YES_NO' | 'MULTIPLE_CHOICE';
   options: IMarketOption[];
   rules: string;
-  resolutionSource?: string;
   poolAmount: number;
+  pool?: {
+    totalPot: number;
+    optionPots?: Record<string, number>;
+  };
+  p2pStats?: {
+    totalSharesTraded: number;
+    matchedShares: number;
+    openShares: number;
+  };
   volume: string;
   status: 'DRAFT' | 'ACTIVE' | 'CLOSED' | 'RESOLVED' | 'VOIDED' | 'MAINTENANCE';
   winningOption?: string;
+  resolutionSource?: string;
   closingDate?: Date;
   resolutionDate?: Date;
   resolvedAt?: Date;
@@ -83,6 +92,15 @@ const marketSchema = new Schema<IMarket>(
     rules: { type: String, default: '' },
     resolutionSource: { type: String, default: '' },
     poolAmount: { type: Number, default: 0 },
+    pool: {
+      totalPot: { type: Number, default: 0 },
+      optionPots: { type: Map, of: Number, default: {} },
+    },
+    p2pStats: {
+      totalSharesTraded: { type: Number, default: 0 },
+      matchedShares: { type: Number, default: 0 },
+      openShares: { type: Number, default: 0 },
+    },
     volume: { type: String, default: '₦0' },
     status: {
       type: String,

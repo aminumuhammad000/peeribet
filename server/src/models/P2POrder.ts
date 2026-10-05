@@ -9,9 +9,10 @@ export interface IMatchedFill {
 
 export interface IP2POrder extends Document {
   user: Types.ObjectId;
-  match: Types.ObjectId;
-  market: 'MATCH_OUTCOME' | 'OVER_UNDER_25' | 'BTTS';
-  selection: 'HOME' | 'DRAW' | 'AWAY' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO';
+  match?: Types.ObjectId;
+  predictionMarket?: Types.ObjectId;
+  market: string;
+  selection: string;
   totalShares: number;
   sharePrice: number; // ₦1,000 per share
   totalAmount: number; // totalShares * 1000
@@ -34,15 +35,14 @@ export interface IP2POrder extends Document {
 const p2pOrderSchema = new Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    match: { type: mongoose.Schema.Types.ObjectId, ref: 'Match', required: true },
+    match: { type: mongoose.Schema.Types.ObjectId, ref: 'Match' },
+    predictionMarket: { type: mongoose.Schema.Types.ObjectId, ref: 'Market' },
     market: {
       type: String,
-      enum: ['MATCH_OUTCOME', 'OVER_UNDER_25', 'BTTS'],
       default: 'MATCH_OUTCOME',
     },
     selection: {
       type: String,
-      enum: ['HOME', 'DRAW', 'AWAY', 'OVER_25', 'UNDER_25', 'BTTS_YES', 'BTTS_NO'],
       required: true,
     },
     totalShares: { type: Number, required: true, min: 1 },
@@ -82,6 +82,7 @@ const p2pOrderSchema = new Schema(
 );
 
 p2pOrderSchema.index({ match: 1, selection: 1, status: 1 });
+p2pOrderSchema.index({ predictionMarket: 1, selection: 1, status: 1 });
 p2pOrderSchema.index({ user: 1, status: 1 });
 
 const P2POrder = mongoose.model<IP2POrder>('P2POrder', p2pOrderSchema);
