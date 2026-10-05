@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
+  Share,
+  Modal,
+  Clipboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,9 +20,17 @@ import {
   TrendingUp,
   Landmark,
   Plus,
+  Gift,
+  Share2,
+  X,
+  Copy,
+  CheckCircle,
+  Sparkles,
+  ShieldCheck,
+  Award,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { p2pService, poolService, betService } from '../../services/apiService';
+import { p2pService, poolService, betService, referralService, showToast } from '../../services/apiService';
 
 export default function TradesScreen() {
   const router = useRouter();
@@ -31,6 +42,12 @@ export default function TradesScreen() {
   const [allTrades, setAllTrades] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Win Receipt & Referral State
+  const [selectedWinTrade, setSelectedWinTrade] = useState<any | null>(null);
+  const [winReceiptModalVisible, setWinReceiptModalVisible] = useState(false);
+  const [userReferralCode, setUserReferralCode] = useState('TRADE1K');
+  const [copiedCode, setCopiedCode] = useState(false);
 
   // Performance Metrics
   const [winRate, setWinRate] = useState('68.4%');
@@ -165,11 +182,45 @@ export default function TradesScreen() {
   useEffect(() => {
     setLoading(true);
     fetchUserTrades();
+    referralService.getMyReferrals().then((data: any) => {
+      if (data?.referralCode) setUserReferralCode(data.referralCode);
+    }).catch(() => {});
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchUserTrades();
+    referralService.getMyReferrals().then((data: any) => {
+      if (data?.referralCode) setUserReferralCode(data.referralCode);
+    }).catch(() => {});
+  };
+
+  const handleOpenWinReceipt = (trade: any) => {
+    setSelectedWinTrade(trade);
+    setWinReceiptModalVisible(true);
+  };
+
+  const handleCopyReferralCode = () => {
+    if (!userReferralCode) return;
+    Clipboard.setString(userReferralCode);
+    setCopiedCode(true);
+    showToast('Referral code copied to clipboard! 📋', 'success');
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const handleShareWinReceipt = async () => {
+    if (!selectedWinTrade) return;
+    try {
+      const profitFormatted = selectedWinTrade.rawProfit ? `+₦${selectedWinTrade.rawProfit.toLocaleString()}` : '+₦5,000';
+      const code = userReferralCode || 'TRADE1K';
+      const shareUrl = `https://peeritrade.com/join?ref=${code}`;
+      await Share.share({
+        title: 'Peeritrade Outcome Trade Win Receipt',
+        message: `🔥 Boom! I just won ${profitFormatted} on "${selectedWinTrade.matchTitle}" (${selectedWinTrade.position}) trading on Peeritrade!\n\nJoin with my referral code ${code} and we BOTH get ₦1,000 free bonus instantly to trade:\n${shareUrl}`,
+      });
+    } catch (error) {
+      console.error('Error sharing win receipt:', error);
+    }
   };
 
   const formatTradeDate = (trade: any) => {
@@ -346,8 +397,21 @@ export default function TradesScreen() {
                     </View>
                   )}
 
-                  {/* Footer Date */}
-                  <Text style={styles.cardDateFooter}>{formatTradeDate(trade)}</Text>
+                  {/* Footer Date & Win Share Button */}
+                  <View style={styles.cardFooterRowWrap}>
+                    <Text style={styles.cardDateFooter}>{formatTradeDate(trade)}</Text>
+                    {isWon && (
+                      <TouchableOpacity
+                        style={styles.shareWinReceiptBtn}
+                        activeOpacity={0.8}
+                        onPress={() => handleOpenWinReceipt(trade)}
+                      >
+                        <Gift size={13} color="#00D285" />
+                        <Text style={styles.shareWinReceiptBtnText}>Share Win • Earn ₦1,000</Text>
+                        <Share2 size={12} color="#00D285" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               );
             })
@@ -383,6 +447,122 @@ export default function TradesScreen() {
         >
           <Plus size={26} color="#050811" strokeWidth={3} />
         </TouchableOpacity>
+
+        {/* ==================== WIN RECEIPT VIRAL MODAL ==================== */}
+        <Modal
+          visible={winReceiptModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setWinReceiptModalVisible(false)}
+        >
+          <View style={styles.receiptModalOverlay}>
+            <View style={styles.receiptModalCard}>
+              {/* Header: Verified Seal & Close */}
+              <View style={styles.receiptHeaderRow}>
+                <View style={styles.verifiedBadgeRow}>
+                  <ShieldCheck size={14} color="#00D285" />
+                  <Text style={styles.verifiedBadgeText}>VERIFIED WIN RECEIPT</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setWinReceiptModalVisible(false)}
+                  style={styles.receiptCloseBtn}
+                  activeOpacity={0.7}
+                >
+                  <X size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Glowing Win Hero Card */}
+              <LinearGradient
+                colors={['rgba(0, 210, 133, 0.22)', 'rgba(0, 210, 133, 0.04)']}
+                style={styles.receiptHeroBanner}
+              >
+                <Award size={34} color="#00D285" style={{ marginBottom: 4 }} />
+                <Text style={styles.receiptHeroSubtitle}>PEERITRADE SETTLEMENT</Text>
+                <Text style={styles.receiptHeroProfit}>
+                  +₦{(selectedWinTrade?.rawProfit || 5000).toLocaleString()}
+                </Text>
+                <Text style={styles.receiptHeroProfitLabel}>Net Outcome Profit Won</Text>
+              </LinearGradient>
+
+              {/* Trade Breakdown Box */}
+              <View style={styles.receiptDetailsBox}>
+                <View style={styles.receiptDetailRow}>
+                  <Text style={styles.receiptDetailLabel}>Market / Event</Text>
+                  <Text style={styles.receiptDetailValue} numberOfLines={1}>
+                    {selectedWinTrade?.matchTitle}
+                  </Text>
+                </View>
+                <View style={styles.receiptDetailRow}>
+                  <Text style={styles.receiptDetailLabel}>Winning Position</Text>
+                  <Text style={styles.receiptDetailValueHighlight}>
+                    {selectedWinTrade?.position}
+                  </Text>
+                </View>
+                <View style={styles.receiptDetailRow}>
+                  <Text style={styles.receiptDetailLabel}>Contract Amount</Text>
+                  <Text style={styles.receiptDetailValue}>
+                    ₦{(selectedWinTrade?.amount || 5000).toLocaleString()}
+                  </Text>
+                </View>
+                <View style={[styles.receiptDetailRow, { borderBottomWidth: 0 }]}>
+                  <Text style={styles.receiptDetailLabel}>Status</Text>
+                  <Text style={[styles.receiptDetailValueHighlight, { color: '#00D285' }]}>
+                    WON & CREDITED
+                  </Text>
+                </View>
+              </View>
+
+              {/* Referral Dual ₦1,000 Bonus Banner */}
+              <View style={styles.referralCalloutCard}>
+                <View style={styles.referralCalloutHeader}>
+                  <Gift size={16} color="#F59E0B" />
+                  <Text style={styles.referralCalloutTitle}>Dual ₦1,000 Referral Perk</Text>
+                </View>
+                <Text style={styles.referralCalloutDesc}>
+                  Share this win slip. When a friend signs up using your code, <Text style={{ color: '#00D285', fontWeight: '700' }}>they get ₦1,000</Text> and <Text style={{ color: '#00D285', fontWeight: '700' }}>you get ₦1,000</Text> credited instantly!
+                </Text>
+
+                {/* Referral Code Bar */}
+                <View style={styles.codeCopyBar}>
+                  <View>
+                    <Text style={styles.codeCopyLabel}>YOUR REFERRAL CODE</Text>
+                    <Text style={styles.codeCopyValue}>{userReferralCode}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={handleCopyReferralCode}
+                    style={styles.codeCopyBtn}
+                    activeOpacity={0.7}
+                  >
+                    {copiedCode ? (
+                      <CheckCircle size={15} color="#00D285" />
+                    ) : (
+                      <Copy size={15} color="#00D285" />
+                    )}
+                    <Text style={styles.codeCopyBtnText}>{copiedCode ? 'Copied!' : 'Copy'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Share CTA Button */}
+              <TouchableOpacity
+                style={styles.receiptShareCTA}
+                activeOpacity={0.85}
+                onPress={handleShareWinReceipt}
+              >
+                <LinearGradient
+                  colors={['#00D285', '#00A86B']}
+                  style={styles.receiptShareGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Share2 size={18} color="#050811" />
+                  <Text style={styles.receiptShareBtnText}>Share Win Slip & Earn ₦1,000</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -668,6 +848,236 @@ const styles = StyleSheet.create({
     color: '#8FA2C7',
     fontSize: 12,
     textAlign: 'center',
+    fontFamily: 'Inter',
+  },
+
+  /* Card Footer Wrap & Share Win Slip Button */
+  cardFooterRowWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  shareWinReceiptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 133, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+    gap: 6,
+  },
+  shareWinReceiptBtnText: {
+    color: '#00D285',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+
+  /* Win Receipt Modal Styles */
+  receiptModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  receiptModalCard: {
+    width: '100%',
+    backgroundColor: '#0F182E',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+    shadowColor: '#00D285',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  receiptHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  verifiedBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 133, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.25)',
+  },
+  verifiedBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00D285',
+    letterSpacing: 0.5,
+    fontFamily: 'Inter',
+  },
+  receiptCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  receiptHeroBanner: {
+    borderRadius: 18,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.25)',
+  },
+  receiptHeroSubtitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00D285',
+    letterSpacing: 1,
+    fontFamily: 'Inter',
+    marginBottom: 4,
+  },
+  receiptHeroProfit: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    letterSpacing: 0.5,
+  },
+  receiptHeroProfitLabel: {
+    fontSize: 11,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+    marginTop: 2,
+  },
+  receiptDetailsBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  receiptDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  receiptDetailLabel: {
+    fontSize: 11,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  receiptDetailValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    maxWidth: '60%',
+  },
+  receiptDetailValueHighlight: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  referralCalloutCard: {
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+  },
+  referralCalloutHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  referralCalloutTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#F59E0B',
+    fontFamily: 'Inter',
+  },
+  referralCalloutDesc: {
+    fontSize: 11,
+    color: '#94A3B8',
+    lineHeight: 16,
+    fontFamily: 'Inter',
+    marginBottom: 10,
+  },
+  codeCopyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#090F1E',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+  },
+  codeCopyLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  codeCopyValue: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#00D285',
+    letterSpacing: 2,
+    fontFamily: 'Inter',
+    marginTop: 2,
+  },
+  codeCopyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  codeCopyBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  receiptShareCTA: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  receiptShareGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+  },
+  receiptShareBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#050811',
     fontFamily: 'Inter',
   },
 });
