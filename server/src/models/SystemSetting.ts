@@ -7,6 +7,9 @@ export interface ISystemSetting extends Document {
   activePaymentGateway: 'vtstack' | 'paystack' | 'flutterwave' | 'monnify' | 'manual';
   paystackPublicKey?: string;
   paystackSecretKey?: string;
+  flutterwavePublicKey?: string;
+  flutterwaveSecretKey?: string;
+  flutterwaveSecretHash?: string;
   vtstackApiKey?: string;
   vtstackPayoutKey?: string;
   vtstackWebhookSecret?: string;
@@ -35,6 +38,9 @@ const systemSettingSchema = new Schema(
     },
     paystackPublicKey: { type: String, default: '' },
     paystackSecretKey: { type: String, default: '' },
+    flutterwavePublicKey: { type: String, default: '' },
+    flutterwaveSecretKey: { type: String, default: '' },
+    flutterwaveSecretHash: { type: String, default: 'peeritrade_flw_secret' },
     vtstackApiKey: { type: String, default: '' },
     vtstackPayoutKey: { type: String, default: '' },
     vtstackWebhookSecret: { type: String, default: '' },

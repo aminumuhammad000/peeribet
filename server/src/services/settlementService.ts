@@ -18,27 +18,66 @@ let settlementTimer: NodeJS.Timeout | null = null;
 export const evaluateSelectionResult = (
   selection: string,
   homeScore: number,
-  awayScore: number
-): boolean => {
-  const totalGoals = homeScore + awayScore;
-  switch (selection) {
-    case 'HOME':
-      return homeScore > awayScore;
-    case 'DRAW':
-      return homeScore === awayScore;
-    case 'AWAY':
-      return awayScore > homeScore;
-    case 'OVER_25':
-      return totalGoals > 2.5;
-    case 'UNDER_25':
-      return totalGoals < 2.5;
-    case 'BTTS_YES':
-      return homeScore > 0 && awayScore > 0;
-    case 'BTTS_NO':
-      return homeScore === 0 || awayScore === 0;
-    default:
-      return false;
+  awayScore: number,
+  extraData?: {
+    sport?: string;
+    halfHomeScore?: number;
+    halfAwayScore?: number;
+    methodOfSettlement?: string;
+    stoppedEarly?: boolean;
   }
+): boolean => {
+  const norm = String(selection).trim().toUpperCase();
+  const totalScore = homeScore + awayScore;
+
+  // Match / Fight / Game Winner
+  if (norm === 'HOME') return homeScore > awayScore;
+  if (norm === 'DRAW') return homeScore === awayScore;
+  if (norm === 'AWAY') return awayScore > homeScore;
+
+  // Double Chance Hedges
+  if (norm === '1X') return homeScore >= awayScore;
+  if (norm === 'X2') return awayScore >= homeScore;
+  if (norm === '12') return homeScore !== awayScore;
+
+  // Totals
+  if (norm === 'OVER_25') return totalScore > 2.5;
+  if (norm === 'UNDER_25') return totalScore < 2.5;
+  if (norm === 'OVER_POINTS') return totalScore > 218.5;
+  if (norm === 'UNDER_POINTS') return totalScore < 218.5;
+
+  // BTTS
+  if (norm === 'BTTS_YES') return homeScore > 0 && awayScore > 0;
+  if (norm === 'BTTS_NO') return homeScore === 0 || awayScore === 0;
+
+  // Basketball Spreads (+/- 5.5)
+  if (norm === 'SPREAD_HOME') return homeScore + 5.5 > awayScore;
+  if (norm === 'SPREAD_AWAY') return awayScore + 5.5 > homeScore;
+
+  // Halftime Markets
+  const halfHome = extraData?.halfHomeScore ?? Math.floor(homeScore / 2);
+  const halfAway = extraData?.halfAwayScore ?? Math.floor(awayScore / 2);
+  if (norm === 'HALF_HOME') return halfHome > halfAway;
+  if (norm === 'HALF_DRAW') return halfHome === halfAway;
+  if (norm === 'HALF_AWAY') return halfAway > halfHome;
+
+  // Combat Markets (UFC & Boxing)
+  if (norm === 'KO_TKO_SUB') {
+    return extraData?.methodOfSettlement
+      ? ['KO', 'TKO', 'SUBMISSION'].includes(extraData.methodOfSettlement.toUpperCase())
+      : (homeScore !== awayScore);
+  }
+  if (norm === 'DECISION') {
+    return extraData?.methodOfSettlement?.toUpperCase() === 'DECISION';
+  }
+  if (norm === 'EARLY_STOPPAGE') {
+    return extraData?.stoppedEarly ?? totalScore < 3;
+  }
+  if (norm === 'GO_DISTANCE') {
+    return !(extraData?.stoppedEarly ?? totalScore < 3);
+  }
+
+  return false;
 };
 
 /**

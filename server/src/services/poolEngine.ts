@@ -92,6 +92,22 @@ export const enterPool = async ({
       predictionMarket.pool = { totalPot: 0, optionPots: {} };
     }
     predictionMarket.pool.totalPot = (predictionMarket.pool.totalPot || 0) + parsedAmount;
+
+    // Update specific option totalStaked
+    const norm = String(selection).trim().toUpperCase();
+    const opt = predictionMarket.options?.find(
+      (o: any) =>
+        String(o.label).trim().toUpperCase() === norm ||
+        String(o.id).trim().toUpperCase() === norm ||
+        (norm === 'YES' && o.id?.toLowerCase() === 'yes') ||
+        (norm === 'NO' && o.id?.toLowerCase() === 'no')
+    );
+    if (opt) {
+      opt.totalStaked = (opt.totalStaked || 0) + parsedAmount;
+    }
+
+    const currentVolNum = parseFloat(String(predictionMarket.volume || '0').replace(/[^0-9.]/g, '')) || 0;
+    predictionMarket.volume = `₦${(currentVolNum + parsedAmount).toLocaleString()}`;
     await predictionMarket.save();
   }
 

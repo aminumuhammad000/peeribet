@@ -185,7 +185,14 @@ export default function TradesScreen() {
     referralService.getMyReferrals().then((data: any) => {
       if (data?.referralCode) setUserReferralCode(data.referralCode);
     }).catch(() => {});
+    referralService.getWinShareStatus().then((status: any) => {
+      if (status?.remainingThisWeek !== undefined) setSharesRemainingThisWeek(status.remainingThisWeek);
+    }).catch(() => {});
   }, []);
+
+  const [claimedTradeIds, setClaimedTradeIds] = useState<Record<string, boolean>>({});
+  const [sharesRemainingThisWeek, setSharesRemainingThisWeek] = useState(3);
+  const [isClaimingShare, setIsClaimingShare] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -193,11 +200,24 @@ export default function TradesScreen() {
     referralService.getMyReferrals().then((data: any) => {
       if (data?.referralCode) setUserReferralCode(data.referralCode);
     }).catch(() => {});
+    referralService.getWinShareStatus().then((status: any) => {
+      if (status?.remainingThisWeek !== undefined) setSharesRemainingThisWeek(status.remainingThisWeek);
+    }).catch(() => {});
   };
 
   const handleOpenWinReceipt = (trade: any) => {
     setSelectedWinTrade(trade);
     setWinReceiptModalVisible(true);
+    if (trade?.id) {
+      referralService.getWinShareStatus(trade.id).then((st: any) => {
+        if (st.isTradeShared) {
+          setClaimedTradeIds((prev) => ({ ...prev, [trade.id]: true }));
+        }
+        if (st.remainingThisWeek !== undefined) {
+          setSharesRemainingThisWeek(st.remainingThisWeek);
+        }
+      }).catch(() => {});
+    }
   };
 
   const handleCopyReferralCode = () => {
@@ -210,16 +230,55 @@ export default function TradesScreen() {
 
   const handleShareWinReceipt = async () => {
     if (!selectedWinTrade) return;
+    const tradeId = selectedWinTrade.id;
+
+    if (claimedTradeIds[tradeId]) {
+      showToast('You already claimed the ₦1,000 bonus for this win receipt!', 'warning');
+      return;
+    }
+
+    if (sharesRemainingThisWeek <= 0) {
+      showToast('Weekly limit reached: Maximum 3 win receipt share bonuses per week.', 'warning');
+      return;
+    }
+
+    setIsClaimingShare(true);
     try {
       const profitFormatted = selectedWinTrade.rawProfit ? `+₦${selectedWinTrade.rawProfit.toLocaleString()}` : '+₦5,000';
       const code = userReferralCode || 'TRADE1K';
       const shareUrl = `https://peeritrade.com/join?ref=${code}`;
+      
+      // 1. Trigger native social share sheet (Rule 2)
       await Share.share({
         title: 'Peeritrade Outcome Trade Win Receipt',
         message: `🔥 Boom! I just won ${profitFormatted} on "${selectedWinTrade.matchTitle}" (${selectedWinTrade.position}) trading on Peeritrade!\n\nJoin with my referral code ${code} and we BOTH get ₦1,000 free bonus instantly to trade:\n${shareUrl}`,
       });
-    } catch (error) {
-      console.error('Error sharing win receipt:', error);
+
+      // 2. Claim the ₦1,000 reward on backend (Rule 3, 4, 5)
+      const res = await referralService.claimWinShareBonus({
+        tradeId,
+        profitAmount: selectedWinTrade.rawProfit || 0,
+        platform: 'social_share',
+      });
+
+      setClaimedTradeIds((prev) => ({ ...prev, [tradeId]: true }));
+      if (res?.remainingThisWeek !== undefined) {
+        setSharesRemainingThisWeek(res.remainingThisWeek);
+      }
+      showToast(res?.message || '₦1,000 bonus credited to your wallet! 🎉', 'success');
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Shared successfully! Invite friends to join.';
+      if (error.response?.data?.code === 'ALREADY_SHARED') {
+        setClaimedTradeIds((prev) => ({ ...prev, [tradeId]: true }));
+        showToast(msg, 'warning');
+      } else if (error.response?.data?.code === 'WEEKLY_LIMIT_REACHED') {
+        setSharesRemainingThisWeek(0);
+        showToast(msg, 'warning');
+      } else {
+        showToast(msg, 'info');
+      }
+    } finally {
+      setIsClaimingShare(false);
     }
   };
 
@@ -544,20 +603,45 @@ export default function TradesScreen() {
                 </View>
               </View>
 
-              {/* Share CTA Button */}
+              {/* Share CTA Button with Anti-Abuse Status */}
               <TouchableOpacity
-                style={styles.receiptShareCTA}
+                style={[
+                  styles.receiptShareCTA,
+                  (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.7 }
+                ]}
                 activeOpacity={0.85}
+                disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id])}
                 onPress={handleShareWinReceipt}
               >
                 <LinearGradient
-                  colors={['#00D285', '#00A86B']}
+                  colors={
+                    selectedWinTrade && claimedTradeIds[selectedWinTrade.id]
+                      ? ['#1E293B', '#0F172A']
+                      : ['#00D285', '#00A86B']
+                  }
                   style={styles.receiptShareGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
-                  <Share2 size={18} color="#050811" />
-                  <Text style={styles.receiptShareBtnText}>Share Win Slip & Earn ₦1,000</Text>
+                  {selectedWinTrade && claimedTradeIds[selectedWinTrade.id] ? (
+                    <CheckCircle size={18} color="#00D285" />
+                  ) : (
+                    <Share2 size={18} color="#050811" />
+                  )}
+                  <Text
+                    style={[
+                      styles.receiptShareBtnText,
+                      selectedWinTrade && claimedTradeIds[selectedWinTrade.id] && { color: '#00D285' }
+                    ]}
+                  >
+                    {isClaimingShare
+                      ? 'Crediting Bonus...'
+                      : selectedWinTrade && claimedTradeIds[selectedWinTrade.id]
+                      ? 'Receipt Already Rewarded ✓'
+                      : sharesRemainingThisWeek <= 0
+                      ? 'Weekly Limit Reached (3/3 Used)'
+                      : `Share Win & Earn ₦1,000 (${sharesRemainingThisWeek}/3 Left This Week)`}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>

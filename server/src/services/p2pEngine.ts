@@ -18,10 +18,24 @@ const getOpposingSelections = (selection: string, allOptions?: string[]): string
   if (norm === 'DRAW') return ['HOME', 'AWAY'];
   if (norm === 'OVER_25') return ['UNDER_25'];
   if (norm === 'UNDER_25') return ['OVER_25'];
+  if (norm === 'OVER_POINTS') return ['UNDER_POINTS'];
+  if (norm === 'UNDER_POINTS') return ['OVER_POINTS'];
   if (norm === 'BTTS_YES' || norm === 'YES') return ['BTTS_NO', 'NO'];
   if (norm === 'BTTS_NO' || norm === 'NO') return ['BTTS_YES', 'YES'];
   if (norm === 'OPTION_A') return ['OPTION_B'];
   if (norm === 'OPTION_B') return ['OPTION_A'];
+
+  // Combat markets
+  if (norm === 'KO_TKO_SUB') return ['DECISION'];
+  if (norm === 'DECISION') return ['KO_TKO_SUB'];
+  if (norm === 'EARLY_STOPPAGE') return ['GO_DISTANCE'];
+  if (norm === 'GO_DISTANCE') return ['EARLY_STOPPAGE'];
+
+  // Basketball markets
+  if (norm === 'SPREAD_HOME') return ['SPREAD_AWAY'];
+  if (norm === 'SPREAD_AWAY') return ['SPREAD_HOME'];
+  if (norm === 'HALF_HOME') return ['HALF_AWAY'];
+  if (norm === 'HALF_AWAY') return ['HALF_HOME'];
 
   if (allOptions && allOptions.length > 0) {
     return allOptions.filter((opt) => String(opt).trim().toUpperCase() !== norm);

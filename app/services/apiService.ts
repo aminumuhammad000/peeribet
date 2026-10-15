@@ -353,6 +353,14 @@ export const walletService = {
     const response = await apiRequest(api.post('/wallet/withdraw', data));
     return response.data;
   },
+  initializeFlutterwaveDeposit: async (data: { amount: number; redirectUrl?: string }) => {
+    const response = await apiRequest(api.post('/wallet/flutterwave/initialize', data));
+    return response.data;
+  },
+  verifyFlutterwaveDeposit: async (txRef: string) => {
+    const response = await apiRequest(api.get(`/wallet/flutterwave/verify/${txRef}`));
+    return response.data;
+  },
 };
 
 export const matchService = {
@@ -386,7 +394,7 @@ export const predictionMarketService = {
     const response = await apiRequest(api.get(`/markets/${id}`));
     return response.data;
   },
-  placeBet: async (marketId: string, data: { selection: string; amount: number }) => {
+  placeBet: async (marketId: string, data: { selection: string; amount: number; tradeType?: string; shares?: number }) => {
     const response = await apiRequest(api.post(`/markets/${marketId}/bet`, data));
     return response.data;
   },
@@ -499,6 +507,14 @@ export const referralService = {
       if (err.response?.data) return err.response.data;
       return { valid: false, message: 'Invalid or inactive referral code' };
     }
+  },
+  claimWinShareBonus: async (data: { tradeId: string; profitAmount?: number; platform?: string }) => {
+    const response = await apiRequest(api.post('/referrals/claim-win-share', data));
+    return response.data;
+  },
+  getWinShareStatus: async (tradeId?: string) => {
+    const response = await apiRequest(api.get(`/referrals/win-share-status/${encodeURIComponent(tradeId || 'none')}`));
+    return response.data;
   },
 };
 

@@ -3,6 +3,14 @@ import User from '../models/User';
 import Transaction from '../models/Transaction';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { createVirtualAccount, verifyWebhookSignature, getBanks, verifyBankAccount, sendPayout } from '../services/vtStackService';
+import {
+  initializeFlutterwavePayment,
+  verifyFlutterwavePayment,
+  verifyFlutterwaveWebhook,
+  getFlutterwaveConfig,
+} from '../services/flutterwaveService';
+import { createNotification } from '../services/notificationService';
+import { getIO } from '../services/socketService';
 
 // ─── Provision Virtual Account ───────────────────────────────────────────────
 // @route  POST /api/wallet/virtual-account
@@ -298,3 +306,189 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ─── Initialize Flutterwave Deposit ──────────────────────────────────────────
+// @route  POST /api/wallet/flutterwave/initialize
+// @access Private
+export const initializeFlutterwaveDeposit = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const depositAmount = Number(req.body.amount);
+    if (!Number.isFinite(depositAmount) || depositAmount < 200) {
+      return res.status(400).json({ message: 'Minimum deposit via Flutterwave is ₦200' });
+    }
+
+    const redirectUrl = req.body.redirectUrl || 'peeritrade://wallet';
+    const result = await initializeFlutterwavePayment({
+      userId: user._id.toString(),
+      amount: depositAmount,
+      email: user.email,
+      name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Trader',
+      phone: user.phone,
+      redirectUrl,
+    });
+
+    res.status(200).json({
+      message: 'Flutterwave checkout generated successfully',
+      ...result,
+    });
+  } catch (error: any) {
+    console.error('[Flutterwave Init Error]', error.message);
+    res.status(500).json({ message: error.message || 'Failed to initialize payment with Flutterwave' });
+  }
+};
+
+// ─── Verify Flutterwave Payment ───────────────────────────────────────────────
+// @route  GET /api/wallet/flutterwave/verify/:txRef
+// @access Private
+export const verifyFlutterwaveDeposit = async (req: AuthRequest, res: Response) => {
+  try {
+    const txRef = String(req.params.txRef || '');
+    if (!txRef) return res.status(400).json({ message: 'Transaction reference is required' });
+
+    const verification = await verifyFlutterwavePayment(txRef);
+    if (!verification.success || verification.status !== 'successful') {
+      return res.status(400).json({
+        message: verification.message || 'Payment verification failed or payment is incomplete.',
+        status: verification.status,
+      });
+    }
+
+    const amount = Number(verification.amount) || 0;
+    if (amount <= 0) {
+      return res.status(400).json({ message: 'Invalid transaction amount detected.' });
+    }
+
+    // Check if transaction already credited
+    const existingTx = await Transaction.findOne({ reference: txRef });
+    if (existingTx && existingTx.status === 'completed') {
+      const user = await User.findById(req.user?._id);
+      return res.status(200).json({
+        message: 'Deposit already verified and credited to wallet.',
+        balance: user?.balance,
+        transaction: existingTx,
+      });
+    }
+
+    // Find and credit user
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.balance += amount;
+    await user.save();
+
+    const transaction = await Transaction.create({
+      user: user._id,
+      type: 'deposit',
+      amount,
+      status: 'completed',
+      reference: txRef,
+      description: `Flutterwave Instant Escrow Deposit: ₦${amount.toLocaleString()}`,
+    });
+
+    await createNotification(
+      user._id.toString(),
+      'Deposit Successful! 💳',
+      `₦${amount.toLocaleString()} was successfully credited to your trading wallet via Flutterwave.`,
+      'wallet'
+    );
+
+    try {
+      const io = getIO();
+      if (io) {
+        io.emit('wallet_updated', { userId: user._id.toString(), newBalance: user.balance });
+      }
+    } catch (e) {}
+
+    res.status(200).json({
+      message: 'Deposit confirmed and credited to wallet!',
+      balance: user.balance,
+      amount,
+      transaction,
+    });
+  } catch (error: any) {
+    console.error('[Flutterwave Verify Error]', error.message);
+    res.status(500).json({ message: error.message || 'Verification error occurred' });
+  }
+};
+
+// ─── Flutterwave Webhook Handler ──────────────────────────────────────────────
+// @route  POST /api/wallet/webhook/flutterwave
+// @access Public (verified by secret hash header)
+export const flutterwaveWebhook = async (req: Request, res: Response) => {
+  try {
+    const verifHash = req.headers['verif-hash'] as string;
+    const { secretHash } = await getFlutterwaveConfig();
+
+    if (!verifyFlutterwaveWebhook(verifHash, secretHash)) {
+      console.warn('[Flutterwave Webhook] Invalid verif-hash signature — rejected');
+      return res.status(401).json({ message: 'Unauthorized webhook call' });
+    }
+
+    const { event, data } = req.body;
+    console.log(`[Flutterwave Webhook] Event received: ${event}`);
+
+    if (event === 'charge.completed' && data?.status === 'successful') {
+      const txRef = String(data.tx_ref || '');
+      const amount = Number(data.amount);
+      const email = data.customer?.email?.toLowerCase();
+
+      // Check for duplicate processing
+      const existing = await Transaction.findOne({ reference: txRef });
+      if (existing && existing.status === 'completed') {
+        console.log(`[Flutterwave Webhook] Duplicate tx_ref ${txRef} — skipped`);
+        return res.status(200).json({ received: true });
+      }
+
+      // Find user
+      let user = null;
+      if (txRef && txRef.startsWith('flw_peer_')) {
+        const parts = txRef.split('_');
+        if (parts.length >= 3) {
+          user = await User.findById(parts[2]);
+        }
+      }
+      if (!user && email) {
+        user = await User.findOne({ email });
+      }
+
+      if (user && amount > 0) {
+        user.balance += amount;
+        await user.save();
+
+        const transaction = await Transaction.create({
+          user: user._id,
+          type: 'deposit',
+          amount,
+          status: 'completed',
+          reference: txRef,
+          description: `Flutterwave Webhook Deposit: ₦${amount.toLocaleString()}`,
+        });
+
+        await createNotification(
+          user._id.toString(),
+          'Escrow Deposit Credited! 💳',
+          `Your deposit of ₦${amount.toLocaleString()} has been credited to your trading wallet.`,
+          'wallet'
+        );
+
+        try {
+          const io = getIO();
+          if (io) {
+            io.emit('wallet_updated', { userId: user._id.toString(), newBalance: user.balance });
+          }
+        } catch (e) {}
+
+        console.log(`[Flutterwave Webhook] Successfully credited ₦${amount} to ${user.email}`);
+      }
+    }
+
+    res.status(200).json({ received: true });
+  } catch (error: any) {
+    console.error('[Flutterwave Webhook Error]', error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+

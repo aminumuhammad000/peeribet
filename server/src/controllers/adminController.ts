@@ -199,6 +199,9 @@ export const updateSettings = async (req: Request, res: Response) => {
       activePaymentGateway,
       paystackPublicKey,
       paystackSecretKey,
+      flutterwavePublicKey,
+      flutterwaveSecretKey,
+      flutterwaveSecretHash,
       vtstackApiKey,
       vtstackPayoutKey,
       vtstackWebhookSecret,
@@ -215,6 +218,9 @@ export const updateSettings = async (req: Request, res: Response) => {
     if (activePaymentGateway !== undefined) settings.activePaymentGateway = activePaymentGateway;
     if (paystackPublicKey !== undefined) settings.paystackPublicKey = paystackPublicKey;
     if (paystackSecretKey !== undefined) settings.paystackSecretKey = paystackSecretKey;
+    if (flutterwavePublicKey !== undefined) settings.flutterwavePublicKey = flutterwavePublicKey;
+    if (flutterwaveSecretKey !== undefined) settings.flutterwaveSecretKey = flutterwaveSecretKey;
+    if (flutterwaveSecretHash !== undefined) settings.flutterwaveSecretHash = flutterwaveSecretHash;
     if (vtstackApiKey !== undefined) settings.vtstackApiKey = vtstackApiKey;
     if (vtstackPayoutKey !== undefined) settings.vtstackPayoutKey = vtstackPayoutKey;
     if (vtstackWebhookSecret !== undefined) settings.vtstackWebhookSecret = vtstackWebhookSecret;

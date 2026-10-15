@@ -81,6 +81,8 @@ export default function MarketScreen() {
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [activeMarket, setActiveMarket] = useState<any>(null);
   const [selectedOption, setSelectedOption] = useState<any>(null);
+  const [tradeMode, setTradeMode] = useState<'P2P' | 'POOL'>('P2P');
+  const [sharesCount, setSharesCount] = useState<number>(1);
   const [stakeAmount, setStakeAmount] = useState('1000');
   const [isSubmittingBet, setIsSubmittingBet] = useState(false);
 
@@ -179,21 +181,25 @@ export default function MarketScreen() {
   const handleOpenTrade = (market: any, option: any) => {
     setActiveMarket(market);
     setSelectedOption(option);
+    setTradeMode('P2P');
+    setSharesCount(1);
     setStakeAmount('1000');
     setTradeModalVisible(true);
   };
 
-  // Submit Prediction Bet
+  // Submit Prediction Trade (P2P Shares or Pro-Rata Pool Contract)
   const handleConfirmPrediction = async () => {
     if (!activeMarket || !selectedOption) return;
-    const numericStake = parseFloat(stakeAmount);
-    if (isNaN(numericStake) || numericStake < 100) {
-      showToast('Minimum stake is ₦100', 'warning');
+
+    const isP2P = tradeMode === 'P2P';
+    const effectiveStake = isP2P ? sharesCount * 1000 : parseFloat(stakeAmount);
+    if (isNaN(effectiveStake) || effectiveStake < 100) {
+      showToast(isP2P ? 'Minimum 1 share (₦1,000)' : 'Minimum stake is ₦100', 'warning');
       return;
     }
 
     const currentBal = user?.balance || 0;
-    if (currentBal < numericStake) {
+    if (currentBal < effectiveStake) {
       showToast(`Insufficient balance (₦${currentBal.toLocaleString()}). Please fund wallet.`, 'error');
       return;
     }
@@ -202,12 +208,20 @@ export default function MarketScreen() {
     try {
       const res = await predictionMarketService.placeBet(activeMarket._id, {
         selection: selectedOption.label,
-        amount: numericStake,
+        amount: effectiveStake,
+        tradeType: tradeMode,
+        shares: isP2P ? sharesCount : undefined,
       });
 
-      showToast(`Trade position executed successfully! 🎯`, 'success');
-      if (res?.newBalance !== undefined) {
-        setUser((prev: any) => ({ ...prev, balance: res.newBalance }));
+      showToast(
+        isP2P
+          ? `P2P Order for ${sharesCount} share(s) placed into order book! ⚡`
+          : `Pool jackpot entry for ₦${effectiveStake.toLocaleString()} confirmed! 🎯`,
+        'success'
+      );
+
+      if (res?.newBalance !== undefined || res?.balance !== undefined) {
+        setUser((prev: any) => ({ ...prev, balance: res.newBalance ?? res.balance }));
       } else {
         fetchUser();
       }
@@ -943,6 +957,28 @@ export default function MarketScreen() {
                 </View>
               </View>
 
+              {/* Engine Selection: P2P Flow vs Pro-Rata Pool */}
+              <View style={styles.engineTabsContainer}>
+                <TouchableOpacity
+                  style={[styles.engineTab, tradeMode === 'P2P' && styles.engineTabActive]}
+                  onPress={() => setTradeMode('P2P')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.engineTabText, tradeMode === 'P2P' && styles.engineTabTextActive]}>
+                    ⚡ P2P Shares (₦1k)
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.engineTab, tradeMode === 'POOL' && styles.engineTabActive]}
+                  onPress={() => setTradeMode('POOL')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.engineTabText, tradeMode === 'POOL' && styles.engineTabTextActive]}>
+                    🌊 Pro-Rata Pool
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               {/* Available Balance */}
               <View style={styles.modalBalanceRow}>
                 <Text style={styles.modalBalanceLabel}>Available Wallet Balance:</Text>
@@ -951,82 +987,139 @@ export default function MarketScreen() {
                 </Text>
               </View>
 
-              {/* Stake Amount Input */}
-              <View style={styles.stakeInputContainer}>
-                <Text style={styles.currencyPrefix}>₦</Text>
-                <TextInput
-                  style={styles.stakeInput}
-                  keyboardType="numeric"
-                  value={stakeAmount}
-                  onChangeText={(val) => setStakeAmount(val.replace(/[^0-9]/g, ''))}
-                  placeholder="0"
-                  placeholderTextColor="#64748B"
-                />
-              </View>
-
-              {/* Quick Stake Preset Buttons */}
-              <View style={styles.presetButtonsRow}>
-                {STAKE_PRESETS.map((preset) => (
-                  <TouchableOpacity
-                    key={preset}
-                    onPress={() => setStakeAmount(preset.toString())}
-                    style={[
-                      styles.presetBtn,
-                      stakeAmount === preset.toString() && styles.presetBtnActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.presetBtnText,
-                        stakeAmount === preset.toString() && styles.presetBtnTextActive,
-                      ]}
+              {/* P2P Flow Share Mode or Pro-Rata Stake Mode */}
+              {tradeMode === 'P2P' ? (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={styles.sectionSublabel}>QUANTITY OF TRADING SHARES</Text>
+                  <View style={styles.shareCounterRow}>
+                    <TouchableOpacity
+                      onPress={() => setSharesCount((prev) => Math.max(1, prev - 1))}
+                      style={styles.shareCounterBtn}
                     >
-                      ₦{preset >= 1000 ? `${preset / 1000}k` : preset}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  onPress={() => setStakeAmount((user?.balance || 5000).toString())}
-                  style={styles.presetBtn}
-                >
-                  <Text style={styles.presetBtnText}>MAX</Text>
-                </TouchableOpacity>
-              </View>
+                      <Text style={styles.shareCounterBtnText}>−</Text>
+                    </TouchableOpacity>
+                    <View style={styles.shareCounterDisplay}>
+                      <Text style={styles.shareCountText}>
+                        {sharesCount} {sharesCount === 1 ? 'Share' : 'Shares'}
+                      </Text>
+                      <Text style={styles.shareCostText}>
+                        Total: ₦{(sharesCount * 1000).toLocaleString()}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setSharesCount((prev) => prev + 1)}
+                      style={styles.shareCounterBtn}
+                    >
+                      <Text style={styles.shareCounterBtnText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.presetButtonsRow}>
+                    {[1, 2, 5, 10, 20].map((s) => (
+                      <TouchableOpacity
+                        key={s}
+                        onPress={() => setSharesCount(s)}
+                        style={[styles.presetBtn, sharesCount === s && styles.presetBtnActive]}
+                      >
+                        <Text style={[styles.presetBtnText, sharesCount === s && styles.presetBtnTextActive]}>
+                          {s} {s === 1 ? 'sh' : 'shs'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ) : (
+                <View>
+                  <Text style={styles.sectionSublabel}>PRO-RATA POOL STAKE AMOUNT</Text>
+                  {/* Stake Amount Input */}
+                  <View style={styles.stakeInputContainer}>
+                    <Text style={styles.currencyPrefix}>₦</Text>
+                    <TextInput
+                      style={styles.stakeInput}
+                      keyboardType="numeric"
+                      value={stakeAmount}
+                      onChangeText={(val) => setStakeAmount(val.replace(/[^0-9]/g, ''))}
+                      placeholder="0"
+                      placeholderTextColor="#64748B"
+                    />
+                  </View>
+
+                  {/* Quick Stake Preset Buttons */}
+                  <View style={styles.presetButtonsRow}>
+                    {STAKE_PRESETS.map((preset) => (
+                      <TouchableOpacity
+                        key={preset}
+                        onPress={() => setStakeAmount(preset.toString())}
+                        style={[
+                          styles.presetBtn,
+                          stakeAmount === preset.toString() && styles.presetBtnActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.presetBtnText,
+                            stakeAmount === preset.toString() && styles.presetBtnTextActive,
+                          ]}
+                        >
+                          ₦{preset >= 1000 ? `${preset / 1000}k` : preset}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity
+                      onPress={() => setStakeAmount((user?.balance || 5000).toString())}
+                      style={styles.presetBtn}
+                    >
+                      <Text style={styles.presetBtnText}>MAX</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
               {/* Live Calculations: Return & Profit */}
-              <View style={styles.calculationsBox}>
-                <View style={styles.calcRow}>
-                  <Text style={styles.calcLabel}>Total Projected Return</Text>
-                  <Text style={styles.calcValueHighlight}>
-                    ₦{Math.round(numericStake * 1.9).toLocaleString()}
-                  </Text>
-                </View>
-                <View style={styles.calcRow}>
-                  <Text style={styles.calcLabel}>Estimated Net Yield</Text>
-                  <Text style={styles.calcProfitVal}>
-                    +₦{Math.round(numericStake * 0.9).toLocaleString()}
-                  </Text>
-                </View>
-              </View>
+              {(() => {
+                const effectiveStake = tradeMode === 'P2P' ? sharesCount * 1000 : (parseFloat(stakeAmount) || 0);
+                const estReturn = Math.round(effectiveStake * 1.95);
+                const estYield = Math.max(0, estReturn - effectiveStake);
+                return (
+                  <View style={styles.calculationsBox}>
+                    <View style={styles.calcRow}>
+                      <Text style={styles.calcLabel}>Total Projected Settlement</Text>
+                      <Text style={styles.calcValueHighlight}>
+                        ₦{estReturn.toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.calcRow}>
+                      <Text style={styles.calcLabel}>Estimated Net Yield</Text>
+                      <Text style={styles.calcProfitVal}>
+                        +₦{estYield.toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })()}
 
               {/* Confirm CTA Button */}
-              <TouchableOpacity
-                disabled={isSubmittingBet || numericStake < 100}
-                onPress={handleConfirmPrediction}
-                activeOpacity={0.85}
-                style={[
-                  styles.confirmTradeBtn,
-                  (isSubmittingBet || numericStake < 100) && styles.confirmTradeBtnDisabled,
-                ]}
-              >
-                {isSubmittingBet ? (
-                  <ActivityIndicator color="#0A1124" />
-                ) : (
-                  <Text style={styles.confirmTradeBtnText}>
-                    Confirm Contract • ₦{numericStake.toLocaleString()}
-                  </Text>
-                )}
-              </TouchableOpacity>
+              {(() => {
+                const effectiveStake = tradeMode === 'P2P' ? sharesCount * 1000 : (parseFloat(stakeAmount) || 0);
+                return (
+                  <TouchableOpacity
+                    disabled={isSubmittingBet || effectiveStake < 100}
+                    onPress={handleConfirmPrediction}
+                    activeOpacity={0.85}
+                    style={[
+                      styles.confirmTradeBtn,
+                      (isSubmittingBet || effectiveStake < 100) && styles.confirmTradeBtnDisabled,
+                    ]}
+                  >
+                    {isSubmittingBet ? (
+                      <ActivityIndicator color="#0A1124" />
+                    ) : (
+                      <Text style={styles.confirmTradeBtnText}>
+                        Confirm {tradeMode === 'P2P' ? `${sharesCount} Shares` : 'Pool Contract'} • ₦{effectiveStake.toLocaleString()}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })()}
             </View>
           </KeyboardAvoidingView>
         </Modal>
@@ -1800,6 +1893,86 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: Colors.dark.primary,
+    fontFamily: 'Inter',
+  },
+  engineTabsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  engineTab: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  engineTabActive: {
+    backgroundColor: 'rgba(0, 210, 133, 0.16)',
+    borderColor: Colors.dark.primary,
+  },
+  engineTabText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  engineTabTextActive: {
+    color: Colors.dark.primary,
+    fontWeight: '800',
+  },
+  sectionSublabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#8FA2C7',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    fontFamily: 'Inter',
+  },
+  shareCounterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(10, 17, 36, 0.8)',
+    borderRadius: 14,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.4)',
+    marginBottom: 10,
+  },
+  shareCounterBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareCounterBtnText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    lineHeight: 24,
+  },
+  shareCounterDisplay: {
+    alignItems: 'center',
+  },
+  shareCountText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  shareCostText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.dark.primary,
+    marginTop: 2,
     fontFamily: 'Inter',
   },
   modalBalanceRow: {

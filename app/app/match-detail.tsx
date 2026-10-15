@@ -79,6 +79,25 @@ export default function MatchDetailScreen() {
     return Number(((1 / noProb) * 0.95).toFixed(2)) || fallback;
   };
 
+  const matchSport = String(match?.sport || params.sport || '').toLowerCase();
+  const matchLeague = String(match?.league || match?.leagueName || params.league || '').toLowerCase();
+
+  const isCombat =
+    matchSport.includes('ufc') ||
+    matchSport.includes('box') ||
+    matchSport.includes('mma') ||
+    matchSport.includes('combat') ||
+    matchLeague.includes('ufc') ||
+    matchLeague.includes('boxing') ||
+    matchLeague.includes('wbc') ||
+    matchLeague.includes('wba');
+
+  const isBasketball =
+    matchSport.includes('basket') ||
+    matchSport.includes('nba') ||
+    matchLeague.includes('nba') ||
+    matchLeague.includes('euroleague');
+
   const homeOdds = formatOdds(match?.odds?.home, 1.85);
   const awayOdds = formatOdds(match?.odds?.away, 2.40);
   const drawOdds = formatOdds(match?.odds?.draw, 3.10);
@@ -88,6 +107,28 @@ export default function MatchDetailScreen() {
   const cornersNoOdds = 1.48;
   const bttsYesOdds = formatOdds(match?.odds?.bttsYes, 1.80);
   const bttsNoOdds = formatOdds(match?.odds?.bttsNo, 2.00);
+
+  // Combat-specific odds
+  const finishOdds = formatOdds(match?.odds?.over25, 1.65);
+  const decisionOdds = calcNoOdds(finishOdds, 2.20);
+  const overRoundsOdds = 1.88;
+  const underRoundsOdds = 1.92;
+  const earlyFinishOdds = 2.40;
+  const lateFinishOdds = 1.55;
+
+  // Basketball-specific odds
+  const overPointsOdds = 1.90;
+  const underPointsOdds = 1.90;
+  const halftimeHomeOdds = formatOdds(homeOdds * 1.15, 1.75);
+  const halftimeAwayOdds = formatOdds(awayOdds * 1.15, 2.05);
+  const spreadHomeOdds = 1.90;
+  const spreadAwayOdds = 1.90;
+
+  // Football-specific odds
+  const doubleChance1XOdds = formatOdds(1 / (1 / homeOdds + 1 / drawOdds), 1.28);
+  const doubleChanceX2Odds = formatOdds(1 / (1 / awayOdds + 1 / drawOdds), 1.42);
+  const halftimeLeadHomeOdds = formatOdds(homeOdds * 1.35, 2.45);
+  const halftimeLeadAwayOdds = formatOdds(calcNoOdds(homeOdds * 1.35, 1.48), 1.48);
 
   // Liquidity Calculations (Separate Pool and P2P Trading Liquidity)
   const basePool = match?.poolAmount || match?.pool?.totalPool || 0;
@@ -303,204 +344,720 @@ export default function MatchDetailScreen() {
 
           {/* Section Header */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Match Contracts</Text>
+            <Text style={styles.sectionTitle}>
+              {isCombat ? 'Fight Contracts' : isBasketball ? 'Basketball Contracts' : 'Match Contracts'}
+            </Text>
             <Text style={styles.sectionNotice}>Escrow Markets</Text>
           </View>
 
-          {/* ==================== CARD 1: MATCH CONTRACTS (YES/NO) ==================== */}
-          <View style={styles.contractShowcaseCard}>
-            <View style={styles.showcaseCardHeader}>
-              <View style={styles.showcaseBadgeTitleRow}>
-                <Text style={styles.showcaseCardTitle}>Match Winner (1X2)</Text>
-                <View style={styles.greenTagBadge}>
-                  <Text style={styles.greenTagText}>YES / NO</Text>
-                </View>
-              </View>
-              <View style={styles.shareUnitPill}>
-                <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-              </View>
-            </View>
+          {/* ==================== CONDITIONAL SPORT CONTRACT CARDS ==================== */}
 
-            <View style={styles.showcaseRowsList}>
-              {/* Outcome 1: Home Win */}
-              {(() => {
-                const isHomeOverpowered = homeOdds <= 1.08;
-                return (
+          {isCombat ? (
+            /* ==================== COMBAT SPORTS (UFC & BOXING) ==================== */
+            <>
+              {/* Card 1: Bout Winner (2-Way) */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Bout Winner (2-Way)</Text>
+                    <View style={styles.greenTagBadge}>
+                      <Text style={styles.greenTagText}>FIGHT WINNER</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  {/* Fighter 1 Win */}
                   <View style={styles.showcaseOutcomeRow}>
                     <View style={styles.outcomeInfoLeft}>
                       <Text style={styles.outcomeName} numberOfLines={1}>{homeTeam} Win</Text>
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={[styles.actionBtnYes, isHomeOverpowered && { opacity: 0.5 }]}
+                        style={[styles.actionBtnYes, homeOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'Yes', homeOdds)}
-                        disabled={isHomeOverpowered}
+                        disabled={homeOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isHomeOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
+                        <Text style={styles.actionBtnSubYes}>{homeOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.actionBtnNo, isHomeOverpowered && { opacity: 0.5 }]}
+                        style={[styles.actionBtnNo, homeOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'No', calcNoOdds(homeOdds, 2.10))}
-                        disabled={isHomeOverpowered}
+                        disabled={homeOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isHomeOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
+                        <Text style={styles.actionBtnSubNo}>{homeOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
-                );
-              })()}
 
-              {/* Outcome 2: Draw */}
-              {(() => {
-                const isDrawOverpowered = drawOdds <= 1.08;
-                return (
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName}>Draw</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isDrawOverpowered && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Match Draw', 'Yes', drawOdds)}
-                        disabled={isDrawOverpowered}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isDrawOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isDrawOverpowered && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Match Draw', 'No', calcNoOdds(drawOdds, 1.35))}
-                        disabled={isDrawOverpowered}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isDrawOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })()}
-
-              {/* Outcome 3: Away Win */}
-              {(() => {
-                const isAwayOverpowered = awayOdds <= 1.08;
-                return (
+                  {/* Fighter 2 Win */}
                   <View style={styles.showcaseOutcomeRow}>
                     <View style={styles.outcomeInfoLeft}>
                       <Text style={styles.outcomeName} numberOfLines={1}>{awayTeam} Win</Text>
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={[styles.actionBtnYes, isAwayOverpowered && { opacity: 0.5 }]}
+                        style={[styles.actionBtnYes, awayOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'Yes', awayOdds)}
-                        disabled={isAwayOverpowered}
+                        disabled={awayOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isAwayOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
+                        <Text style={styles.actionBtnSubYes}>{awayOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.actionBtnNo, isAwayOverpowered && { opacity: 0.5 }]}
+                        style={[styles.actionBtnNo, awayOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'No', calcNoOdds(awayOdds, 1.65))}
-                        disabled={isAwayOverpowered}
+                        disabled={awayOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isAwayOverpowered ? 'Locked' : '₦1k / Sh'}</Text>
+                        <Text style={styles.actionBtnSubNo}>{awayOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
-                );
-              })()}
-            </View>
-          </View>
+                </View>
+              </View>
 
-          {/* ==================== CARD 2: OVER/UNDER 2.5 (GOALS LINE) ==================== */}
-          <View style={styles.contractShowcaseCard}>
-            <View style={styles.showcaseCardHeader}>
-              <View style={styles.showcaseBadgeTitleRow}>
-                <Text style={styles.showcaseCardTitle}>Over / Under Goals</Text>
-                <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
-                  <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>2.5 LINE</Text>
+              {/* Card 2: Method of Settlement (Finish vs Decision) */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Method of Settlement</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#EF4444' }]}>STOPPAGE</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.shareUnitPill}>
-                <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-              </View>
-            </View>
 
-            <View style={styles.showcaseRowsList}>
-              <View style={styles.showcaseOutcomeRow}>
-                <View style={styles.outcomeInfoLeft}>
-                  <Text style={styles.outcomeName}>Over 2.5 Goals</Text>
-                </View>
-                <View style={styles.outcomeActionBtns}>
-                  <TouchableOpacity
-                    style={styles.actionBtnYes}
-                    onPress={() => handleSelectOutcome('Over 2.5 Goals', 'Yes', over3Odds)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.actionBtnYesText}>YES</Text>
-                    <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionBtnNo}
-                    onPress={() => handleSelectOutcome('Under 2.5 Goals', 'No', under3Odds)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.actionBtnNoText}>NO</Text>
-                    <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>KO / TKO / Submission</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome('Stoppage (KO/TKO/Sub)', 'Yes', finishOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome('Stoppage (KO/TKO/Sub)', 'No', decisionOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
 
-          {/* ==================== CARD 3: BTTS (BOTH TEAMS TO SCORE) ==================== */}
-          <View style={styles.contractShowcaseCard}>
-            <View style={styles.showcaseCardHeader}>
-              <View style={styles.showcaseBadgeTitleRow}>
-                <Text style={styles.showcaseCardTitle}>Both Teams to Score</Text>
-                <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
-                  <Text style={[styles.greenTagText, { color: '#F59E0B' }]}>BTTS</Text>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>Goes to Decision</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome('Goes to Decision', 'Yes', decisionOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome('Goes to Decision', 'No', finishOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
               </View>
-              <View style={styles.shareUnitPill}>
-                <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-              </View>
-            </View>
 
-            <View style={styles.showcaseRowsList}>
-              <View style={styles.showcaseOutcomeRow}>
-                <View style={styles.outcomeInfoLeft}>
-                  <Text style={styles.outcomeName}>Both Teams Score</Text>
+              {/* Card 3: Total Rounds Duration */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Total Rounds Contract</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>2.5 ROUNDS</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
                 </View>
-                <View style={styles.outcomeActionBtns}>
-                  <TouchableOpacity
-                    style={styles.actionBtnYes}
-                    onPress={() => handleSelectOutcome('Both Teams to Score', 'Yes', bttsYesOdds)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.actionBtnYesText}>YES</Text>
-                    <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionBtnNo}
-                    onPress={() => handleSelectOutcome('Both Teams to Score', 'No', bttsNoOdds)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.actionBtnNoText}>NO</Text>
-                    <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
-                  </TouchableOpacity>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>Over 2.5 Rounds</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome('Over 2.5 Rounds', 'Yes', overRoundsOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome('Over 2.5 Rounds', 'No', underRoundsOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
               </View>
-            </View>
-          </View>
+
+              {/* Card 4: Early Stoppage Round Hedge */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Early Stoppage Hedge</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#F59E0B' }]}>ROUNDS 1-2</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>Finish in Rounds 1 or 2</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome('Finish in Rounds 1-2', 'Yes', earlyFinishOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome('Finish in Rounds 1-2', 'No', lateFinishOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </>
+          ) : isBasketball ? (
+            /* ==================== NBA BASKETBALL ==================== */
+            <>
+              {/* Card 1: Game Winner (Moneyline) */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Game Winner (Moneyline)</Text>
+                    <View style={styles.greenTagBadge}>
+                      <Text style={styles.greenTagText}>2-WAY</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName} numberOfLines={1}>{homeTeam} Win</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={[styles.actionBtnYes, homeOdds <= 1.08 && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'Yes', homeOdds)}
+                        disabled={homeOdds <= 1.08}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>{homeOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtnNo, homeOdds <= 1.08 && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'No', calcNoOdds(homeOdds, 2.10))}
+                        disabled={homeOdds <= 1.08}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>{homeOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName} numberOfLines={1}>{awayTeam} Win</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={[styles.actionBtnYes, awayOdds <= 1.08 && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'Yes', awayOdds)}
+                        disabled={awayOdds <= 1.08}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>{awayOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtnNo, awayOdds <= 1.08 && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'No', calcNoOdds(awayOdds, 1.65))}
+                        disabled={awayOdds <= 1.08}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>{awayOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 2: Total Aggregate Points */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Total Game Points Line</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>218.5 LINE</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>Over 218.5 Aggregate Points</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome('Over 218.5 Points', 'Yes', overPointsOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome('Under 218.5 Points', 'No', underPointsOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 3: Halftime Leader Contract */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Halftime Settlement</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#F59E0B' }]}>1ST HALF</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>{homeTeam} Lead at Half</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome(`${homeTeam} Lead at Half`, 'Yes', halftimeHomeOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome(`${homeTeam} Lead at Half`, 'No', halftimeAwayOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 4: Point Spread Handicap */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Point Spread Handicap</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(139, 92, 246, 0.15)', borderColor: 'rgba(139, 92, 246, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#8B5CF6' }]}>+/- 5.5 PTS</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>{homeTeam} Cover Spread (-5.5)</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome(`${homeTeam} -5.5 Spread`, 'Yes', spreadHomeOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome(`${awayTeam} +5.5 Spread`, 'No', spreadAwayOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </>
+          ) : (
+            /* ==================== EUROPEAN FOOTBALL (DEFAULT) ==================== */
+            <>
+              {/* Card 1: Match Winner (1X2) */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Match Winner (1X2)</Text>
+                    <View style={styles.greenTagBadge}>
+                      <Text style={styles.greenTagText}>YES / NO</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  {/* Home Win */}
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName} numberOfLines={1}>{homeTeam} Win</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={[styles.actionBtnYes, homeOdds <= 1.08 && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'Yes', homeOdds)}
+                        disabled={homeOdds <= 1.08}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>{homeOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtnNo, homeOdds <= 1.08 && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'No', calcNoOdds(homeOdds, 2.10))}
+                        disabled={homeOdds <= 1.08}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>{homeOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Draw */}
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>Draw</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={[styles.actionBtnYes, drawOdds <= 1.08 && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome('Match Draw', 'Yes', drawOdds)}
+                        disabled={drawOdds <= 1.08}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>{drawOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtnNo, drawOdds <= 1.08 && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome('Match Draw', 'No', calcNoOdds(drawOdds, 1.35))}
+                        disabled={drawOdds <= 1.08}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>{drawOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Away Win */}
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName} numberOfLines={1}>{awayTeam} Win</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={[styles.actionBtnYes, awayOdds <= 1.08 && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'Yes', awayOdds)}
+                        disabled={awayOdds <= 1.08}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>{awayOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtnNo, awayOdds <= 1.08 && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'No', calcNoOdds(awayOdds, 1.65))}
+                        disabled={awayOdds <= 1.08}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>{awayOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 2: Over/Under Goals (2.5 Line) */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Over / Under Goals</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>2.5 LINE</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>Over 2.5 Goals</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome('Over 2.5 Goals', 'Yes', over3Odds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome('Under 2.5 Goals', 'No', under3Odds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 3: Both Teams to Score (BTTS) */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Both Teams to Score</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#F59E0B' }]}>BTTS</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>Both Teams Score</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome('Both Teams to Score', 'Yes', bttsYesOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome('Both Teams to Score', 'No', bttsNoOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 4 (NEW): Double Chance Hedge (1X / X2) */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Double Chance Hedge</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#A855F7' }]}>HEDGE</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName} numberOfLines={1}>{homeTeam} Win or Draw (1X)</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome(`${homeTeam} Win or Draw (1X)`, 'Yes', doubleChance1XOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome(`${homeTeam} Win or Draw (1X)`, 'No', awayOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName} numberOfLines={1}>{awayTeam} Win or Draw (X2)</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome(`${awayTeam} Win or Draw (X2)`, 'Yes', doubleChanceX2Odds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome(`${awayTeam} Win or Draw (X2)`, 'No', homeOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 5 (NEW): Halftime Settlement (1st Half Lead) */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Halftime Settlement</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(234, 179, 8, 0.15)', borderColor: 'rgba(234, 179, 8, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#EAB308' }]}>1ST HALF</Text>
+                    </View>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName} numberOfLines={1}>{homeTeam} Lead at Halftime</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={styles.actionBtnYes}
+                        onPress={() => handleSelectOutcome(`${homeTeam} Lead at Halftime`, 'Yes', halftimeLeadHomeOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnNo}
+                        onPress={() => handleSelectOutcome(`${homeTeam} Lead at Halftime`, 'No', halftimeLeadAwayOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </>
+          )}
 
           {/* Market Resolution Explainer at the Bottom of the Menu */}
           <View style={styles.resolutionCard}>
@@ -527,62 +1084,125 @@ export default function MatchDetailScreen() {
 
             {rulesExpanded && (
               <View style={styles.resolutionBody}>
-                {/* Rule 1: Regulation Full Time */}
-                <View style={styles.ruleRow}>
-                  <View style={styles.ruleBullet}>
-                    <Text style={styles.ruleBulletNum}>1</Text>
-                  </View>
-                  <View style={styles.ruleContent}>
-                    <Text style={styles.ruleHeading}>Official 90-Minute Regulation Time</Text>
-                    <Text style={styles.ruleDesc}>
-                      All contracts resolve strictly on the official 90 minutes of play plus referee stoppage/injury time. Extra time (ET) and penalty shootouts do not count unless specified in a dedicated overtime market.
-                    </Text>
-                  </View>
-                </View>
+                {isCombat ? (
+                  <>
+                    <View style={styles.ruleRow}>
+                      <View style={styles.ruleBullet}>
+                        <Text style={styles.ruleBulletNum}>1</Text>
+                      </View>
+                      <View style={styles.ruleContent}>
+                        <Text style={styles.ruleHeading}>Official In-Ring / Octagon Decision</Text>
+                        <Text style={styles.ruleDesc}>
+                          Bout winner resolves strictly according to the official in-octagon announcement by the sanctioning athletic commission (UFC / WBC / WBA). Disqualifications (DQ) count as stoppage wins.
+                        </Text>
+                      </View>
+                    </View>
 
-                {/* Rule 2: Both Teams to Score */}
-                <View style={styles.ruleRow}>
-                  <View style={styles.ruleBullet}>
-                    <Text style={styles.ruleBulletNum}>2</Text>
-                  </View>
-                  <View style={styles.ruleContent}>
-                    <Text style={styles.ruleHeading}>Both Teams to Score (BTTS)</Text>
-                    <Text style={styles.ruleDesc}>
-                      Resolves <Text style={{ color: '#00D285', fontWeight: '700' }}>YES</Text> immediately as soon as both teams score at least 1 goal in regulation. Resolves <Text style={{ color: '#EF4444', fontWeight: '700' }}>NO</Text> at full-time whistle if either team has failed to score.
-                    </Text>
-                  </View>
-                </View>
+                    <View style={styles.ruleRow}>
+                      <View style={styles.ruleBullet}>
+                        <Text style={styles.ruleBulletNum}>2</Text>
+                      </View>
+                      <View style={styles.ruleContent}>
+                        <Text style={styles.ruleHeading}>Method of Settlement (Finish vs Decision)</Text>
+                        <Text style={styles.ruleDesc}>
+                          Resolves to <Text style={{ color: '#00D285', fontWeight: '700' }}>STOPPAGE</Text> if the bout ends by KO, TKO, Submission, or Corner Stoppage before the final bell. Resolves to <Text style={{ color: '#38BDF8', fontWeight: '700' }}>DECISION</Text> if it goes to the judges' scorecards.
+                        </Text>
+                      </View>
+                    </View>
 
-                {/* Rule 3: Win & Draw Contracts */}
-                <View style={styles.ruleRow}>
-                  <View style={styles.ruleBullet}>
-                    <Text style={styles.ruleBulletNum}>3</Text>
-                  </View>
-                  <View style={styles.ruleContent}>
-                    <Text style={styles.ruleHeading}>Match Outcomes (Win / Draw)</Text>
-                    <Text style={styles.ruleDesc}>
-                      Resolved based on the final official scoreline. If a fixture is officially abandoned or postponed for more than 24 hours without resumption, all open share orders are voided and 100% refunded.
-                    </Text>
-                  </View>
-                </View>
+                    <View style={styles.ruleRow}>
+                      <View style={styles.ruleBullet}>
+                        <Text style={styles.ruleBulletNum}>3</Text>
+                      </View>
+                      <View style={styles.ruleContent}>
+                        <Text style={styles.ruleHeading}>Total Rounds Duration (Half-Round Protocol)</Text>
+                        <Text style={styles.ruleDesc}>
+                          Over 2.5 rounds resolves YES as soon as the clock passes 2 minutes and 30 seconds of Round 3. Any stoppage prior to 2:30 of Round 3 resolves UNDER.
+                        </Text>
+                      </View>
+                    </View>
+                  </>
+                ) : isBasketball ? (
+                  <>
+                    <View style={styles.ruleRow}>
+                      <View style={styles.ruleBullet}>
+                        <Text style={styles.ruleBulletNum}>1</Text>
+                      </View>
+                      <View style={styles.ruleContent}>
+                        <Text style={styles.ruleHeading}>Official Final Score & Overtime Inclusion</Text>
+                        <Text style={styles.ruleDesc}>
+                          All game winner and total game points contracts resolve on the official final score including all overtime (OT) periods played.
+                        </Text>
+                      </View>
+                    </View>
 
-                {/* Rule 4: Over 3 Goals & Corners */}
-                <View style={styles.ruleRow}>
-                  <View style={styles.ruleBullet}>
-                    <Text style={styles.ruleBulletNum}>4</Text>
-                  </View>
-                  <View style={styles.ruleContent}>
-                    <Text style={styles.ruleHeading}>Over 3 Goals & Corner Markets</Text>
-                    <Text style={styles.ruleDesc}>
-                      Over 3 goals requires 3 or more total aggregate goals by both teams (own goals count). Corner kick markets count only corners physically taken before the final whistle (awarded but un-taken corners do not count).
-                    </Text>
-                  </View>
-                </View>
+                    <View style={styles.ruleRow}>
+                      <View style={styles.ruleBullet}>
+                        <Text style={styles.ruleBulletNum}>2</Text>
+                      </View>
+                      <View style={styles.ruleContent}>
+                        <Text style={styles.ruleHeading}>Halftime Settlement Rule</Text>
+                        <Text style={styles.ruleDesc}>
+                          Halftime leader resolves strictly on the score at the end of the 2nd quarter (24 minutes of regulation play).
+                        </Text>
+                      </View>
+                    </View>
 
-                {/* Rule 5: Instant Share Settlement */}
+                    <View style={styles.ruleRow}>
+                      <View style={styles.ruleBullet}>
+                        <Text style={styles.ruleBulletNum}>3</Text>
+                      </View>
+                      <View style={styles.ruleContent}>
+                        <Text style={styles.ruleHeading}>Point Spread Handicap Protocol</Text>
+                        <Text style={styles.ruleDesc}>
+                          Calculated by adding or subtracting the designated handicap to the team's final aggregate score.
+                        </Text>
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.ruleRow}>
+                      <View style={styles.ruleBullet}>
+                        <Text style={styles.ruleBulletNum}>1</Text>
+                      </View>
+                      <View style={styles.ruleContent}>
+                        <Text style={styles.ruleHeading}>Official 90-Minute Regulation Time</Text>
+                        <Text style={styles.ruleDesc}>
+                          All contracts resolve strictly on the official 90 minutes of play plus referee stoppage/injury time. Extra time (ET) and penalty shootouts do not count unless specified.
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.ruleRow}>
+                      <View style={styles.ruleBullet}>
+                        <Text style={styles.ruleBulletNum}>2</Text>
+                      </View>
+                      <View style={styles.ruleContent}>
+                        <Text style={styles.ruleHeading}>Both Teams to Score (BTTS)</Text>
+                        <Text style={styles.ruleDesc}>
+                          Resolves <Text style={{ color: '#00D285', fontWeight: '700' }}>YES</Text> immediately as soon as both teams score at least 1 goal in regulation. Resolves <Text style={{ color: '#EF4444', fontWeight: '700' }}>NO</Text> if either team keeps a clean sheet.
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.ruleRow}>
+                      <View style={styles.ruleBullet}>
+                        <Text style={styles.ruleBulletNum}>3</Text>
+                      </View>
+                      <View style={styles.ruleContent}>
+                        <Text style={styles.ruleHeading}>Double Chance & Halftime Markets</Text>
+                        <Text style={styles.ruleDesc}>
+                          Double chance covers two of three 90-min outcomes (1X covers home win or draw). Halftime contracts settle on the whistle concluding the first 45 minutes of play.
+                        </Text>
+                      </View>
+                    </View>
+                  </>
+                )}
+
                 <View style={styles.ruleRow}>
                   <View style={styles.ruleBullet}>
-                    <Text style={styles.ruleBulletNum}>5</Text>
+                    <Text style={styles.ruleBulletNum}>⚡</Text>
                   </View>
                   <View style={styles.ruleContent}>
                     <Text style={styles.ruleHeading}>Automated Wallet Payout</Text>

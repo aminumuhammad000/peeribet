@@ -85,98 +85,53 @@ const FALLBACK_POLITICS_MARKETS = [
   },
 ];
 
-const FALLBACK_COMBAT_MARKETS = [
+const FALLBACK_COMBAT_FIXTURES = [
   {
-    _id: 'combat_1',
-    title: 'UFC 308: Ilia Topuria vs Max Holloway (Fight Winner)',
-    category: 'UFC & Boxing',
-    subcategory: 'Championship Matchup',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
+    _id: 'combat_f1',
+    sport: 'UFC & Boxing',
+    homeTeam: 'Islam Makhachev',
+    awayTeam: 'Arman Tsarukyan',
+    league: 'UFC 311: Lightweight Championship',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
     poolAmount: 4650000,
-    closingDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    yesLabel: 'Ilia Topuria',
-    noLabel: 'Max Holloway',
-    yesOdds: 1.78,
-    noOdds: 2.05,
-    rules: 'Resolves to the official UFC in-octagon winner decision.',
+    odds: { home: 1.40, draw: 35.0, away: 2.95 },
   },
   {
-    _id: 'combat_1_method',
-    title: 'UFC 308: Method of Settlement (Stoppage vs Decision)',
-    category: 'UFC & Boxing',
-    subcategory: 'Settlement Method',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 3120000,
-    closingDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    yesLabel: 'KO / TKO / Sub (Finish)',
-    noLabel: 'Goes to Decision',
-    yesOdds: 1.62,
-    noOdds: 2.25,
-    rules: 'Resolves to YES if the fight finishes before the final bell.',
+    _id: 'combat_f2',
+    sport: 'UFC & Boxing',
+    homeTeam: 'Tyson Fury',
+    awayTeam: 'Oleksandr Usyk',
+    league: 'Undisputed World Heavyweight Title',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 9400000,
+    odds: { home: 2.15, draw: 22.0, away: 1.72 },
   },
   {
-    _id: 'combat_1_rounds',
-    title: 'UFC 308: Total Rounds Contract (Over / Under 2.5 Rounds)',
-    category: 'UFC & Boxing',
-    subcategory: 'Round Duration',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 2480000,
-    closingDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    yesLabel: 'Over 2.5 Rounds',
-    noLabel: 'Under 2.5 Rounds',
-    yesOdds: 1.88,
-    noOdds: 1.92,
-    rules: 'Resolves to YES if the fight enters the second half of Round 3.',
-  },
-  {
-    _id: 'combat_2',
-    title: 'Heavyweight Championship: Fury vs Usyk II (Match Winner)',
-    category: 'UFC & Boxing',
-    subcategory: 'Heavyweight Boxing',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 7890000,
-    closingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    yesLabel: 'Tyson Fury Win',
-    noLabel: 'Oleksandr Usyk Win',
-    yesOdds: 1.90,
-    noOdds: 1.90,
-    rules: 'Resolves according to the official sanctioning body decision.',
-  },
-  {
-    _id: 'combat_3_total',
-    title: 'NBA: Celtics vs Nuggets — Total Game Points (Over / Under 218.5)',
-    category: 'NBA Basketball',
-    subcategory: 'Total Points',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
+    _id: 'combat_f3',
+    sport: 'NBA Basketball',
+    homeTeam: 'Boston Celtics',
+    awayTeam: 'Los Angeles Lakers',
+    league: 'NBA Regular Season Matchup',
+    status: 'LIVE',
+    startTime: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
     poolAmount: 3820000,
-    closingDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    yesLabel: 'Over 218.5 Points',
-    noLabel: 'Under 218.5 Points',
-    yesOdds: 1.90,
-    noOdds: 1.90,
-    rules: 'Resolves based on official NBA aggregate final game score.',
+    odds: { home: 1.55, draw: 15.0, away: 2.45 },
   },
   {
-    _id: 'combat_3_halftime',
-    title: 'NBA: Celtics vs Nuggets — Halftime Leader Contract',
-    category: 'NBA Basketball',
-    subcategory: 'Halftime Settlement',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 2150000,
-    closingDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    yesLabel: 'Celtics Lead at Half',
-    noLabel: 'Nuggets Lead / Tie',
-    yesOdds: 1.75,
-    noOdds: 2.05,
-    rules: 'Resolves according to the score at the end of the 2nd quarter.',
+    _id: 'combat_f4',
+    sport: 'UFC & Boxing',
+    homeTeam: 'Jon Jones',
+    awayTeam: 'Tom Aspinall',
+    league: 'UFC Heavyweight Unification Title',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 5120000,
+    odds: { home: 1.78, draw: 30.0, away: 2.05 },
   },
 ];
+
 
 const FALLBACK_ENTERTAINMENT_MARKETS = [
   {
@@ -269,9 +224,20 @@ export default function HomeScreen() {
       if (userData) setUser(userData);
       setUnreadNotifications(notifData?.unreadCount || 0);
 
-      // Sports Matches
+      // Sports Matches (European Football)
       const rawMatches = matchesRes?.matches || [];
-      setSportsMatches(rawMatches);
+      const fbMatches = rawMatches.filter((m: any) =>
+        !/ufc|boxing|mma|combat|basketball|nba/i.test(m.sport || '') &&
+        !/ufc|boxing|nba|wbc|wba/i.test(m.league || '')
+      );
+      setSportsMatches(fbMatches.length > 0 ? fbMatches : rawMatches);
+
+      // Combat & NBA Basketball Fixtures
+      const combatRaw = rawMatches.filter((m: any) =>
+        /ufc|boxing|mma|combat|basketball|nba/i.test(m.sport || '') ||
+        /ufc|boxing|nba|wbc|wba|bellator|pfl/i.test(m.league || '')
+      );
+      setCombatMarkets(combatRaw.length > 0 ? combatRaw : FALLBACK_COMBAT_FIXTURES);
 
       // Prediction Markets
       const allMarkets = marketsRes?.markets || [];
@@ -279,12 +245,6 @@ export default function HomeScreen() {
         /politic/i.test(m.category || '') || /governance|election|policy/i.test(m.subcategory || '')
       );
       setPoliticsMarkets(pol.length > 0 ? pol : FALLBACK_POLITICS_MARKETS);
-
-      const com = allMarkets.filter((m: any) =>
-        /ufc|boxing|nba|basketball|combat/i.test(m.category || '') ||
-        /ufc|boxing|basketball/i.test(m.subcategory || '')
-      );
-      setCombatMarkets(com.length > 0 ? com : FALLBACK_COMBAT_MARKETS);
 
       const ent = allMarkets.filter((m: any) =>
         /entertainment|pop culture|music|awards/i.test(m.category || '') ||
@@ -392,7 +352,7 @@ export default function HomeScreen() {
 
   const filteredSports = filterBySearch(sportsMatches, true);
   const filteredPolitics = filterBySearch(politicsMarkets, false);
-  const filteredCombat = filterBySearch(combatMarkets, false);
+  const filteredCombat = filterBySearch(combatMarkets, true);
   const filteredEntertainment = filterBySearch(entertainmentMarkets, false);
 
   const CARDS_PER_CATEGORY = 3;
@@ -861,79 +821,94 @@ export default function HomeScreen() {
                   )}
                 </View>
 
-                {/* Rich Combat Cards */}
+                {/* Unified Rich Match Cards for Combat & Basketball */}
                 <View style={styles.cardsGrid}>
                   {(expandedCombat || searchText.trim()
                     ? filteredCombat
                     : filteredCombat.slice(0, CARDS_PER_CATEGORY)
-                  ).map((market) => {
-                    const isOverpowered = (market.yesOdds && market.yesOdds <= 1.08) || (market.noOdds && market.noOdds <= 1.08) || market.status === 'SUSPENDED';
-                    return (
-                      <View key={market._id} style={styles.richMarketCard}>
-                        <View style={styles.cardTopRow}>
-                          <Text style={styles.cardCategoryBadge}>
-                            {(market.subcategory || 'CHAMPIONSHIP MATCHUP').toUpperCase()}
+                  ).map((match) => (
+                    <TouchableOpacity
+                      key={match._id}
+                      style={styles.richMarketCard}
+                      activeOpacity={0.85}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/match-detail',
+                          params: {
+                            id: match._id,
+                            homeTeam: match.homeTeam,
+                            awayTeam: match.awayTeam,
+                            sport: match.sport || 'UFC & Boxing',
+                            league: match.leagueName || match.league || '',
+                          },
+                        })
+                      }
+                    >
+                      {/* Card Top: League & Status */}
+                      <View style={styles.cardTopRow}>
+                        <Text style={styles.cardLeagueText} numberOfLines={1}>
+                          {(match.leagueName || match.league || 'CHAMPIONSHIP BOUT').toUpperCase()}
+                        </Text>
+                        <View
+                          style={[
+                            styles.statusPill,
+                            match.status === 'LIVE' ? styles.statusPillLive : styles.statusPillUpcoming,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.statusPillText,
+                              match.status === 'LIVE' ? styles.statusTextLive : styles.statusTextUpcoming,
+                            ]}
+                          >
+                            {match.status === 'LIVE' ? '● LIVE' : formatMatchTime(match.startTime)}
                           </Text>
-                          {isOverpowered ? (
-                            <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
-                              <Lock size={11} color="#EF4444" />
-                              <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
-                            </View>
-                          ) : (
-                            <View style={styles.closingBadge}>
-                              <Flame size={11} color="#F59E0B" />
-                              <Text style={[styles.closingBadgeText, { color: '#F59E0B' }]}>High Volume</Text>
-                            </View>
-                          )}
-                        </View>
-
-                        <Text style={styles.marketTitleText}>{market.title}</Text>
-
-                        <View style={styles.binaryChoiceRow}>
-                          <TouchableOpacity
-                            style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isOverpowered}
-                            onPress={() => handleOpenTradeModal(market, { label: market.yesLabel || 'YES', odds: market.yesOdds || 1.8 })}
-                          >
-                            <Text style={styles.binaryOptionLabelYes} numberOfLines={1}>
-                              {market.yesLabel || 'YES'}
-                            </Text>
-                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isOverpowered}
-                            onPress={() => handleOpenTradeModal(market, { label: market.noLabel || 'NO', odds: market.noOdds || 1.9 })}
-                          >
-                            <Text style={styles.binaryOptionLabelNo} numberOfLines={1}>
-                              {market.noLabel || 'NO'}
-                            </Text>
-                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.cardFooterRow}>
-                          <View>
-                            <Text style={styles.cardPoolLabel}>FIGHT POOL</Text>
-                            <Text style={styles.cardPoolValue}>
-                              ₦{(market.poolAmount || 3200000).toLocaleString()}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.8 })}
-                            style={[styles.quickTradePill, isOverpowered && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isOverpowered}
-                          >
-                            <Text style={styles.quickTradePillText}>{isOverpowered ? 'Locked' : 'Trade Contract'}</Text>
-                          </TouchableOpacity>
                         </View>
                       </View>
-                    );
-                  })}
+
+                      {/* Fighters / Teams Matchup Row */}
+                      <View style={styles.matchupRow}>
+                        <View style={styles.teamSide}>
+                          <View style={[styles.smallTeamBadge, { borderColor: '#F59E0B' }]}>
+                            <Text style={[styles.smallTeamBadgeText, { color: '#F59E0B' }]}>
+                              {(match.homeTeam || 'H').slice(0, 2).toUpperCase()}
+                            </Text>
+                          </View>
+                          <Text style={styles.teamNameMain} numberOfLines={1}>
+                            {match.homeTeam}
+                          </Text>
+                        </View>
+
+                        <View style={styles.vsBadgeSmall}>
+                          <Text style={styles.vsBadgeSmallText}>VS</Text>
+                        </View>
+
+                        <View style={styles.teamSideRight}>
+                          <Text style={[styles.teamNameMain, { textAlign: 'right' }]} numberOfLines={1}>
+                            {match.awayTeam}
+                          </Text>
+                          <View style={[styles.smallTeamBadge, { borderColor: '#38BDF8' }]}>
+                            <Text style={[styles.smallTeamBadgeText, { color: '#38BDF8' }]}>
+                              {(match.awayTeam || 'A').slice(0, 2).toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Pool & Action Footer */}
+                      <View style={styles.cardFooterRow}>
+                        <View>
+                          <Text style={styles.cardPoolLabel}>LIQUIDITY POOL</Text>
+                          <Text style={styles.cardPoolValue}>
+                            ₦{(match.poolAmount || 3450000).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.tradeActionButton}>
+                          <Text style={styles.tradeActionButtonText}>TRADE CONTRACTS</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
             )}

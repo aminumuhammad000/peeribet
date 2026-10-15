@@ -1,8 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+  Linking,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Wallet, Copy, ArrowUpRight, ArrowDownLeft, Check, ShieldCheck } from 'lucide-react-native';
+import {
+  Wallet,
+  Copy,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Check,
+  ShieldCheck,
+  CreditCard,
+  X,
+  ExternalLink,
+  Sparkles,
+} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
 import { authService, transactionService, walletService } from '../../services/apiService';
@@ -12,6 +35,14 @@ export default function WalletScreen() {
   const [copied, setCopied] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [virtualAccount, setVirtualAccount] = useState<any>(null);
+
+  // Flutterwave Deposit State
+  const [depositModalVisible, setDepositModalVisible] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('5000');
+  const [depositMethod, setDepositMethod] = useState<'FLUTTERWAVE' | 'VIRTUAL_ACCOUNT'>('FLUTTERWAVE');
+  const [initializingDeposit, setInitializingDeposit] = useState(false);
+  const [activeTxRef, setActiveTxRef] = useState<string | null>(null);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   
   // Pagination State
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -110,6 +141,46 @@ export default function WalletScreen() {
     }
   };
 
+  const handleProceedFlutterwave = async () => {
+    const num = Number(depositAmount);
+    if (!num || num < 200) {
+      Alert.alert('Invalid Amount', 'Minimum deposit via Flutterwave is ₦200');
+      return;
+    }
+    setInitializingDeposit(true);
+    try {
+      const res = await walletService.initializeFlutterwaveDeposit({ amount: num });
+      if (res?.link) {
+        setActiveTxRef(res.txRef);
+        await Linking.openURL(res.link);
+      } else {
+        Alert.alert('Error', 'Unable to generate Flutterwave checkout link.');
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Payment initialization failed.';
+      Alert.alert('Payment Error', msg);
+    } finally {
+      setInitializingDeposit(false);
+    }
+  };
+
+  const handleVerifyFlutterwave = async () => {
+    if (!activeTxRef) return;
+    setIsVerifyingPayment(true);
+    try {
+      const res = await walletService.verifyFlutterwaveDeposit(activeTxRef);
+      Alert.alert('Deposit Confirmed! 💳', res.message || 'Funds credited to wallet.');
+      setActiveTxRef(null);
+      setDepositModalVisible(false);
+      fetchData(1);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Payment verification in progress. Tap again shortly.';
+      Alert.alert('Status', msg);
+    } finally {
+      setIsVerifyingPayment(false);
+    }
+  };
+
   const renderHeader = () => (
     <View style={{ paddingBottom: 10 }}>
       {/* Balance Card display */}
@@ -138,15 +209,12 @@ export default function WalletScreen() {
       {/* Action Row */}
       <View style={styles.actionsRow}>
         <TouchableOpacity
-          onPress={() => !hasVirtualAccount ? handleProvision() : {}}
+          onPress={() => setDepositModalVisible(true)}
           activeOpacity={0.8}
-          disabled={provisioning}
           style={[styles.actionButton, { marginRight: 12 }]}
         >
           <ArrowDownLeft size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-          <Text style={styles.actionButtonText}>
-            {provisioning && !hasVirtualAccount ? 'Generating...' : 'Quick Deposit'}
-          </Text>
+          <Text style={styles.actionButtonText}>Quick Deposit</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -287,6 +355,210 @@ export default function WalletScreen() {
             );
           }}
         />
+
+        {/* ==================== DEPOSIT MODAL ==================== */}
+        <Modal
+          visible={depositModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setDepositModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalHeaderSubtitle}>FUND TRADING WALLET</Text>
+                  <Text style={styles.modalHeaderTitle}>Instant Escrow Deposit</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setDepositModalVisible(false)}
+                  style={styles.modalCloseBtn}
+                >
+                  <X size={18} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Method Toggle */}
+              <View style={styles.methodTabsRow}>
+                <TouchableOpacity
+                  onPress={() => setDepositMethod('FLUTTERWAVE')}
+                  style={[
+                    styles.methodTab,
+                    depositMethod === 'FLUTTERWAVE' && styles.methodTabActive,
+                  ]}
+                >
+                  <CreditCard
+                    size={14}
+                    color={depositMethod === 'FLUTTERWAVE' ? Colors.dark.primary : '#8FA2C7'}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.methodTabText,
+                      depositMethod === 'FLUTTERWAVE' && styles.methodTabTextActive,
+                    ]}
+                  >
+                    Flutterwave Card / USSD
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setDepositMethod('VIRTUAL_ACCOUNT')}
+                  style={[
+                    styles.methodTab,
+                    depositMethod === 'VIRTUAL_ACCOUNT' && styles.methodTabActive,
+                  ]}
+                >
+                  <ShieldCheck
+                    size={14}
+                    color={depositMethod === 'VIRTUAL_ACCOUNT' ? Colors.dark.primary : '#8FA2C7'}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.methodTabText,
+                      depositMethod === 'VIRTUAL_ACCOUNT' && styles.methodTabTextActive,
+                    ]}
+                  >
+                    PalmPay Transfer
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {depositMethod === 'FLUTTERWAVE' ? (
+                <View>
+                  <Text style={styles.inputSublabel}>DEPOSIT AMOUNT (NGN)</Text>
+                  <View style={styles.amountInputBox}>
+                    <Text style={styles.currencyPrefix}>₦</Text>
+                    <TextInput
+                      style={styles.amountInput}
+                      keyboardType="numeric"
+                      value={depositAmount}
+                      onChangeText={(val) => setDepositAmount(val.replace(/[^0-9]/g, ''))}
+                      placeholder="0"
+                      placeholderTextColor="#64748B"
+                    />
+                  </View>
+
+                  {/* Preset Amount Chips */}
+                  <View style={styles.presetChipsRow}>
+                    {['1000', '2500', '5000', '10000', '25000'].map((amt) => (
+                      <TouchableOpacity
+                        key={amt}
+                        onPress={() => setDepositAmount(amt)}
+                        style={[
+                          styles.presetChip,
+                          depositAmount === amt && styles.presetChipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.presetChipText,
+                            depositAmount === amt && styles.presetChipTextActive,
+                          ]}
+                        >
+                          ₦{parseInt(amt) >= 1000 ? `${parseInt(amt) / 1000}k` : amt}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <View style={styles.trustBadgeRow}>
+                    <Sparkles size={12} color="#00D285" style={{ marginRight: 6 }} />
+                    <Text style={styles.trustBadgeText}>
+                      Secured by Flutterwave • Card, Bank Transfer, USSD
+                    </Text>
+                  </View>
+
+                  {/* Action Button */}
+                  <TouchableOpacity
+                    onPress={handleProceedFlutterwave}
+                    disabled={initializingDeposit || Number(depositAmount) < 200}
+                    activeOpacity={0.85}
+                    style={[
+                      styles.primaryModalBtn,
+                      (initializingDeposit || Number(depositAmount) < 200) && { opacity: 0.5 },
+                    ]}
+                  >
+                    {initializingDeposit ? (
+                      <ActivityIndicator color="#0A1124" />
+                    ) : (
+                      <Text style={styles.primaryModalBtnText}>
+                        Pay with Flutterwave • ₦{Number(depositAmount || 0).toLocaleString()}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+
+                  {activeTxRef ? (
+                    <TouchableOpacity
+                      onPress={handleVerifyFlutterwave}
+                      disabled={isVerifyingPayment}
+                      activeOpacity={0.85}
+                      style={styles.secondaryVerifyBtn}
+                    >
+                      {isVerifyingPayment ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      ) : (
+                        <Text style={styles.secondaryVerifyBtnText}>
+                          I Have Completed Payment (Verify Now)
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : (
+                /* PalmPay Dedicated Account View */
+                <View>
+                  {hasVirtualAccount ? (
+                    <View style={styles.modalVaBox}>
+                      <Text style={styles.modalVaTitle}>Your Dedicated PalmPay Account</Text>
+                      <Text style={styles.modalVaSub}>
+                        Transfer directly from any bank app to credit your wallet instantly.
+                      </Text>
+
+                      <View style={styles.modalVaRow}>
+                        <Text style={styles.modalVaLabel}>Bank:</Text>
+                        <Text style={styles.modalVaVal}>{virtualAccount.bankName}</Text>
+                      </View>
+                      <View style={styles.modalVaRow}>
+                        <Text style={styles.modalVaLabel}>Account Name:</Text>
+                        <Text style={styles.modalVaVal}>{virtualAccount.accountName}</Text>
+                      </View>
+                      <View style={styles.modalVaRow}>
+                        <Text style={styles.modalVaLabel}>Account Number:</Text>
+                        <Text style={styles.modalVaNum}>{virtualAccount.accountNumber}</Text>
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={copyToClipboard}
+                        style={styles.copyVaBtn}
+                        activeOpacity={0.8}
+                      >
+                        <Copy size={14} color="#0A1124" style={{ marginRight: 6 }} />
+                        <Text style={styles.copyVaBtnText}>{copied ? 'Copied!' : 'Copy Account Number'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.modalVaBox}>
+                      <Text style={styles.modalVaTitle}>No Virtual Account Yet</Text>
+                      <TouchableOpacity
+                        onPress={() => handleProvision()}
+                        disabled={provisioning}
+                        style={styles.primaryModalBtn}
+                      >
+                        {provisioning ? (
+                          <ActivityIndicator color="#0A1124" />
+                        ) : (
+                          <Text style={styles.primaryModalBtnText}>Generate Account</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -560,6 +832,237 @@ const styles = StyleSheet.create({
   emptyStateText: {
     color: '#64748B',
     fontSize: 13,
+    fontFamily: 'Inter',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#0F172A',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalHeaderSubtitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.dark.primary,
+    letterSpacing: 0.5,
+    fontFamily: 'Inter',
+  },
+  modalHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  methodTabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  methodTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  methodTabActive: {
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    borderColor: Colors.dark.primary,
+  },
+  methodTabText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  methodTabTextActive: {
+    color: Colors.dark.primary,
+    fontWeight: '800',
+  },
+  inputSublabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#8FA2C7',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    fontFamily: 'Inter',
+  },
+  amountInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 17, 36, 0.8)',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    height: 52,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.4)',
+    marginBottom: 10,
+  },
+  currencyPrefix: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.dark.primary,
+    marginRight: 8,
+    fontFamily: 'Inter',
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  presetChipsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 14,
+  },
+  presetChip: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  presetChipActive: {
+    backgroundColor: 'rgba(0, 210, 133, 0.16)',
+    borderColor: Colors.dark.primary,
+  },
+  presetChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  presetChipTextActive: {
+    color: Colors.dark.primary,
+    fontWeight: '800',
+  },
+  trustBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  trustBadgeText: {
+    fontSize: 10,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+    flex: 1,
+  },
+  primaryModalBtn: {
+    backgroundColor: Colors.dark.primary,
+    borderRadius: 14,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryModalBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0A1124',
+    fontFamily: 'Inter',
+  },
+  secondaryVerifyBtn: {
+    marginTop: 10,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  secondaryVerifyBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  modalVaBox: {
+    backgroundColor: 'rgba(10, 17, 36, 0.6)',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  modalVaTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginBottom: 4,
+  },
+  modalVaSub: {
+    fontSize: 11,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+    marginBottom: 12,
+  },
+  modalVaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  modalVaLabel: {
+    fontSize: 11,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  modalVaVal: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  modalVaNum: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.dark.primary,
+    fontFamily: 'Inter',
+  },
+  copyVaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.dark.primary,
+    borderRadius: 10,
+    height: 38,
+    marginTop: 14,
+  },
+  copyVaBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0A1124',
     fontFamily: 'Inter',
   },
 });

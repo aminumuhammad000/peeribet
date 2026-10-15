@@ -236,6 +236,9 @@ export default function App() {
   const [activeGateway, setActiveGateway] = useState('vtstack');
   const [paystackPublicKey, setPaystackPublicKey] = useState('');
   const [paystackSecretKey, setPaystackSecretKey] = useState('');
+  const [flutterwavePublicKey, setFlutterwavePublicKey] = useState('');
+  const [flutterwaveSecretKey, setFlutterwaveSecretKey] = useState('');
+  const [flutterwaveSecretHash, setFlutterwaveSecretHash] = useState('');
   const [vtstackApiKey, setVtstackApiKey] = useState('');
   const [vtstackPayoutKey, setVtstackPayoutKey] = useState('');
   const [vtstackWebhookSecret, setVtstackWebhookSecret] = useState('');
@@ -504,6 +507,9 @@ export default function App() {
         setActiveGateway(data.activePaymentGateway || 'vtstack');
         setPaystackPublicKey(data.paystackPublicKey || '');
         setPaystackSecretKey(data.paystackSecretKey || '');
+        setFlutterwavePublicKey(data.flutterwavePublicKey || '');
+        setFlutterwaveSecretKey(data.flutterwaveSecretKey || '');
+        setFlutterwaveSecretHash(data.flutterwaveSecretHash || '');
         setVtstackApiKey(data.vtstackApiKey || '');
         setVtstackPayoutKey(data.vtstackPayoutKey || '');
         setVtstackWebhookSecret(data.vtstackWebhookSecret || '');
@@ -873,6 +879,9 @@ export default function App() {
         activePaymentGateway: activeGateway,
         paystackPublicKey,
         paystackSecretKey,
+        flutterwavePublicKey,
+        flutterwaveSecretKey,
+        flutterwaveSecretHash,
         vtstackApiKey,
         vtstackPayoutKey,
         vtstackWebhookSecret,
@@ -3044,6 +3053,46 @@ export default function App() {
                             placeholder="sk_live_..."
                             value={paystackSecretKey}
                             onChange={(e) => setPaystackSecretKey(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeGateway === 'flutterwave' && (
+                    <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid var(--border-color)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                      <h4 style={{ margin: '0 0 12px 0', fontSize: 13, color: '#F5A623', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        Flutterwave Merchant Credentials
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="settings-field">
+                          <label className="settings-label">Flutterwave Public Key</label>
+                          <input
+                            type="text"
+                            className="vault-input"
+                            placeholder="FLWPUBK_TEST-..."
+                            value={flutterwavePublicKey}
+                            onChange={(e) => setFlutterwavePublicKey(e.target.value)}
+                          />
+                        </div>
+                        <div className="settings-field">
+                          <label className="settings-label">Flutterwave Secret Key</label>
+                          <input
+                            type="password"
+                            className="vault-input"
+                            placeholder="FLWSECK_TEST-..."
+                            value={flutterwaveSecretKey}
+                            onChange={(e) => setFlutterwaveSecretKey(e.target.value)}
+                          />
+                        </div>
+                        <div className="settings-field" style={{ gridColumn: 'span 2' }}>
+                          <label className="settings-label">Flutterwave Webhook Secret Hash (verif-hash)</label>
+                          <input
+                            type="password"
+                            className="vault-input"
+                            placeholder="peeritrade_flw_secret"
+                            value={flutterwaveSecretHash}
+                            onChange={(e) => setFlutterwaveSecretHash(e.target.value)}
                           />
                         </div>
                       </div>
