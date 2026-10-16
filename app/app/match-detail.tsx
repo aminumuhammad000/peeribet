@@ -90,13 +90,27 @@ export default function MatchDetailScreen() {
     matchLeague.includes('ufc') ||
     matchLeague.includes('boxing') ||
     matchLeague.includes('wbc') ||
-    matchLeague.includes('wba');
+    matchLeague.includes('wba') ||
+    homeTeam.includes('Fury') ||
+    homeTeam.includes('Usyk') ||
+    homeTeam.includes('Makhachev') ||
+    homeTeam.includes('Jones') ||
+    awayTeam.includes('Fury') ||
+    awayTeam.includes('Usyk') ||
+    awayTeam.includes('Makhachev') ||
+    awayTeam.includes('Jones');
 
   const isBasketball =
     matchSport.includes('basket') ||
     matchSport.includes('nba') ||
     matchLeague.includes('nba') ||
-    matchLeague.includes('euroleague');
+    matchLeague.includes('euroleague') ||
+    homeTeam.includes('Lakers') ||
+    homeTeam.includes('Celtics') ||
+    homeTeam.includes('Warriors') ||
+    awayTeam.includes('Lakers') ||
+    awayTeam.includes('Celtics') ||
+    awayTeam.includes('Warriors');
 
   const homeOdds = formatOdds(match?.odds?.home, 1.85);
   const awayOdds = formatOdds(match?.odds?.away, 2.40);

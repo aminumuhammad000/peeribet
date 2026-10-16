@@ -614,6 +614,8 @@ export default function HomeScreen() {
                             id: match._id,
                             homeTeam: match.homeTeam,
                             awayTeam: match.awayTeam,
+                            sport: match.sport || 'European Football',
+                            league: match.leagueName || match.league || '',
                           },
                         })
                       }

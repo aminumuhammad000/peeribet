@@ -64,18 +64,56 @@ export default function EnterAmountScreen() {
   const [orderBook, setOrderBook] = useState<any>(null);
 
   // Map outcome text to selection key
-  const getMappedSelection = (): 'HOME' | 'DRAW' | 'AWAY' | 'OVER_25' | 'UNDER_25' | 'BTTS_YES' | 'BTTS_NO' => {
+  const getMappedSelection = (): string => {
     const out = outcome.toUpperCase();
     const market = marketName.toUpperCase();
     const awayUpper = awayTeamParam.toUpperCase();
     const homeUpper = homeTeamParam.toUpperCase();
 
+    // 1. Double Chance Hedges
+    if (market.includes('1X') || (market.includes('WIN OR DRAW') && market.includes(homeUpper))) {
+      return out === 'NO' ? 'AWAY' : '1X';
+    }
+    if (market.includes('X2') || (market.includes('WIN OR DRAW') && market.includes(awayUpper))) {
+      return out === 'NO' ? 'HOME' : 'X2';
+    }
+
+    // 2. Combat Markets
+    if (market.includes('STOPPAGE') || market.includes('KO') || market.includes('SUBMISSION')) {
+      return out === 'NO' ? 'DECISION' : 'KO_TKO_SUB';
+    }
+    if (market.includes('DECISION')) {
+      return out === 'NO' ? 'KO_TKO_SUB' : 'DECISION';
+    }
+    if (market.includes('ROUNDS 1-2') || market.includes('EARLY STOPPAGE')) {
+      return out === 'NO' ? 'GO_DISTANCE' : 'EARLY_STOPPAGE';
+    }
+
+    // 3. Basketball Markets
+    if (market.includes('SPREAD') || market.includes('+/-')) {
+      if (out === 'NO') return market.includes(homeUpper) ? 'SPREAD_AWAY' : 'SPREAD_HOME';
+      return market.includes(awayUpper) ? 'SPREAD_AWAY' : 'SPREAD_HOME';
+    }
+    if (market.includes('218.5') || market.includes('POINTS') || market.includes('AGGREGATE')) {
+      return out === 'NO' || market.includes('UNDER') ? 'UNDER_POINTS' : 'OVER_POINTS';
+    }
+
+    // 4. Halftime Markets
+    if (market.includes('HALFTIME') || market.includes('1ST HALF') || market.includes('HALF')) {
+      return out === 'NO' ? 'HALF_AWAY' : 'HALF_HOME';
+    }
+
+    // 5. Over/Under Goals & Corners
     if (market.includes('OVER') || market.includes('GOAL') || market.includes('CORNER') || market.includes('UNDER')) {
       return out === 'NO' || out === 'UNDER' || out === 'UNDER_25' ? 'UNDER_25' : 'OVER_25';
     }
+
+    // 6. Both Teams to Score (BTTS)
     if (market.includes('BOTH') || market.includes('BTTS')) {
       return out === 'NO' || out === 'BTTS_NO' ? 'BTTS_NO' : 'BTTS_YES';
     }
+
+    // 7. Match / Fight / Bout Winners
     if (market.includes('DRAW')) {
       return out === 'NO' ? 'HOME' : 'DRAW';
     }
@@ -124,8 +162,20 @@ export default function EnterAmountScreen() {
     if (currentSelection === 'HOME') return (orderBook.AWAY?.openShares || 0) + (orderBook.DRAW?.openShares || 0);
     if (currentSelection === 'AWAY') return (orderBook.HOME?.openShares || 0) + (orderBook.DRAW?.openShares || 0);
     if (currentSelection === 'DRAW') return (orderBook.HOME?.openShares || 0) + (orderBook.AWAY?.openShares || 0);
+    if (currentSelection === '1X') return orderBook.AWAY?.openShares || 0;
+    if (currentSelection === 'X2') return orderBook.HOME?.openShares || 0;
     if (currentSelection === 'OVER_25') return orderBook.UNDER_25?.openShares || 0;
     if (currentSelection === 'UNDER_25') return orderBook.OVER_25?.openShares || 0;
+    if (currentSelection === 'OVER_POINTS') return orderBook.UNDER_POINTS?.openShares || 0;
+    if (currentSelection === 'UNDER_POINTS') return orderBook.OVER_POINTS?.openShares || 0;
+    if (currentSelection === 'SPREAD_HOME') return orderBook.SPREAD_AWAY?.openShares || 0;
+    if (currentSelection === 'SPREAD_AWAY') return orderBook.SPREAD_HOME?.openShares || 0;
+    if (currentSelection === 'HALF_HOME') return orderBook.HALF_AWAY?.openShares || 0;
+    if (currentSelection === 'HALF_AWAY') return orderBook.HALF_HOME?.openShares || 0;
+    if (currentSelection === 'KO_TKO_SUB') return orderBook.DECISION?.openShares || 0;
+    if (currentSelection === 'DECISION') return orderBook.KO_TKO_SUB?.openShares || 0;
+    if (currentSelection === 'EARLY_STOPPAGE') return orderBook.GO_DISTANCE?.openShares || 0;
+    if (currentSelection === 'GO_DISTANCE') return orderBook.EARLY_STOPPAGE?.openShares || 0;
     if (currentSelection === 'BTTS_YES') return orderBook.BTTS_NO?.openShares || 0;
     if (currentSelection === 'BTTS_NO') return orderBook.BTTS_YES?.openShares || 0;
     return 0;

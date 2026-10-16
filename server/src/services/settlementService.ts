@@ -105,6 +105,13 @@ export const settlePendingBetsForMatch = async (matchId?: string) => {
     for (const match of matches) {
       const homeScore = match.scoreHome ?? 0;
       const awayScore = match.scoreAway ?? 0;
+      const extraData = {
+        sport: match.sport,
+        halfHomeScore: Math.floor(homeScore / 2),
+        halfAwayScore: Math.floor(awayScore / 2),
+        methodOfSettlement: (match as any).methodOfSettlement || (homeScore !== awayScore ? 'KO' : 'DECISION'),
+        stoppedEarly: (match as any).stoppedEarly ?? (homeScore + awayScore < 3),
+      };
 
       // ────────────────────────────────────────────────────────────────────────
       // 1. P2P TRADING SETTLEMENT
@@ -137,7 +144,7 @@ export const settlePendingBetsForMatch = async (matchId?: string) => {
 
         // B. Settle matched shares if any
         if (order.matchedShares > 0) {
-          const isWon = evaluateSelectionResult(order.selection, homeScore, awayScore);
+          const isWon = evaluateSelectionResult(order.selection, homeScore, awayScore, extraData);
 
           if (isWon) {
             order.outcomeResult = 'WON';
@@ -236,7 +243,7 @@ export const settlePendingBetsForMatch = async (matchId?: string) => {
         const losingContracts: typeof pendingPoolContracts = [];
 
         for (const contract of pendingPoolContracts) {
-          const isWon = evaluateSelectionResult(contract.selection, homeScore, awayScore);
+          const isWon = evaluateSelectionResult(contract.selection, homeScore, awayScore, extraData);
           if (isWon) {
             winningContracts.push(contract);
           } else {

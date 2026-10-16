@@ -25,17 +25,22 @@ const getOpposingSelections = (selection: string, allOptions?: string[]): string
   if (norm === 'OPTION_A') return ['OPTION_B'];
   if (norm === 'OPTION_B') return ['OPTION_A'];
 
+  // Double Chance Hedges
+  if (norm === '1X') return ['AWAY', 'NO'];
+  if (norm === 'X2') return ['HOME', 'NO'];
+  if (norm === '12') return ['DRAW', 'NO'];
+
   // Combat markets
-  if (norm === 'KO_TKO_SUB') return ['DECISION'];
-  if (norm === 'DECISION') return ['KO_TKO_SUB'];
-  if (norm === 'EARLY_STOPPAGE') return ['GO_DISTANCE'];
-  if (norm === 'GO_DISTANCE') return ['EARLY_STOPPAGE'];
+  if (norm === 'KO_TKO_SUB') return ['DECISION', 'NO'];
+  if (norm === 'DECISION') return ['KO_TKO_SUB', 'NO'];
+  if (norm === 'EARLY_STOPPAGE') return ['GO_DISTANCE', 'NO'];
+  if (norm === 'GO_DISTANCE') return ['EARLY_STOPPAGE', 'NO'];
 
   // Basketball markets
-  if (norm === 'SPREAD_HOME') return ['SPREAD_AWAY'];
-  if (norm === 'SPREAD_AWAY') return ['SPREAD_HOME'];
-  if (norm === 'HALF_HOME') return ['HALF_AWAY'];
-  if (norm === 'HALF_AWAY') return ['HALF_HOME'];
+  if (norm === 'SPREAD_HOME') return ['SPREAD_AWAY', 'NO'];
+  if (norm === 'SPREAD_AWAY') return ['SPREAD_HOME', 'NO'];
+  if (norm === 'HALF_HOME') return ['HALF_AWAY', 'NO'];
+  if (norm === 'HALF_AWAY') return ['HALF_HOME', 'NO'];
 
   if (allOptions && allOptions.length > 0) {
     return allOptions.filter((opt) => String(opt).trim().toUpperCase() !== norm);
@@ -119,13 +124,17 @@ export const placeP2POrder = async ({
   let remainingToMatch = parsedShares;
 
   const orderQuery: any = {
-    market: market as any,
     selection: { $in: opposingSelections as any },
     status: { $in: ['OPEN', 'PARTIALLY_MATCHED'] },
     user: { $ne: user._id as any }, // No self-trading
   };
-  if (match) orderQuery.match = match._id;
-  if (predictionMarket) orderQuery.predictionMarket = predictionMarket._id;
+  if (match) {
+    orderQuery.match = match._id;
+  }
+  if (predictionMarket) {
+    orderQuery.predictionMarket = predictionMarket._id;
+    if (market) orderQuery.market = market;
+  }
 
   if (opposingSelections.length > 0) {
     const opposingOrders = await P2POrder.find(orderQuery).sort({ createdAt: 1 }); // FIFO price-time priority

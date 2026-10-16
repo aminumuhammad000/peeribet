@@ -309,7 +309,7 @@ export default function MarketScreen() {
           <View>
             <Text style={styles.headerTitle}>Peeribet Markets</Text>
             <Text style={styles.headerSubtitle}>
-              {isCurrentSports ? 'Live Sports & Odds' : 'Decentralized Backdoor Prediction Markets'}
+              {isCurrentSports ? 'Live Sports Trading Markets' : 'Decentralized Backdoor Prediction Markets'}
             </Text>
           </View>
           <TouchableOpacity
@@ -444,7 +444,7 @@ export default function MarketScreen() {
                   ? 'SpaceX launches, frontier AI breakthroughs & real world milestones.'
                   : selectedCategory === 'Pop Culture'
                   ? 'MrBeast sub counts, GTA VI records & internet culture events.'
-                  : 'Competitive peer-to-peer odds with zero house edge.'}
+                  : 'Competitive peer-to-peer liquidity with zero house edge.'}
               </Text>
             </View>
           </View>
@@ -493,6 +493,10 @@ export default function MarketScreen() {
 
                 const totalMatchPool = match.poolAmount || match.pool?.totalPot || 250000;
 
+                const matchSportLower = String(match.sport || selectedCategory || '').toLowerCase();
+                const isCombatMatch = matchSportLower.includes('ufc') || matchSportLower.includes('box') || matchSportLower.includes('mma') || matchSportLower.includes('combat');
+                const isBasketballMatch = matchSportLower.includes('basket') || matchSportLower.includes('nba');
+
                 return (
                   <TouchableOpacity
                     key={match._id}
@@ -504,6 +508,8 @@ export default function MarketScreen() {
                           id: match._id,
                           homeTeam: match.homeTeam,
                           awayTeam: match.awayTeam,
+                          sport: match.sport || selectedCategory,
+                          league: match.league || '',
                         },
                       })
                     }
@@ -563,9 +569,13 @@ export default function MarketScreen() {
                     {/* Card Title & Shares Rate Pill */}
                     <View style={styles.cardInnerHeader}>
                       <View style={styles.cardHeaderTitleWrap}>
-                        <Text style={styles.cardMainTitle}>Match Contracts (1X2)</Text>
+                        <Text style={styles.cardMainTitle}>
+                          {isCombatMatch ? 'Bout Winner (2-Way)' : isBasketballMatch ? 'Game Winner (2-Way)' : 'Match Contracts (1X2)'}
+                        </Text>
                         <View style={styles.yesNoTagBadge}>
-                          <Text style={styles.yesNoTagText}>YES / NO</Text>
+                          <Text style={styles.yesNoTagText}>
+                            {isCombatMatch ? 'FIGHT WINNER' : isBasketballMatch ? '2-WAY' : 'YES / NO'}
+                          </Text>
                         </View>
                       </View>
                       <View style={styles.shareUnitPill}>
@@ -579,7 +589,7 @@ export default function MarketScreen() {
                         <Text style={styles.suspendedBannerText}>MARKET SUSPENDED</Text>
                       </View>
                     ) : (
-                      /* 3 Binary Outcome Rows (1X2 standard sequence: Home Win, Draw, Away Win) */
+                      /* Binary Outcome Rows */
                       <View style={styles.binaryRowsContainer}>
                         {/* Outcome 1: Home Team Win */}
                         {(() => {
@@ -617,8 +627,8 @@ export default function MarketScreen() {
                           );
                         })()}
 
-                        {/* Outcome 2: Draw */}
-                        {(() => {
+                        {/* Outcome 2: Draw (Only for European Football, not Combat/Basketball) */}
+                        {!isCombatMatch && !isBasketballMatch && (() => {
                           const isDrawOverpowered = drawOdds <= 1.08;
                           return (
                             <View style={styles.binaryOutcomeRow}>
@@ -703,11 +713,17 @@ export default function MarketScreen() {
                         onPress={() =>
                           router.push({
                             pathname: '/match-detail',
-                            params: { id: match._id, homeTeam: match.homeTeam, awayTeam: match.awayTeam },
+                            params: {
+                              id: match._id,
+                              homeTeam: match.homeTeam,
+                              awayTeam: match.awayTeam,
+                              sport: match.sport || selectedCategory,
+                              league: match.league || '',
+                            },
                           })
                         }
                       >
-                        <Text style={styles.tradeLinkText}>All Markets</Text>
+                        <Text style={styles.tradeLinkText}>All Contracts</Text>
                         <ArrowRight size={13} color="#00D285" style={{ marginLeft: 3 }} />
                       </TouchableOpacity>
                     </View>
