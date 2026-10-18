@@ -74,13 +74,34 @@ export const enterPool = async ({
   if (match) {
     match.pool.totalPot = (match.pool.totalPot || 0) + parsedAmount;
 
-    if (selection === 'HOME') match.pool.homePot = (match.pool.homePot || 0) + parsedAmount;
-    else if (selection === 'DRAW') match.pool.drawPot = (match.pool.drawPot || 0) + parsedAmount;
-    else if (selection === 'AWAY') match.pool.awayPot = (match.pool.awayPot || 0) + parsedAmount;
-    else if (selection === 'OVER_25') match.pool.over25Pot = (match.pool.over25Pot || 0) + parsedAmount;
-    else if (selection === 'UNDER_25') match.pool.under25Pot = (match.pool.under25Pot || 0) + parsedAmount;
-    else if (selection === 'BTTS_YES') match.pool.bttsYesPot = (match.pool.bttsYesPot || 0) + parsedAmount;
-    else if (selection === 'BTTS_NO') match.pool.bttsNoPot = (match.pool.bttsNoPot || 0) + parsedAmount;
+    const selNorm = String(selection).trim().toUpperCase();
+    if (selNorm === 'HOME') match.pool.homePot = (match.pool.homePot || 0) + parsedAmount;
+    else if (selNorm === 'DRAW') match.pool.drawPot = (match.pool.drawPot || 0) + parsedAmount;
+    else if (selNorm === 'AWAY') match.pool.awayPot = (match.pool.awayPot || 0) + parsedAmount;
+    else if (selNorm === 'OVER_25') match.pool.over25Pot = (match.pool.over25Pot || 0) + parsedAmount;
+    else if (selNorm === 'UNDER_25') match.pool.under25Pot = (match.pool.under25Pot || 0) + parsedAmount;
+    else if (selNorm === 'BTTS_YES') match.pool.bttsYesPot = (match.pool.bttsYesPot || 0) + parsedAmount;
+    else if (selNorm === 'BTTS_NO') match.pool.bttsNoPot = (match.pool.bttsNoPot || 0) + parsedAmount;
+    else if (selNorm === 'KO_TKO_SUB') match.pool.koTkoSubPot = (match.pool.koTkoSubPot || 0) + parsedAmount;
+    else if (selNorm === 'DECISION') match.pool.decisionPot = (match.pool.decisionPot || 0) + parsedAmount;
+    else if (selNorm === 'EARLY_STOPPAGE') match.pool.earlyStoppagePot = (match.pool.earlyStoppagePot || 0) + parsedAmount;
+    else if (selNorm === 'GO_DISTANCE') match.pool.goDistancePot = (match.pool.goDistancePot || 0) + parsedAmount;
+    else if (selNorm === 'SPREAD_HOME') match.pool.spreadHomePot = (match.pool.spreadHomePot || 0) + parsedAmount;
+    else if (selNorm === 'SPREAD_AWAY') match.pool.spreadAwayPot = (match.pool.spreadAwayPot || 0) + parsedAmount;
+    else if (selNorm === 'OVER_POINTS') match.pool.overPointsPot = (match.pool.overPointsPot || 0) + parsedAmount;
+    else if (selNorm === 'UNDER_POINTS') match.pool.underPointsPot = (match.pool.underPointsPot || 0) + parsedAmount;
+    else if (selNorm === 'HALF_HOME') match.pool.halfHomePot = (match.pool.halfHomePot || 0) + parsedAmount;
+    else if (selNorm === 'HALF_AWAY') match.pool.halfAwayPot = (match.pool.halfAwayPot || 0) + parsedAmount;
+    else if (selNorm === '1X') match.pool.doubleChance1xPot = (match.pool.doubleChance1xPot || 0) + parsedAmount;
+    else if (selNorm === 'X2') match.pool.doubleChanceX2Pot = (match.pool.doubleChanceX2Pot || 0) + parsedAmount;
+
+    if (!match.pool.optionPots) match.pool.optionPots = {};
+    if (match.pool.optionPots instanceof Map) {
+      const cur = match.pool.optionPots.get(selNorm) || 0;
+      match.pool.optionPots.set(selNorm, cur + parsedAmount);
+    } else {
+      match.pool.optionPots[selNorm] = (match.pool.optionPots[selNorm] || 0) + parsedAmount;
+    }
 
     match.poolAmount = match.pool.totalPot;
     await match.save();
@@ -156,9 +177,38 @@ export const getPoolDetails = async (targetId: string, market = 'MATCH_OUTCOME')
     outcomePots.UNDER_25 = { pot: match.pool?.under25Pot || 0, entries: 0, projectedMultiplier: 1.0 };
     outcomePots.BTTS_YES = { pot: match.pool?.bttsYesPot || 0, entries: 0, projectedMultiplier: 1.0 };
     outcomePots.BTTS_NO = { pot: match.pool?.bttsNoPot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.KO_TKO_SUB = { pot: match.pool?.koTkoSubPot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.DECISION = { pot: match.pool?.decisionPot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.EARLY_STOPPAGE = { pot: match.pool?.earlyStoppagePot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.GO_DISTANCE = { pot: match.pool?.goDistancePot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.SPREAD_HOME = { pot: match.pool?.spreadHomePot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.SPREAD_AWAY = { pot: match.pool?.spreadAwayPot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.OVER_POINTS = { pot: match.pool?.overPointsPot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.UNDER_POINTS = { pot: match.pool?.underPointsPot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.HALF_HOME = { pot: match.pool?.halfHomePot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.HALF_AWAY = { pot: match.pool?.halfAwayPot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots['1X'] = { pot: match.pool?.doubleChance1xPot || 0, entries: 0, projectedMultiplier: 1.0 };
+    outcomePots.X2 = { pot: match.pool?.doubleChanceX2Pot || 0, entries: 0, projectedMultiplier: 1.0 };
+
+    if (match.pool?.optionPots) {
+      if (match.pool.optionPots instanceof Map) {
+        match.pool.optionPots.forEach((val, k) => {
+          if (!outcomePots[k]) outcomePots[k] = { pot: val || 0, entries: 0, projectedMultiplier: 1.0 };
+        });
+      } else {
+        const optPots: any = match.pool.optionPots;
+        Object.keys(optPots).forEach((k) => {
+          if (!outcomePots[k]) outcomePots[k] = { pot: optPots[k] || 0, entries: 0, projectedMultiplier: 1.0 };
+        });
+      }
+    }
   } else if (predictionMarket) {
     for (const opt of predictionMarket.options || []) {
-      outcomePots[opt.id] = { pot: opt.totalStaked || 0, entries: 0, projectedMultiplier: 1.0 };
+      const optKey = opt.id || opt.label;
+      outcomePots[optKey] = { pot: opt.totalStaked || 0, entries: 0, projectedMultiplier: 1.0 };
+      if (opt.label && opt.label !== opt.id) {
+        outcomePots[opt.label] = { pot: opt.totalStaked || 0, entries: 0, projectedMultiplier: 1.0 };
+      }
     }
   }
 

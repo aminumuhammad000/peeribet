@@ -9,6 +9,19 @@ export interface IMatchPool {
   under25Pot?: number;
   bttsYesPot?: number;
   bttsNoPot?: number;
+  koTkoSubPot?: number;
+  decisionPot?: number;
+  earlyStoppagePot?: number;
+  goDistancePot?: number;
+  spreadHomePot?: number;
+  spreadAwayPot?: number;
+  overPointsPot?: number;
+  underPointsPot?: number;
+  halfHomePot?: number;
+  halfAwayPot?: number;
+  doubleChance1xPot?: number;
+  doubleChanceX2Pot?: number;
+  optionPots?: Record<string, number>;
   houseFeeCollected?: number;
   surplusCollected?: number;
 }
@@ -84,6 +97,19 @@ const matchSchema = new Schema(
       under25Pot: { type: Number, default: 0 },
       bttsYesPot: { type: Number, default: 0 },
       bttsNoPot: { type: Number, default: 0 },
+      koTkoSubPot: { type: Number, default: 0 },
+      decisionPot: { type: Number, default: 0 },
+      earlyStoppagePot: { type: Number, default: 0 },
+      goDistancePot: { type: Number, default: 0 },
+      spreadHomePot: { type: Number, default: 0 },
+      spreadAwayPot: { type: Number, default: 0 },
+      overPointsPot: { type: Number, default: 0 },
+      underPointsPot: { type: Number, default: 0 },
+      halfHomePot: { type: Number, default: 0 },
+      halfAwayPot: { type: Number, default: 0 },
+      doubleChance1xPot: { type: Number, default: 0 },
+      doubleChanceX2Pot: { type: Number, default: 0 },
+      optionPots: { type: Map, of: Number, default: {} },
       houseFeeCollected: { type: Number, default: 0 },
       surplusCollected: { type: Number, default: 0 },
     },

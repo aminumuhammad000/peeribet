@@ -13,15 +13,15 @@ export const SHARE_UNIT_PRICE = 1000; // ₦1,000 = 1 Share
  */
 const getOpposingSelections = (selection: string, allOptions?: string[]): string[] => {
   const norm = String(selection).trim().toUpperCase();
-  if (norm === 'HOME') return ['AWAY', 'DRAW'];
-  if (norm === 'AWAY') return ['HOME', 'DRAW'];
-  if (norm === 'DRAW') return ['HOME', 'AWAY'];
-  if (norm === 'OVER_25') return ['UNDER_25'];
-  if (norm === 'UNDER_25') return ['OVER_25'];
-  if (norm === 'OVER_POINTS') return ['UNDER_POINTS'];
-  if (norm === 'UNDER_POINTS') return ['OVER_POINTS'];
-  if (norm === 'BTTS_YES' || norm === 'YES') return ['BTTS_NO', 'NO'];
-  if (norm === 'BTTS_NO' || norm === 'NO') return ['BTTS_YES', 'YES'];
+  if (norm === 'HOME') return ['AWAY', 'DRAW', 'NO'];
+  if (norm === 'AWAY') return ['HOME', 'DRAW', 'NO'];
+  if (norm === 'DRAW') return ['HOME', 'AWAY', 'NO'];
+  if (norm === 'OVER_25') return ['UNDER_25', 'NO'];
+  if (norm === 'UNDER_25') return ['OVER_25', 'NO'];
+  if (norm === 'OVER_POINTS') return ['UNDER_POINTS', 'NO'];
+  if (norm === 'UNDER_POINTS') return ['OVER_POINTS', 'NO'];
+  if (norm === 'BTTS_YES' || norm === 'YES' || norm === '1') return ['BTTS_NO', 'NO', '2'];
+  if (norm === 'BTTS_NO' || norm === 'NO' || norm === '2') return ['BTTS_YES', 'YES', '1'];
   if (norm === 'OPTION_A') return ['OPTION_B'];
   if (norm === 'OPTION_B') return ['OPTION_A'];
 
@@ -31,10 +31,10 @@ const getOpposingSelections = (selection: string, allOptions?: string[]): string
   if (norm === '12') return ['DRAW', 'NO'];
 
   // Combat markets
-  if (norm === 'KO_TKO_SUB') return ['DECISION', 'NO'];
-  if (norm === 'DECISION') return ['KO_TKO_SUB', 'NO'];
-  if (norm === 'EARLY_STOPPAGE') return ['GO_DISTANCE', 'NO'];
-  if (norm === 'GO_DISTANCE') return ['EARLY_STOPPAGE', 'NO'];
+  if (norm === 'KO_TKO_SUB') return ['DECISION', 'NO', 'GO_DISTANCE'];
+  if (norm === 'DECISION') return ['KO_TKO_SUB', 'NO', 'EARLY_STOPPAGE'];
+  if (norm === 'EARLY_STOPPAGE') return ['GO_DISTANCE', 'NO', 'DECISION'];
+  if (norm === 'GO_DISTANCE') return ['EARLY_STOPPAGE', 'NO', 'KO_TKO_SUB'];
 
   // Basketball markets
   if (norm === 'SPREAD_HOME') return ['SPREAD_AWAY', 'NO'];
