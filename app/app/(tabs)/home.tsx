@@ -276,12 +276,55 @@ const FALLBACK_ENTERTAINMENT_MARKETS = [
   },
 ];
 
+const FALLBACK_LIVE_EVENT_MARKETS = [
+  {
+    _id: 'live_1',
+    title: 'SpaceX Starship orbital catch & recovery test in Q4?',
+    category: 'Real Life Events',
+    subcategory: 'Space & Tech',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 4120000,
+    closingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    yesOdds: 1.88,
+    noOdds: 1.92,
+    rules: 'Resolves to YES if SpaceX successfully catches the Starship upper stage or Super Heavy booster during an orbital flight test mission.',
+  },
+  {
+    _id: 'live_2',
+    title: 'OpenAI to officially launch or announce GPT-5 before end of year?',
+    category: 'Real Life Events',
+    subcategory: 'AI & Computing',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 3250000,
+    closingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    yesOdds: 2.10,
+    noOdds: 1.70,
+    rules: 'Resolves to YES if OpenAI formally announces or releases GPT-5 or next-gen flagship foundation model.',
+  },
+  {
+    _id: 'live_3',
+    title: 'Grand Theft Auto VI release date to break $1B retail revenue in 24h?',
+    category: 'Pop Culture',
+    subcategory: 'Gaming & Media',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 5600000,
+    closingDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+    yesOdds: 1.45,
+    noOdds: 2.70,
+    rules: 'Resolves based on official Take-Two Interactive SEC filings or verified commercial figures.',
+  },
+];
+
 const CATEGORY_TABS = [
   { id: 'ALL', label: 'All Markets', icon: '🔥' },
   { id: 'FOOTBALL', label: 'Football', icon: '⚽' },
   { id: 'BOXING', label: 'Boxing', icon: '🥊' },
   { id: 'UFC', label: 'UFC', icon: '🥋' },
   { id: 'BASKETBALL', label: 'Basketball', icon: '🏀' },
+  { id: 'POLITICS', label: 'Politics', icon: '🏛️' },
   { id: 'ENTERTAINMENT', label: 'Entertainment', icon: '🎬' },
   { id: 'LIVE_EVENT', label: 'Live event Prediction', icon: '🌍' },
 ];
@@ -302,6 +345,7 @@ export default function HomeScreen() {
   const [ufcMatches, setUfcMatches] = useState<any[]>([]);
   const [basketballMatches, setBasketballMatches] = useState<any[]>([]);
   const [politicsMarkets, setPoliticsMarkets] = useState<any[]>([]);
+  const [liveEventMarkets, setLiveEventMarkets] = useState<any[]>([]);
   const [entertainmentMarkets, setEntertainmentMarkets] = useState<any[]>([]);
 
   // Category view all toggles
@@ -310,6 +354,7 @@ export default function HomeScreen() {
   const [expandedUFC, setExpandedUFC] = useState(false);
   const [expandedBasketball, setExpandedBasketball] = useState(false);
   const [expandedPolitics, setExpandedPolitics] = useState(false);
+  const [expandedLiveEvent, setExpandedLiveEvent] = useState(false);
   const [expandedEntertainment, setExpandedEntertainment] = useState(false);
 
   // Quick Trade Modal
@@ -347,13 +392,19 @@ export default function HomeScreen() {
       // Prediction Markets
       const allMarkets = marketsRes?.markets || [];
       const pol = allMarkets.filter((m: any) =>
-        /politic/i.test(m.category || '') || /governance|election|policy/i.test(m.subcategory || '')
+        /politic/i.test(m.category || '') || /governance|election|policy|world leaders/i.test(m.subcategory || '')
       );
       setPoliticsMarkets(pol.length > 0 ? pol : FALLBACK_POLITICS_MARKETS);
 
+      const live = allMarkets.filter((m: any) =>
+        /live event|real life|pop culture/i.test(m.category || '') ||
+        /space|tech|ai|climate|science|gaming/i.test(m.subcategory || '')
+      );
+      setLiveEventMarkets(live.length > 0 ? live : FALLBACK_LIVE_EVENT_MARKETS);
+
       const ent = allMarkets.filter((m: any) =>
-        /entertainment|pop culture|music|awards/i.test(m.category || '') ||
-        /spotify|music|grammy|movie/i.test(m.subcategory || '')
+        /entertainment/i.test(m.category || '') ||
+        /spotify|music|grammy|movie|awards/i.test(m.subcategory || '')
       );
       setEntertainmentMarkets(ent.length > 0 ? ent : FALLBACK_ENTERTAINMENT_MARKETS);
     } catch (error) {
@@ -467,6 +518,7 @@ export default function HomeScreen() {
   const filteredUFC = filterBySearch(ufcMatches, true);
   const filteredBasketball = filterBySearch(basketballMatches, true);
   const filteredPolitics = filterBySearch(politicsMarkets, false);
+  const filteredLiveEvents = filterBySearch(liveEventMarkets, false);
   const filteredEntertainment = filterBySearch(entertainmentMarkets, false);
 
   const CARDS_PER_CATEGORY = 3;
@@ -834,14 +886,14 @@ export default function HomeScreen() {
               </View>
             )}
 
-          {/* SECTION 2: 🌍 Live Event & Real Life Prediction */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'LIVE_EVENT' || activeCategoryTab === 'POLITICS') &&
+          {/* SECTION: 🏛️ Politics & Policy Contracts */}
+          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'POLITICS') &&
             filteredPolitics.length > 0 && (
               <View style={styles.categorySection}>
                 <View style={styles.categoryHeaderRow}>
                   <View style={styles.categoryTitleBox}>
-                    <Text style={styles.categorySectionEmoji}>🌍</Text>
-                    <Text style={styles.categorySectionTitle}>Live event Prediction</Text>
+                    <Text style={styles.categorySectionEmoji}>🏛️</Text>
+                    <Text style={styles.categorySectionTitle}>Politics & Policy</Text>
                     <View style={styles.categoryCountBadge}>
                       <Text style={styles.categoryCountText}>{filteredPolitics.length}</Text>
                     </View>
@@ -876,6 +928,110 @@ export default function HomeScreen() {
                         <View style={styles.cardTopRow}>
                           <Text style={styles.cardCategoryBadge}>
                             {(market.subcategory || 'POLICY & GOVERNANCE').toUpperCase()}
+                          </Text>
+                          {isOverpowered ? (
+                            <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                              <Lock size={11} color="#EF4444" />
+                              <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.closingBadge}>
+                              <Clock size={11} color="#64748B" />
+                              <Text style={styles.closingBadgeText}>Closes Soon</Text>
+                            </View>
+                          )}
+                        </View>
+
+                        <Text style={styles.marketTitleText}>{market.title}</Text>
+
+                        {/* Outcomes & Trade Buttons */}
+                        <View style={styles.binaryChoiceRow}>
+                          <TouchableOpacity
+                            style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                          >
+                            <Text style={styles.binaryOptionLabelYes}>YES</Text>
+                            <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                            onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.95 })}
+                          >
+                            <Text style={styles.binaryOptionLabelNo}>NO</Text>
+                            <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.cardFooterRow}>
+                          <View>
+                            <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
+                            <Text style={styles.cardPoolValue}>
+                              ₦{(market.poolAmount || 2500000).toLocaleString()}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                            style={[styles.quickTradePill, isOverpowered && { opacity: 0.5 }]}
+                            activeOpacity={0.8}
+                            disabled={isOverpowered}
+                          >
+                            <Text style={styles.quickTradePillText}>{isOverpowered ? 'Locked' : 'Trade Outcome'}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+          {/* SECTION: 🌍 Live Event Prediction */}
+          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'LIVE_EVENT') &&
+            filteredLiveEvents.length > 0 && (
+              <View style={styles.categorySection}>
+                <View style={styles.categoryHeaderRow}>
+                  <View style={styles.categoryTitleBox}>
+                    <Text style={styles.categorySectionEmoji}>🌍</Text>
+                    <Text style={styles.categorySectionTitle}>Live event Prediction</Text>
+                    <View style={styles.categoryCountBadge}>
+                      <Text style={styles.categoryCountText}>{filteredLiveEvents.length}</Text>
+                    </View>
+                  </View>
+                  {filteredLiveEvents.length > CARDS_PER_CATEGORY && !searchText.trim() && (
+                    <TouchableOpacity
+                      onPress={() => setExpandedLiveEvent(!expandedLiveEvent)}
+                      style={styles.viewAllBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.viewAllBtnText}>
+                        {expandedLiveEvent ? 'Show Less' : `View All (${filteredLiveEvents.length})`}
+                      </Text>
+                      {expandedLiveEvent ? (
+                        <ChevronUp size={14} color="#00D285" />
+                      ) : (
+                        <ChevronDown size={14} color="#00D285" />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Rich Live Event Cards */}
+                <View style={styles.cardsGrid}>
+                  {(expandedLiveEvent || searchText.trim()
+                    ? filteredLiveEvents
+                    : filteredLiveEvents.slice(0, CARDS_PER_CATEGORY)
+                  ).map((market) => {
+                    const isOverpowered = (market.yesOdds && market.yesOdds <= 1.43) || (market.noOdds && market.noOdds <= 1.43) || Boolean(market.isLocked || market.isOverpowered || market.status === 'SUSPENDED');
+                    return (
+                      <View key={market._id} style={styles.richMarketCard}>
+                        <View style={styles.cardTopRow}>
+                          <Text style={styles.cardCategoryBadge}>
+                            {(market.subcategory || 'REAL LIFE EVENTS').toUpperCase()}
                           </Text>
                           {isOverpowered ? (
                             <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>

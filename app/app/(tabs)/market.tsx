@@ -49,13 +49,15 @@ export const CATEGORIES = [
   { id: 'Boxing', label: 'Boxing', icon: '🥊', isSports: true },
   { id: 'UFC', label: 'UFC', icon: '🥋', isSports: true },
   { id: 'Basketball', label: 'Basketball', icon: '🏀', isSports: true },
+  { id: 'Politics', label: 'Politics', icon: '🏛️', isSports: false },
   { id: 'Entertainment', label: 'Entertainment', icon: '🎬', isSports: false },
   { id: 'Live Event Prediction', label: 'Live event Prediction', icon: '🌍', isSports: false },
 ];
 
 const SUBCATEGORIES: Record<string, string[]> = {
+  Politics: ['All', 'Policy & Economy', 'Elections', 'Global Affairs', 'World Leaders'],
   Entertainment: ['All', 'Spotify & Music', 'Movies & Box Office', 'Awards & Grammys'],
-  'Live Event Prediction': ['All', 'Real Life Events', 'Politics & Policy', 'Tech & AI', 'Pop Culture'],
+  'Live Event Prediction': ['All', 'Space & Tech', 'AI & Computing', 'Climate & Science', 'Pop Culture'],
 };
 
 const isBoxingMatch = (m: any) => {
@@ -242,6 +244,159 @@ const FALLBACK_BASKETBALL_FIXTURES = [
   },
 ];
 
+const FALLBACK_POLITICS_MARKETS = [
+  {
+    _id: 'pol_1',
+    title: 'Central Bank to cut benchmark interest rate in Q4?',
+    category: 'Politics',
+    subcategory: 'Policy & Economy',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 3450000,
+    closingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    rules: 'Resolves to YES if the official Monetary Policy Committee announces a benchmark rate cut.',
+    resolutionSource: 'Official Central Bank Monetary Policy Communiqué',
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1800000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1650000 },
+    ],
+  },
+  {
+    _id: 'pol_2',
+    title: 'US Federal Reserve to lower rates at upcoming FOMC meeting?',
+    category: 'Politics',
+    subcategory: 'Global Affairs',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 5120000,
+    closingDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
+    rules: 'Resolves according to the official statement released by the Federal Reserve Board.',
+    resolutionSource: 'Federal Reserve Official Statement',
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.72, totalStaked: 2800000 },
+      { id: 'no', label: 'No', odds: 2.10, totalStaked: 2320000 },
+    ],
+  },
+  {
+    _id: 'pol_3',
+    title: 'Nigeria Inflation Rate to drop below 28% in official NBS report?',
+    category: 'Politics',
+    subcategory: 'Policy & Economy',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 2180000,
+    closingDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+    rules: 'Resolves based on headline CPI data published by National Bureau of Statistics.',
+    resolutionSource: 'National Bureau of Statistics (NBS) CPI Report',
+    options: [
+      { id: 'yes', label: 'Yes', odds: 2.25, totalStaked: 850000 },
+      { id: 'no', label: 'No', odds: 1.60, totalStaked: 1330000 },
+    ],
+  },
+];
+
+const FALLBACK_ENTERTAINMENT_MARKETS = [
+  {
+    _id: 'ent_1',
+    title: 'Grammy Awards: Album of the Year Winner 2026',
+    category: 'Entertainment',
+    subcategory: 'Awards & Grammys',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 2850000,
+    closingDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
+    rules: 'Resolves according to the official Recording Academy announcement.',
+    resolutionSource: 'Grammy Awards Official Announcement',
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.80, totalStaked: 1500000 },
+      { id: 'no', label: 'No', odds: 2.00, totalStaked: 1350000 },
+    ],
+  },
+  {
+    _id: 'ent_2',
+    title: 'Spotify Global #1: Burna Boy new track to hit #1 within 72 hours?',
+    category: 'Entertainment',
+    subcategory: 'Spotify & Music',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 1950000,
+    closingDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    rules: 'Resolves based on Spotify Global Daily Top 50 Chart.',
+    resolutionSource: 'Spotify Global Charts Official API',
+    options: [
+      { id: 'yes', label: 'Yes', odds: 2.10, totalStaked: 820000 },
+      { id: 'no', label: 'No', odds: 1.70, totalStaked: 1130000 },
+    ],
+  },
+  {
+    _id: 'ent_3',
+    title: 'Global Box Office: First 2026 blockbuster to cross $1B revenue',
+    category: 'Entertainment',
+    subcategory: 'Movies & Box Office',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 1420000,
+    closingDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+    rules: 'Resolves based on Box Office Mojo official worldwide gross records.',
+    resolutionSource: 'Box Office Mojo / IMDbPro',
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.95, totalStaked: 720000 },
+      { id: 'no', label: 'No', odds: 1.85, totalStaked: 700000 },
+    ],
+  },
+];
+
+const FALLBACK_LIVE_EVENT_MARKETS = [
+  {
+    _id: 'live_1',
+    title: 'SpaceX Starship orbital catch & recovery test in Q4?',
+    category: 'Real Life Events',
+    subcategory: 'Space & Tech',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 4120000,
+    closingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    rules: 'Resolves to YES if SpaceX successfully catches the Starship upper stage or Super Heavy booster during an orbital flight test mission.',
+    resolutionSource: 'SpaceX Official Broadcast & FAA License Data',
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.88, totalStaked: 2150000 },
+      { id: 'no', label: 'No', odds: 1.92, totalStaked: 1970000 },
+    ],
+  },
+  {
+    _id: 'live_2',
+    title: 'OpenAI to officially launch or announce GPT-5 before end of year?',
+    category: 'Real Life Events',
+    subcategory: 'AI & Computing',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 3250000,
+    closingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    rules: 'Resolves to YES if OpenAI formally announces or releases GPT-5 or next-gen flagship foundation model.',
+    resolutionSource: 'OpenAI Official Keynote & Blog',
+    options: [
+      { id: 'yes', label: 'Yes', odds: 2.10, totalStaked: 1300000 },
+      { id: 'no', label: 'No', odds: 1.70, totalStaked: 1950000 },
+    ],
+  },
+  {
+    _id: 'live_3',
+    title: 'Grand Theft Auto VI release date to break $1B retail revenue in 24h?',
+    category: 'Pop Culture',
+    subcategory: 'Gaming & Pop Culture',
+    marketType: 'YES_NO',
+    status: 'ACTIVE',
+    poolAmount: 5600000,
+    closingDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+    rules: 'Resolves based on official Take-Two Interactive SEC filings or verified commercial figures.',
+    resolutionSource: 'Take-Two Interactive SEC 10-Q Filing',
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.45, totalStaked: 3500000 },
+      { id: 'no', label: 'No', odds: 2.70, totalStaked: 2100000 },
+    ],
+  },
+];
+
 const STAKE_PRESETS = [500, 1000, 2500, 5000, 10000];
 
 export default function MarketScreen() {
@@ -318,9 +473,19 @@ export default function MarketScreen() {
       if (search && search.trim()) params.search = search.trim();
 
       const data = await predictionMarketService.getMarkets(params);
-      setPredictionMarkets(data.markets || []);
+      let list = data.markets || [];
+      if (list.length === 0 && !search) {
+        if (category === 'Politics') list = FALLBACK_POLITICS_MARKETS;
+        else if (category === 'Entertainment') list = FALLBACK_ENTERTAINMENT_MARKETS;
+        else if (category === 'Live Event Prediction') list = FALLBACK_LIVE_EVENT_MARKETS;
+      }
+      setPredictionMarkets(list);
     } catch (error) {
       console.error('Error fetching prediction markets:', error);
+      if (category === 'Politics') setPredictionMarkets(FALLBACK_POLITICS_MARKETS);
+      else if (category === 'Entertainment') setPredictionMarkets(FALLBACK_ENTERTAINMENT_MARKETS);
+      else if (category === 'Live Event Prediction') setPredictionMarkets(FALLBACK_LIVE_EVENT_MARKETS);
+      else setPredictionMarkets([]);
     }
   };
 

@@ -29,8 +29,10 @@ export const getPublicMarkets = async (req: Request, res: Response) => {
 
     if (category && category !== 'ALL') {
       const catStr = String(category).trim().toLowerCase();
-      if (catStr.includes('live event') || catStr.includes('prediction') || catStr.includes('real life')) {
-        filter.category = { $regex: /live event|real life|politic|pop culture/i };
+      if (catStr.includes('politic')) {
+        filter.category = { $regex: /politic/i };
+      } else if (catStr.includes('live event') || catStr.includes('prediction') || catStr.includes('real life')) {
+        filter.category = { $regex: /live event|real life|pop culture/i };
       } else if (catStr.includes('entertainment')) {
         filter.category = { $regex: /entertainment|music|movie|award/i };
       } else {
