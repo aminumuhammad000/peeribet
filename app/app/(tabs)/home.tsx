@@ -177,10 +177,12 @@ const FALLBACK_ENTERTAINMENT_MARKETS = [
 
 const CATEGORY_TABS = [
   { id: 'ALL', label: 'All Markets', icon: '🔥' },
-  { id: 'SPORTS', label: 'European Sports', icon: '⚽' },
-  { id: 'POLITICS', label: 'Politics', icon: '🏛️' },
-  { id: 'COMBAT', label: 'UFC & Combat', icon: '🥊' },
+  { id: 'FOOTBALL', label: 'Football', icon: '⚽' },
+  { id: 'BOXING', label: 'Boxing', icon: '🥊' },
+  { id: 'UFC', label: 'UFC', icon: '🥋' },
+  { id: 'BASKETBALL', label: 'Basketball', icon: '🏀' },
   { id: 'ENTERTAINMENT', label: 'Entertainment', icon: '🎬' },
+  { id: 'LIVE_EVENT', label: 'Live event Prediction', icon: '🌍' },
 ];
 
 const STAKE_PRESETS = [500, 1000, 2500, 5000, 10000];
@@ -281,46 +283,53 @@ export default function HomeScreen() {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
-  const handleOpenTradeModal = (market: any, option: any) => {
-    setActiveMarket(market);
-    setSelectedOption(option);
-    setStakeAmount('1000');
-    setTradeModalVisible(true);
+  const calcNoOdds = (yesOdds: number, fallback = 1.90) => {
+    if (yesOdds <= 1.05) return 15.0;
+    const impliedProb = 1 / yesOdds;
+    const noProb = Math.max(0.05, 1 - impliedProb);
+    return Number(((1 / noProb) * 0.95).toFixed(2)) || fallback;
   };
 
-  const handleExecuteTrade = async () => {
-    if (!activeMarket || !selectedOption) return;
-    const numericStake = parseFloat(stakeAmount);
-    if (isNaN(numericStake) || numericStake <= 0) {
-      showToast('Please enter a valid stake amount', 'warning');
-      return;
-    }
+  const handleTradeSportOutcome = (
+    match: any,
+    marketName: string,
+    outcome: 'Yes' | 'No',
+    oddsVal: number
+  ) => {
+    router.push({
+      pathname: '/enter-amount',
+      params: {
+        matchId: match._id,
+        matchTitle: `${match.homeTeam} vs ${match.awayTeam}`,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        marketName,
+        outcome,
+        odds: oddsVal,
+        poolAmount: match.poolAmount || match.pool?.totalPot || 0,
+        startTime: match?.startTime
+          ? new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : 'Upcoming',
+      },
+    });
+  };
 
-    if (user?.balance !== undefined && user.balance < numericStake) {
-      showToast('Insufficient wallet balance. Please fund your wallet.', 'warning');
-      return;
-    }
-
-    setIsSubmittingBet(true);
-    try {
-      await predictionMarketService.placeBet(activeMarket._id, {
-        selection: selectedOption.label || selectedOption.id || 'YES',
-        amount: numericStake,
-      });
-
-      showToast(`Trade placed: ₦${numericStake.toLocaleString()} on ${selectedOption.label || 'YES'}!`, 'success');
-      setTradeModalVisible(false);
-
-      if (user) {
-        setUser({ ...user, balance: Math.max(0, (user.balance || 0) - numericStake) });
-      }
-      fetchData();
-    } catch (error: any) {
-      const msg = error.response?.data?.message || 'Failed to place trade. Please try again.';
-      showToast(msg, 'error');
-    } finally {
-      setIsSubmittingBet(false);
-    }
+  const handleOpenTradeModal = (market: any, option: any) => {
+    router.push({
+      pathname: '/enter-amount',
+      params: {
+        marketId: market._id,
+        matchTitle: market.title,
+        marketName: market.subcategory || market.category || 'Prediction Contract',
+        outcome: option.label || 'YES',
+        odds: option.odds || 1.95,
+        isPrediction: 'true',
+        poolAmount: market.poolAmount || 0,
+        startTime: market.closingDate
+          ? new Date(market.closingDate).toLocaleDateString([], { month: 'short', day: 'numeric' })
+          : 'Active',
+      },
+    });
   };
 
   // Featured Match
@@ -567,14 +576,14 @@ export default function HomeScreen() {
               </View>
             )}
 
-          {/* SECTION 1: ⚽ European Sports */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'SPORTS') &&
+          {/* SECTION 1: ⚽ Football */}
+          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'FOOTBALL' || activeCategoryTab === 'SPORTS') &&
             filteredSports.length > 0 && (
               <View style={styles.categorySection}>
                 <View style={styles.categoryHeaderRow}>
                   <View style={styles.categoryTitleBox}>
                     <Text style={styles.categorySectionEmoji}>⚽</Text>
-                    <Text style={styles.categorySectionTitle}>European Sports</Text>
+                    <Text style={styles.categorySectionTitle}>Football</Text>
                     <View style={styles.categoryCountBadge}>
                       <Text style={styles.categoryCountText}>{filteredSports.length}</Text>
                     </View>
@@ -603,22 +612,9 @@ export default function HomeScreen() {
                     ? filteredSports
                     : filteredSports.slice(0, CARDS_PER_CATEGORY)
                   ).map((match) => (
-                    <TouchableOpacity
+                    <View
                       key={match._id}
                       style={styles.richMarketCard}
-                      activeOpacity={0.85}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/match-detail',
-                          params: {
-                            id: match._id,
-                            homeTeam: match.homeTeam,
-                            awayTeam: match.awayTeam,
-                            sport: match.sport || 'European Football',
-                            league: match.leagueName || match.league || '',
-                          },
-                        })
-                      }
                     >
                       {/* Card Top: League & Status */}
                       <View style={styles.cardTopRow}>
@@ -671,32 +667,76 @@ export default function HomeScreen() {
                         </View>
                       </View>
 
+                      {/* Outcomes & Trade Buttons */}
+                      {(() => {
+                        const homeOdds = match.odds?.home || 1.85;
+                        const noHomeOdds = calcNoOdds(homeOdds, 2.10);
+                        const isOverpowered = homeOdds <= 1.08;
+                        return (
+                          <View style={styles.binaryChoiceRow}>
+                            <TouchableOpacity
+                              style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                              activeOpacity={0.8}
+                              disabled={isOverpowered}
+                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)}
+                            >
+                              <Text style={styles.binaryOptionLabelYes}>YES</Text>
+                              <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                              activeOpacity={0.8}
+                              disabled={isOverpowered}
+                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)}
+                            >
+                              <Text style={styles.binaryOptionLabelNo}>NO</Text>
+                              <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })()}
+
                       {/* Pool & Action Footer */}
                       <View style={styles.cardFooterRow}>
                         <View>
-                          <Text style={styles.cardPoolLabel}>LIQUIDITY POOL</Text>
+                          <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
                           <Text style={styles.cardPoolValue}>
                             ₦{(match.poolAmount || 1850000).toLocaleString()}
                           </Text>
                         </View>
-                        <View style={styles.tradeActionButton}>
-                          <Text style={styles.tradeActionButtonText}>TRADE YES / NO</Text>
-                        </View>
+                        <TouchableOpacity
+                          style={styles.quickTradePill}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/match-detail',
+                              params: {
+                                id: match._id,
+                                homeTeam: match.homeTeam,
+                                awayTeam: match.awayTeam,
+                                sport: match.sport || 'European Football',
+                                league: match.leagueName || match.league || '',
+                              },
+                            })
+                          }
+                        >
+                          <Text style={styles.quickTradePillText}>All Contracts</Text>
+                        </TouchableOpacity>
                       </View>
-                    </TouchableOpacity>
+                    </View>
                   ))}
                 </View>
               </View>
             )}
 
-          {/* SECTION 2: 🏛️ Politics & Governance */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'POLITICS') &&
+          {/* SECTION 2: 🌍 Live Event & Real Life Prediction */}
+          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'LIVE_EVENT' || activeCategoryTab === 'POLITICS') &&
             filteredPolitics.length > 0 && (
               <View style={styles.categorySection}>
                 <View style={styles.categoryHeaderRow}>
                   <View style={styles.categoryTitleBox}>
-                    <Text style={styles.categorySectionEmoji}>🏛️</Text>
-                    <Text style={styles.categorySectionTitle}>Politics & Governance</Text>
+                    <Text style={styles.categorySectionEmoji}>🌍</Text>
+                    <Text style={styles.categorySectionTitle}>Live event Prediction</Text>
                     <View style={styles.categoryCountBadge}>
                       <Text style={styles.categoryCountText}>{filteredPolitics.length}</Text>
                     </View>
@@ -793,8 +833,8 @@ export default function HomeScreen() {
               </View>
             )}
 
-          {/* SECTION 3: 🥊 Combat Sports & Basketball */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'COMBAT') &&
+          {/* SECTION 3: 🥊 Boxing, UFC & Basketball */}
+          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'BOXING' || activeCategoryTab === 'UFC' || activeCategoryTab === 'BASKETBALL' || activeCategoryTab === 'COMBAT') &&
             filteredCombat.length > 0 && (
               <View style={styles.categorySection}>
                 <View style={styles.categoryHeaderRow}>
@@ -829,22 +869,9 @@ export default function HomeScreen() {
                     ? filteredCombat
                     : filteredCombat.slice(0, CARDS_PER_CATEGORY)
                   ).map((match) => (
-                    <TouchableOpacity
+                    <View
                       key={match._id}
                       style={styles.richMarketCard}
-                      activeOpacity={0.85}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/match-detail',
-                          params: {
-                            id: match._id,
-                            homeTeam: match.homeTeam,
-                            awayTeam: match.awayTeam,
-                            sport: match.sport || 'UFC & Boxing',
-                            league: match.leagueName || match.league || '',
-                          },
-                        })
-                      }
                     >
                       {/* Card Top: League & Status */}
                       <View style={styles.cardTopRow}>
@@ -897,19 +924,63 @@ export default function HomeScreen() {
                         </View>
                       </View>
 
+                      {/* Outcomes & Trade Buttons */}
+                      {(() => {
+                        const homeOdds = match.odds?.home || 1.85;
+                        const noHomeOdds = calcNoOdds(homeOdds, 2.10);
+                        const isOverpowered = homeOdds <= 1.08;
+                        return (
+                          <View style={styles.binaryChoiceRow}>
+                            <TouchableOpacity
+                              style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                              activeOpacity={0.8}
+                              disabled={isOverpowered}
+                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)}
+                            >
+                              <Text style={styles.binaryOptionLabelYes}>YES</Text>
+                              <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                              activeOpacity={0.8}
+                              disabled={isOverpowered}
+                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)}
+                            >
+                              <Text style={styles.binaryOptionLabelNo}>NO</Text>
+                              <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })()}
+
                       {/* Pool & Action Footer */}
                       <View style={styles.cardFooterRow}>
                         <View>
-                          <Text style={styles.cardPoolLabel}>LIQUIDITY POOL</Text>
+                          <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
                           <Text style={styles.cardPoolValue}>
                             ₦{(match.poolAmount || 3450000).toLocaleString()}
                           </Text>
                         </View>
-                        <View style={styles.tradeActionButton}>
-                          <Text style={styles.tradeActionButtonText}>TRADE CONTRACTS</Text>
-                        </View>
+                        <TouchableOpacity
+                          style={styles.quickTradePill}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/match-detail',
+                              params: {
+                                id: match._id,
+                                homeTeam: match.homeTeam,
+                                awayTeam: match.awayTeam,
+                                sport: match.sport || 'UFC & Boxing',
+                                league: match.leagueName || match.league || '',
+                              },
+                            })
+                          }
+                        >
+                          <Text style={styles.quickTradePillText}>All Contracts</Text>
+                        </TouchableOpacity>
                       </View>
-                    </TouchableOpacity>
+                    </View>
                   ))}
                 </View>
               </View>
@@ -1022,118 +1093,7 @@ export default function HomeScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Quick Trade Execution Modal */}
-      <Modal
-        visible={tradeModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setTradeModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Execute Outcome Trade</Text>
-                <Text style={styles.modalSub} numberOfLines={1}>
-                  {activeMarket?.title}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setTradeModalVisible(false)}
-                style={styles.modalCloseBtn}
-                activeOpacity={0.7}
-              >
-                <X size={20} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
 
-            {/* Selected Position Pill */}
-            <View style={styles.selectedPositionBox}>
-              <Text style={styles.positionBoxLabel}>SELECTED POSITION</Text>
-              <Text style={styles.positionBoxValue}>
-                {selectedOption?.label || 'YES'} • ₦1,000 / Share
-              </Text>
-            </View>
-
-            {/* Stake Input */}
-            <View style={styles.inputGroup}>
-              <View style={styles.inputLabelRow}>
-                <Text style={styles.inputLabel}>CONTRACT STAKE (₦)</Text>
-                <Text style={styles.balanceHint}>
-                  Balance: ₦{(user?.balance || 0).toLocaleString()}
-                </Text>
-              </View>
-              <TextInput
-                style={styles.stakeInput}
-                keyboardType="numeric"
-                value={stakeAmount}
-                onChangeText={setStakeAmount}
-                placeholder="1000"
-                placeholderTextColor="#64748B"
-              />
-            </View>
-
-            {/* Preset Amount Pills */}
-            <View style={styles.presetRow}>
-              {STAKE_PRESETS.map((preset) => (
-                <TouchableOpacity
-                  key={preset}
-                  onPress={() => setStakeAmount(preset.toString())}
-                  style={[
-                    styles.presetPill,
-                    stakeAmount === preset.toString() && styles.presetPillActive,
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.presetPillText,
-                      stakeAmount === preset.toString() && styles.presetPillTextActive,
-                    ]}
-                  >
-                    ₦{preset >= 1000 ? `${preset / 1000}k` : preset}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Projected Payout */}
-            <View style={styles.payoutPreviewRow}>
-              <Text style={styles.payoutPreviewLabel}>Projected Contract Yield</Text>
-              <Text style={styles.payoutPreviewValue}>
-                ₦
-                {Math.round(
-                  (parseFloat(stakeAmount) || 0) * 1.9
-                ).toLocaleString()}
-              </Text>
-            </View>
-
-            {/* Confirm Trade Button */}
-            <TouchableOpacity
-              style={styles.confirmTradeBtn}
-              activeOpacity={0.85}
-              onPress={handleExecuteTrade}
-              disabled={isSubmittingBet}
-            >
-              <LinearGradient
-                colors={['#00D285', '#00A86B']}
-                style={styles.confirmTradeGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                {isSubmittingBet ? (
-                  <ActivityIndicator size="small" color="#090D16" />
-                ) : (
-                  <>
-                    <Text style={styles.confirmTradeBtnText}>Confirm & Place Trade</Text>
-                    <ArrowRight size={18} color="#090D16" />
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </LinearGradient>
   );
 }

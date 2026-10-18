@@ -156,10 +156,19 @@ export const getMatches = async (req: Request, res: Response) => {
           { sport: { $regex: /football|soccer/i } },
           { league: { $regex: /premier league|champions league|la liga|serie a|bundesliga|ligue 1|europa|eredivisie|primeira/i } },
         ];
-      } else if (normalizedSport.includes('ufc') || normalizedSport.includes('box') || normalizedSport.includes('mma')) {
+      } else if (normalizedSport.includes('box')) {
         filter.$or = [
-          { sport: { $regex: /ufc|boxing|mma|combat/i } },
-          { league: { $regex: /ufc|boxing|wba|wbc|ibf|wbo|bellator|pfl/i } },
+          { sport: { $regex: /boxing/i } },
+          { league: { $regex: /boxing|wba|wbc|ibf|wbo|heavyweight|championship/i } },
+          { homeTeam: { $regex: /fury|usyk|canelo|crawford|joshua|wilder|haney|davis/i } },
+          { awayTeam: { $regex: /fury|usyk|canelo|crawford|joshua|wilder|haney|davis/i } },
+        ];
+      } else if (normalizedSport.includes('ufc') || normalizedSport.includes('mma') || normalizedSport.includes('combat')) {
+        filter.$or = [
+          { sport: { $regex: /ufc|mma|bellator|pfl|combat/i } },
+          { league: { $regex: /ufc|mma|bellator|pfl/i } },
+          { homeTeam: { $regex: /makhachev|tsarukyan|jones|aspinall|pereira|ankalaev|adesanya/i } },
+          { awayTeam: { $regex: /makhachev|tsarukyan|jones|aspinall|pereira|ankalaev|adesanya/i } },
         ];
       } else if (normalizedSport.includes('basket') || normalizedSport.includes('nba')) {
         filter.$or = [

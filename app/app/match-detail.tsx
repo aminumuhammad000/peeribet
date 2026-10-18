@@ -62,6 +62,7 @@ export default function MatchDetailScreen() {
         marketName,
         outcome: outcomeName,
         odds: oddsVal,
+        poolAmount: match?.poolAmount || match?.pool?.totalPot || 0,
         startTime: match?.startTime ? new Date(match.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Upcoming'
       }
     });

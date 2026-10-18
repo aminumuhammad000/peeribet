@@ -38,13 +38,19 @@ export default function EnterAmountScreen() {
 
   // Route parameters with fallback values
   const matchId = params.matchId as string;
-  const matchTitle = (params.matchTitle as string) || 'Match Detail';
+  const marketId = params.marketId as string;
+  const isPrediction = params.isPrediction === 'true' || Boolean(marketId);
+  const targetId = marketId || matchId;
+  const matchTitle = (params.matchTitle as string) || (params.title as string) || 'Match Detail';
   const startTime = (params.startTime as string) || 'Upcoming';
-  const marketName = (params.marketName as string) || 'Match Outcome';
+  const marketName = (params.marketName as string) || (isPrediction ? 'Prediction Contract' : 'Match Outcome');
   const outcome = (params.outcome as string) || 'HOME';
   const odds = parseFloat(params.odds as string) || 1.95;
   const homeTeamParam = (params.homeTeam as string) || '';
   const awayTeamParam = (params.awayTeam as string) || '';
+  const initialPoolAmount = Number.isFinite(parseFloat(params.poolAmount as string))
+    ? parseFloat(params.poolAmount as string)
+    : 0;
 
   // Trading Mode: 'P2P' (OrderBook Flow) vs 'POOL' (Pro-Rata Jackpot)
   const [tradingMode, setTradingMode] = useState<'P2P' | 'POOL'>('P2P');
@@ -65,6 +71,10 @@ export default function EnterAmountScreen() {
 
   // Map outcome text to selection key
   const getMappedSelection = (): string => {
+    if (isPrediction) {
+      return outcome;
+    }
+
     const out = outcome.toUpperCase();
     const market = marketName.toUpperCase();
     const awayUpper = awayTeamParam.toUpperCase();
@@ -134,8 +144,12 @@ export default function EnterAmountScreen() {
     try {
       const [user, bookData, poolData] = await Promise.all([
         authService.getMe(),
-        matchId ? p2pService.getOrderBook(matchId).catch(() => null) : null,
-        matchId ? poolService.getPoolBreakdown(matchId).catch(() => null) : null,
+        targetId
+          ? p2pService.getOrderBook(targetId, isPrediction ? 'PREDICTION_OUTCOME' : 'MATCH_OUTCOME').catch(() => null)
+          : null,
+        targetId
+          ? poolService.getPoolBreakdown(targetId, isPrediction ? 'PREDICTION_OUTCOME' : 'MATCH_OUTCOME').catch(() => null)
+          : null,
       ]);
 
       if (user) setUserBalance(user.balance || 0);
@@ -148,7 +162,7 @@ export default function EnterAmountScreen() {
 
   useEffect(() => {
     fetchData();
-  }, [matchId]);
+  }, [targetId]);
 
   // Calculations for P2P Mode
   const p2pTotalAmount = shares * SHARE_PRICE;
@@ -159,25 +173,53 @@ export default function EnterAmountScreen() {
   // Opposing open shares available in order book
   const opposingOpenShares = (() => {
     if (!orderBook) return 0;
-    if (currentSelection === 'HOME') return (orderBook.AWAY?.openShares || 0) + (orderBook.DRAW?.openShares || 0);
-    if (currentSelection === 'AWAY') return (orderBook.HOME?.openShares || 0) + (orderBook.DRAW?.openShares || 0);
-    if (currentSelection === 'DRAW') return (orderBook.HOME?.openShares || 0) + (orderBook.AWAY?.openShares || 0);
-    if (currentSelection === '1X') return orderBook.AWAY?.openShares || 0;
-    if (currentSelection === 'X2') return orderBook.HOME?.openShares || 0;
-    if (currentSelection === 'OVER_25') return orderBook.UNDER_25?.openShares || 0;
-    if (currentSelection === 'UNDER_25') return orderBook.OVER_25?.openShares || 0;
-    if (currentSelection === 'OVER_POINTS') return orderBook.UNDER_POINTS?.openShares || 0;
-    if (currentSelection === 'UNDER_POINTS') return orderBook.OVER_POINTS?.openShares || 0;
-    if (currentSelection === 'SPREAD_HOME') return orderBook.SPREAD_AWAY?.openShares || 0;
-    if (currentSelection === 'SPREAD_AWAY') return orderBook.SPREAD_HOME?.openShares || 0;
-    if (currentSelection === 'HALF_HOME') return orderBook.HALF_AWAY?.openShares || 0;
-    if (currentSelection === 'HALF_AWAY') return orderBook.HALF_HOME?.openShares || 0;
-    if (currentSelection === 'KO_TKO_SUB') return orderBook.DECISION?.openShares || 0;
-    if (currentSelection === 'DECISION') return orderBook.KO_TKO_SUB?.openShares || 0;
-    if (currentSelection === 'EARLY_STOPPAGE') return orderBook.GO_DISTANCE?.openShares || 0;
-    if (currentSelection === 'GO_DISTANCE') return orderBook.EARLY_STOPPAGE?.openShares || 0;
-    if (currentSelection === 'BTTS_YES') return orderBook.BTTS_NO?.openShares || 0;
-    if (currentSelection === 'BTTS_NO') return orderBook.BTTS_YES?.openShares || 0;
+
+    const getShares = (key: string): number => {
+      if (!orderBook) return 0;
+      return (
+        orderBook[key]?.openShares ||
+        orderBook[key.toUpperCase()]?.openShares ||
+        orderBook[key.toLowerCase()]?.openShares ||
+        0
+      );
+    };
+
+    if (isPrediction) {
+      const norm = currentSelection.trim().toUpperCase();
+      if (norm === 'YES' || norm === '1') {
+        return getShares('NO');
+      }
+      if (norm === 'NO' || norm === '2') {
+        return getShares('YES');
+      }
+      let otherShares = 0;
+      Object.keys(orderBook).forEach((k) => {
+        if (k.trim().toUpperCase() !== norm) {
+          otherShares += orderBook[k]?.openShares || 0;
+        }
+      });
+      return otherShares;
+    }
+
+    if (currentSelection === 'HOME') return getShares('AWAY') + getShares('DRAW');
+    if (currentSelection === 'AWAY') return getShares('HOME') + getShares('DRAW');
+    if (currentSelection === 'DRAW') return getShares('HOME') + getShares('AWAY');
+    if (currentSelection === '1X') return getShares('AWAY');
+    if (currentSelection === 'X2') return getShares('HOME');
+    if (currentSelection === 'OVER_25') return getShares('UNDER_25');
+    if (currentSelection === 'UNDER_25') return getShares('OVER_25');
+    if (currentSelection === 'OVER_POINTS') return getShares('UNDER_POINTS');
+    if (currentSelection === 'UNDER_POINTS') return getShares('OVER_POINTS');
+    if (currentSelection === 'SPREAD_HOME') return getShares('SPREAD_AWAY');
+    if (currentSelection === 'SPREAD_AWAY') return getShares('SPREAD_HOME');
+    if (currentSelection === 'HALF_HOME') return getShares('HALF_AWAY');
+    if (currentSelection === 'HALF_AWAY') return getShares('HALF_HOME');
+    if (currentSelection === 'KO_TKO_SUB') return getShares('DECISION');
+    if (currentSelection === 'DECISION') return getShares('KO_TKO_SUB');
+    if (currentSelection === 'EARLY_STOPPAGE') return getShares('GO_DISTANCE');
+    if (currentSelection === 'GO_DISTANCE') return getShares('EARLY_STOPPAGE');
+    if (currentSelection === 'BTTS_YES') return getShares('BTTS_NO');
+    if (currentSelection === 'BTTS_NO') return getShares('BTTS_YES');
     return 0;
   })();
 
@@ -186,11 +228,12 @@ export default function EnterAmountScreen() {
 
   // Calculations for Pool Mode
   const parsedPoolStake = parseFloat(poolStake) || 0;
-  const outcomePool = poolDetails?.outcomes?.[currentSelection]?.pot || 0;
-  const totalPoolPot = (poolDetails?.totalPot || 0) + parsedPoolStake;
+  const outcomePool = poolDetails?.outcomes?.[currentSelection]?.pot || (poolDetails?.optionPots?.[currentSelection] || 0);
+  const basePot = (poolDetails?.totalPot && poolDetails.totalPot > 0) ? poolDetails.totalPot : initialPoolAmount;
+  const totalPoolPot = basePot + parsedPoolStake;
   const netPoolPot = totalPoolPot * 0.95; // 5% House Fee
   const outcomeTotalStake = outcomePool + parsedPoolStake;
-  const projectedPoolMultiplier = outcomeTotalStake > 0 ? (netPoolPot / outcomeTotalStake).toFixed(2) : '2.00';
+  const projectedPoolMultiplier = outcomeTotalStake > 0 ? (netPoolPot / outcomeTotalStake).toFixed(2) : (odds > 1 ? odds.toFixed(2) : '2.00');
   const estimatedPoolPayout = Math.round(parsedPoolStake * parseFloat(projectedPoolMultiplier));
 
   const isOverpowered = odds <= 1.08;
@@ -202,8 +245,8 @@ export default function EnterAmountScreen() {
       setError('Trading is currently locked on this outcome due to extreme probability imbalance.');
       return;
     }
-    if (!matchId) {
-      setError('Please select a valid match');
+    if (!targetId) {
+      setError('Please select a valid trading market');
       return;
     }
 
@@ -220,18 +263,19 @@ export default function EnterAmountScreen() {
       setLoading(true);
       try {
         const res = await p2pService.placeOrder({
-          matchId,
-          market: 'MATCH_OUTCOME',
+          matchId: isPrediction ? undefined : targetId,
+          marketId: isPrediction ? targetId : undefined,
+          market: isPrediction ? 'PREDICTION_OUTCOME' : 'MATCH_OUTCOME',
           selection: currentSelection,
           shares,
         });
 
         setUserBalance(res.balance);
-        showToast(`P2P Order Placed! ${res.instantMatchedShares} matched • ${res.queuedPendingShares} queued`, 'success');
+        showToast(`P2P Order Placed! ${res.instantMatchedShares || 0} matched • ${res.queuedPendingShares || shares} queued`, 'success');
 
         Alert.alert(
           'P2P Order Placed ⚡',
-          `Shares: ${shares} (₦${p2pTotalAmount.toLocaleString()})\nInstant Matched: ${res.instantMatchedShares} shares\nPending in OrderBook: ${res.queuedPendingShares} shares\n\n*If unmatched shares remain before kickoff, you will receive a Bridge Offer to convert to the Pool jackpot.*`,
+          `Shares: ${shares} (₦${p2pTotalAmount.toLocaleString()})\nInstant Matched: ${res.instantMatchedShares || 0} shares\nPending in OrderBook: ${res.queuedPendingShares || shares} shares\n\n*If unmatched shares remain before settlement, you will receive a Bridge Offer to convert to the Pool jackpot.*`,
           [{ text: 'View Trades', onPress: () => router.replace('/(tabs)/trades') }]
         );
       } catch (err: any) {
@@ -253,8 +297,9 @@ export default function EnterAmountScreen() {
       setLoading(true);
       try {
         const res = await poolService.enterPool({
-          matchId,
-          market: 'MATCH_OUTCOME',
+          matchId: isPrediction ? undefined : targetId,
+          marketId: isPrediction ? targetId : undefined,
+          market: isPrediction ? 'PREDICTION_OUTCOME' : 'MATCH_OUTCOME',
           selection: currentSelection,
           amount: parsedPoolStake,
         });
@@ -264,7 +309,7 @@ export default function EnterAmountScreen() {
 
         Alert.alert(
           'Pool Entry Confirmed 💰',
-          `Stake: ₦${parsedPoolStake.toLocaleString()}\nOutcome: ${currentSelection}\nProjected Return: ~₦${estimatedPoolPayout.toLocaleString()}\n\n*Payouts will be distributed pro-rata from the giant pot upon match finish.*`,
+          `Stake: ₦${parsedPoolStake.toLocaleString()}\nOutcome: ${currentSelection}\nProjected Return: ~₦${estimatedPoolPayout.toLocaleString()}\n\n*Payouts will be distributed pro-rata from the giant pot upon settlement.*`,
           [{ text: 'View Trades', onPress: () => router.replace('/(tabs)/trades') }]
         );
       } catch (err: any) {

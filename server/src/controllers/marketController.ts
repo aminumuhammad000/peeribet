@@ -24,8 +24,14 @@ export const getPublicMarkets = async (req: Request, res: Response) => {
     }
 
     if (category && category !== 'ALL') {
-      const catStr = String(category).trim();
-      filter.category = { $regex: new RegExp(`^${catStr}$`, 'i') };
+      const catStr = String(category).trim().toLowerCase();
+      if (catStr.includes('live event') || catStr.includes('prediction') || catStr.includes('real life')) {
+        filter.category = { $regex: /live event|real life|politic|pop culture/i };
+      } else if (catStr.includes('entertainment')) {
+        filter.category = { $regex: /entertainment|music|movie|award/i };
+      } else {
+        filter.category = { $regex: new RegExp(`^${String(category).trim()}$`, 'i') };
+      }
     }
 
     if (subcategory && subcategory !== 'ALL') {
