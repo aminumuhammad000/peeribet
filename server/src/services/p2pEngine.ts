@@ -85,16 +85,65 @@ export const placeP2POrder = async ({
 
   match = await Match.findById(targetId);
   if (match) {
+    if (match.isLocked || match.isOverpowered || match.status === 'SUSPENDED') {
+      throw new Error('This trading market is locked by administrator overpowered safeguards.');
+    }
     if (match.status !== 'UPCOMING' && match.status !== 'LIVE') {
       throw new Error('Trading market for this match is currently closed');
     }
+
+    // 70% Crowd Overpower check using background odds / pool concentration
+    const selNorm = String(selection).trim().toUpperCase();
+    let selOdds = 2.0;
+    if (selNorm === 'HOME' || selNorm === '1') selOdds = match.odds?.home || 1.85;
+    else if (selNorm === 'AWAY' || selNorm === '2') selOdds = match.odds?.away || 2.40;
+    else if (selNorm === 'DRAW' || selNorm === 'X') selOdds = match.odds?.draw || 3.10;
+    else if (selNorm === 'OVER_25') selOdds = match.odds?.over25 || 1.95;
+    else if (selNorm === 'UNDER_25') selOdds = match.odds?.under25 || 1.85;
+    else if (selNorm === 'BTTS_YES') selOdds = match.odds?.bttsYes || 1.80;
+    else if (selNorm === 'BTTS_NO') selOdds = match.odds?.bttsNo || 2.00;
+
+    const impliedProb = selOdds > 0 ? 1 / selOdds : 0;
+    const totalMatchPot = match.pool?.totalPot || 0;
+    let selPot = 0;
+    if (selNorm === 'HOME') selPot = match.pool?.homePot || 0;
+    else if (selNorm === 'AWAY') selPot = match.pool?.awayPot || 0;
+    else if (selNorm === 'DRAW') selPot = match.pool?.drawPot || 0;
+
+    const potShare = totalMatchPot > 50000 ? selPot / totalMatchPot : 0;
+    if (impliedProb >= 0.70 || selOdds <= 1.43 || potShare >= 0.70) {
+      throw new Error('Trading on this outcome is automatically locked due to extreme crowd concentration (70%+ overpowered).');
+    }
+
     targetTitle = `${match.homeTeam} vs ${match.awayTeam}`;
   } else {
     predictionMarket = await Market.findById(targetId);
     if (!predictionMarket) throw new Error('Market or Match not found');
+    if (predictionMarket.isLocked || predictionMarket.isOverpowered || predictionMarket.status === 'SUSPENDED') {
+      throw new Error('This prediction market is locked by administrator overpowered safeguards.');
+    }
     if (predictionMarket.status !== 'ACTIVE') {
       throw new Error('This prediction market is currently closed for trading');
     }
+
+    // 70% Crowd Overpower check for prediction market options
+    const normSel = String(selection).trim().toUpperCase();
+    const opt = (predictionMarket.options || []).find((o: any) =>
+      String(o.id).toUpperCase() === normSel ||
+      String(o.label).toUpperCase() === normSel ||
+      (normSel === 'YES' && o.label?.toUpperCase() === 'YES') ||
+      (normSel === 'NO' && o.label?.toUpperCase() === 'NO')
+    );
+    if (opt) {
+      const optOdds = opt.odds || 1.9;
+      const optProb = optOdds > 0 ? 1 / optOdds : 0;
+      const totalStaked = (predictionMarket.options || []).reduce((acc: number, item: any) => acc + (item.totalStaked || 0), 0);
+      const stakeShare = totalStaked > 50000 ? (opt.totalStaked || 0) / totalStaked : 0;
+      if (optProb >= 0.70 || optOdds <= 1.43 || stakeShare >= 0.70) {
+        throw new Error('Trading on this outcome is automatically locked due to extreme crowd concentration (70%+ overpowered).');
+      }
+    }
+
     targetTitle = predictionMarket.title;
   }
 

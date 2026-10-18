@@ -10,6 +10,9 @@ import {
   createMarket,
   updateMarket,
   updateMarketStatus,
+  toggleMarketLock,
+  toggleMatchLock,
+  getAllMatchesAdmin,
   publishMarket,
   resolveMarket,
   voidMarket,
@@ -65,10 +68,16 @@ router.get('/markets', getMarkets);
 router.post('/markets', createMarket);
 router.put('/markets/:id', updateMarket);
 router.post('/markets/status', updateMarketStatus);
+router.post('/markets/:id/lock', toggleMarketLock);
+router.post('/markets/lock', toggleMarketLock);
 router.post('/markets/:id/publish', publishMarket);
 router.post('/markets/:id/resolve', resolveMarket);
 router.post('/markets/:id/void', voidMarket);
 router.delete('/markets/:id', deleteMarket);
+
+router.get('/matches', getAllMatchesAdmin);
+router.post('/matches/:id/lock', toggleMatchLock);
+router.post('/matches/lock', toggleMatchLock);
 
 router.get('/security-logs', getSecurityLogs);
 router.post('/security-logs', createSecurityLog);

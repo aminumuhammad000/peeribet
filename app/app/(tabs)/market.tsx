@@ -31,12 +31,14 @@ import {
   AlertCircle,
   HelpCircle,
   ArrowRight,
+  ShieldAlert,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
 import {
   matchService,
   predictionMarketService,
+  adminService,
   authService,
   showToast,
 } from '../../services/apiService';
@@ -164,6 +166,26 @@ export default function MarketScreen() {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
+  };
+
+  const handleToggleAdminMarketLock = async (marketId: string, currentLocked: boolean) => {
+    try {
+      await adminService.toggleMarketLock(marketId, !currentLocked);
+      showToast(`Market ${!currentLocked ? 'LOCKED (Overpowered)' : 'UNLOCKED'} successfully`, 'success');
+      loadData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to toggle market lock', 'error');
+    }
+  };
+
+  const handleToggleAdminMatchLock = async (matchId: string, currentLocked: boolean) => {
+    try {
+      await adminService.toggleMatchLock(matchId, !currentLocked);
+      showToast(`Match ${!currentLocked ? 'LOCKED (Overpowered)' : 'UNLOCKED'} successfully`, 'success');
+      loadData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to toggle match lock', 'error');
+    }
   };
 
   // Open Trading Screen for a Prediction Option (Same UI as 1.jpeg and 2.jpeg)
@@ -425,6 +447,7 @@ export default function MarketScreen() {
               filteredMatches.map((match) => {
                 const isLive = match.status === 'LIVE';
                 const isSuspended = match.status === 'SUSPENDED';
+                const isMatchAdminLocked = Boolean(match.isLocked || match.isOverpowered || isSuspended);
 
                 const homeOdds = formatOdds(match.odds?.home, 1.85);
                 const drawOdds = formatOdds(match.odds?.draw, 3.10);
@@ -443,7 +466,7 @@ export default function MarketScreen() {
                 return (
                   <TouchableOpacity
                     key={match._id}
-                    disabled={isSuspended}
+                    disabled={isMatchAdminLocked}
                     onPress={() =>
                       router.push({
                         pathname: '/match-detail',
@@ -453,12 +476,32 @@ export default function MarketScreen() {
                           awayTeam: match.awayTeam,
                           sport: match.sport || selectedCategory,
                           league: match.league || '',
+                          isLocked: String(isMatchAdminLocked),
                         },
                       })
                     }
                     activeOpacity={0.88}
-                    style={[styles.sportsCard, isSuspended && styles.sportsCardSuspended]}
+                    style={[styles.sportsCard, isMatchAdminLocked && styles.sportsCardSuspended]}
                   >
+                    {/* Admin Lock / Unlock Control Strip */}
+                    {user?.role === 'admin' && (
+                      <View style={styles.adminControlStrip}>
+                        <ShieldAlert size={14} color={isMatchAdminLocked ? '#EF4444' : '#00D285'} />
+                        <Text style={styles.adminControlText}>
+                          Admin: {isMatchAdminLocked ? 'Locked (Overpowered)' : 'Active Fixture'}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => handleToggleAdminMatchLock(match._id, isMatchAdminLocked)}
+                          style={[styles.adminLockBtnSmall, isMatchAdminLocked ? styles.adminUnlockBtnSmall : styles.adminLockBtnActive]}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.adminLockBtnText}>
+                            {isMatchAdminLocked ? 'Unlock Match' : 'Lock (Overpowered)'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
                     {/* Top League & Status Bar */}
                     <View style={styles.sportsCardHeader}>
                       <View style={styles.sportsLeagueWrap}>
@@ -536,7 +579,8 @@ export default function MarketScreen() {
                       <View style={styles.binaryRowsContainer}>
                         {/* Outcome 1: Home Team Win */}
                         {(() => {
-                          const isHomeOverpowered = homeOdds <= 1.08;
+                          const isHomeCrowdOverpowered = totalMatchPool > 50000 && (match.pool?.homePot || 0) / totalMatchPool >= 0.70;
+                          const isHomeOverpowered = homeOdds <= 1.43 || isHomeCrowdOverpowered || isMatchAdminLocked;
                           return (
                             <View style={styles.binaryOutcomeRow}>
                               <View style={styles.outcomeInfoCol}>
@@ -572,7 +616,8 @@ export default function MarketScreen() {
 
                         {/* Outcome 2: Draw (Only for European Football, not Combat/Basketball) */}
                         {!isCombatMatch && !isBasketballMatch && (() => {
-                          const isDrawOverpowered = drawOdds <= 1.08;
+                          const isDrawCrowdOverpowered = totalMatchPool > 50000 && (match.pool?.drawPot || 0) / totalMatchPool >= 0.70;
+                          const isDrawOverpowered = drawOdds <= 1.43 || isDrawCrowdOverpowered || isMatchAdminLocked;
                           return (
                             <View style={styles.binaryOutcomeRow}>
                               <View style={styles.outcomeInfoCol}>
@@ -608,7 +653,8 @@ export default function MarketScreen() {
 
                         {/* Outcome 3: Away Team Win */}
                         {(() => {
-                          const isAwayOverpowered = awayOdds <= 1.08;
+                          const isAwayCrowdOverpowered = totalMatchPool > 50000 && (match.pool?.awayPot || 0) / totalMatchPool >= 0.70;
+                          const isAwayOverpowered = awayOdds <= 1.43 || isAwayCrowdOverpowered || isMatchAdminLocked;
                           return (
                             <View style={styles.binaryOutcomeRow}>
                               <View style={styles.outcomeInfoCol}>
@@ -702,8 +748,29 @@ export default function MarketScreen() {
                 const yesPercent = Math.round((yesStaked / sumStakes) * 100);
                 const noPercent = 100 - yesPercent;
 
+                const isMarketAdminLocked = Boolean(market.isLocked || market.isOverpowered || market.status === 'SUSPENDED');
+
                 return (
                   <View key={market._id} style={styles.predCard}>
+                    {/* Admin Lock / Unlock Control Strip */}
+                    {user?.role === 'admin' && (
+                      <View style={styles.adminControlStrip}>
+                        <ShieldAlert size={14} color={isMarketAdminLocked ? '#EF4444' : '#00D285'} />
+                        <Text style={styles.adminControlText}>
+                          Admin: {isMarketAdminLocked ? 'Locked (Overpowered)' : 'Active Market'}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => handleToggleAdminMarketLock(market._id, isMarketAdminLocked)}
+                          style={[styles.adminLockBtnSmall, isMarketAdminLocked ? styles.adminUnlockBtnSmall : styles.adminLockBtnActive]}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.adminLockBtnText}>
+                            {isMarketAdminLocked ? 'Unlock Market' : 'Lock (Overpowered)'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
                     {/* Subcategory & Closing Date */}
                     <View style={styles.predCardHeader}>
                       <View style={styles.predSubcategoryBadge}>
@@ -788,7 +855,11 @@ export default function MarketScreen() {
 
                         {/* Large YES & NO Trade Buttons */}
                         {(() => {
-                          const isOverpowered = (yesOption?.odds && yesOption.odds <= 1.08) || (noOption?.odds && noOption.odds <= 1.08) || market.status === 'SUSPENDED';
+                          const isYesCrowdOverpowered = yesPercent >= 70;
+                          const isNoCrowdOverpowered = noPercent >= 70;
+                          const isYesOddsOverpowered = Boolean(yesOption?.odds && yesOption.odds <= 1.43);
+                          const isNoOddsOverpowered = Boolean(noOption?.odds && noOption.odds <= 1.43);
+                          const isOverpowered = isYesOddsOverpowered || isNoOddsOverpowered || isYesCrowdOverpowered || isNoCrowdOverpowered || isMarketAdminLocked;
                           return (
                             <View style={styles.binaryBtnsRow}>
                               <TouchableOpacity
@@ -824,7 +895,10 @@ export default function MarketScreen() {
                         <Text style={styles.mcHeaderLabel}>Select an Outcome:</Text>
                         <View style={styles.mcList}>
                           {(market.options || []).map((opt: any) => {
-                            const isOptOverpowered = (opt.odds && opt.odds <= 1.08) || market.status === 'SUSPENDED';
+                            const optStakeShare = totalPool > 50000 ? (opt.totalStaked || 0) / totalPool : 0;
+                            const isOptCrowdOverpowered = optStakeShare >= 0.70;
+                            const isOptOddsOverpowered = Boolean(opt.odds && opt.odds <= 1.43);
+                            const isOptOverpowered = isOptOddsOverpowered || isOptCrowdOverpowered || isMarketAdminLocked;
                             return (
                               <TouchableOpacity
                                 key={opt.id || opt.label}
@@ -1987,6 +2061,46 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  adminControlStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 10,
+    gap: 6,
+  },
+  adminControlText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
+    fontFamily: 'Inter',
+  },
+  adminLockBtnSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  adminLockBtnActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  adminUnlockBtnSmall: {
+    backgroundColor: 'rgba(0, 210, 133, 0.2)',
+    borderWidth: 1,
+    borderColor: '#00D285',
+  },
+  adminLockBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
     fontFamily: 'Inter',
   },
 });

@@ -39,6 +39,9 @@ export interface IMarket extends Document {
   resolutionDate?: Date;
   resolvedAt?: Date;
   isBackdoorManual: boolean;
+  isLocked?: boolean;
+  isOverpowered?: boolean;
+  lockedReason?: string;
   creator?: Types.ObjectId;
   image?: string;
   // Legacy fields for backward compatibility
@@ -113,6 +116,9 @@ const marketSchema = new Schema<IMarket>(
     resolutionDate: { type: Date },
     resolvedAt: { type: Date },
     isBackdoorManual: { type: Boolean, default: true },
+    isLocked: { type: Boolean, default: false },
+    isOverpowered: { type: Boolean, default: false },
+    lockedReason: { type: String, default: '' },
     creator: { type: Schema.Types.ObjectId, ref: 'User' },
     image: { type: String, default: '' },
     // Backwards compatibility

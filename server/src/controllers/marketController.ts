@@ -16,11 +16,15 @@ export const getPublicMarkets = async (req: Request, res: Response) => {
     const { category, subcategory, search, status, sort } = req.query;
     const filter: any = {};
 
-    // For public users, only show ACTIVE / PUBLISHED markets by default
+    // For public users, show ACTIVE and SUSPENDED (locked) markets by default
     if (status) {
-      filter.status = status;
+      if (typeof status === 'string' && status.includes(',')) {
+        filter.status = { $in: status.split(',').map((s) => s.trim()) };
+      } else {
+        filter.status = status;
+      }
     } else {
-      filter.status = 'ACTIVE';
+      filter.status = { $in: ['ACTIVE', 'SUSPENDED'] };
     }
 
     if (category && category !== 'ALL') {

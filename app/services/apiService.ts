@@ -518,4 +518,23 @@ export const referralService = {
   },
 };
 
+export const adminService = {
+  toggleMarketLock: async (marketId: string, isLocked?: boolean, reason?: string) => {
+    const response = await apiRequest(api.post(`/admin/markets/${marketId}/lock`, { isLocked, reason }));
+    return response.data;
+  },
+  toggleMatchLock: async (matchId: string, isLocked?: boolean, reason?: string) => {
+    const response = await apiRequest(api.post(`/admin/matches/${matchId}/lock`, { isLocked, reason }));
+    return response.data;
+  },
+  getAdminMarkets: async () => {
+    const response = await apiRequest(api.get('/admin/markets'));
+    return response.data;
+  },
+  getAdminMatches: async () => {
+    const response = await apiRequest(api.get('/admin/matches'));
+    return response.data;
+  },
+};
+
 export default api;

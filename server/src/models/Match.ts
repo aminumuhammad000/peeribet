@@ -57,6 +57,9 @@ export interface IMatch extends Document {
   pool: IMatchPool;
   p2pStats: IMatchP2PStats;
   bridgeTriggered: boolean;
+  isLocked?: boolean;
+  isOverpowered?: boolean;
+  lockedReason?: string;
   fixtureId?: number; // External API fixture ID
 }
 
@@ -75,6 +78,9 @@ const matchSchema = new Schema(
       enum: ['UPCOMING', 'LIVE', 'FINISHED', 'SUSPENDED'], 
       default: 'UPCOMING' 
     },
+    isLocked: { type: Boolean, default: false },
+    isOverpowered: { type: Boolean, default: false },
+    lockedReason: { type: String, default: '' },
     isPromoted: { type: Boolean, default: false },
     scoreHome: { type: Number, default: 0 },
     scoreAway: { type: Number, default: 0 },

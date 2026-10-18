@@ -671,7 +671,7 @@ export default function HomeScreen() {
                       {(() => {
                         const homeOdds = match.odds?.home || 1.85;
                         const noHomeOdds = calcNoOdds(homeOdds, 2.10);
-                        const isOverpowered = homeOdds <= 1.08;
+                        const isOverpowered = homeOdds <= 1.43 || Boolean(match.isLocked || match.isOverpowered || match.status === 'SUSPENDED');
                         return (
                           <View style={styles.binaryChoiceRow}>
                             <TouchableOpacity
@@ -765,7 +765,7 @@ export default function HomeScreen() {
                     ? filteredPolitics
                     : filteredPolitics.slice(0, CARDS_PER_CATEGORY)
                   ).map((market) => {
-                    const isOverpowered = (market.yesOdds && market.yesOdds <= 1.08) || (market.noOdds && market.noOdds <= 1.08) || market.status === 'SUSPENDED';
+                    const isOverpowered = (market.yesOdds && market.yesOdds <= 1.43) || (market.noOdds && market.noOdds <= 1.43) || Boolean(market.isLocked || market.isOverpowered || market.status === 'SUSPENDED');
                     return (
                       <View key={market._id} style={styles.richMarketCard}>
                         <View style={styles.cardTopRow}>
@@ -928,7 +928,7 @@ export default function HomeScreen() {
                       {(() => {
                         const homeOdds = match.odds?.home || 1.85;
                         const noHomeOdds = calcNoOdds(homeOdds, 2.10);
-                        const isOverpowered = homeOdds <= 1.08;
+                        const isOverpowered = homeOdds <= 1.43 || Boolean(match.isLocked || match.isOverpowered || match.status === 'SUSPENDED');
                         return (
                           <View style={styles.binaryChoiceRow}>
                             <TouchableOpacity
@@ -1022,7 +1022,7 @@ export default function HomeScreen() {
                     ? filteredEntertainment
                     : filteredEntertainment.slice(0, CARDS_PER_CATEGORY)
                   ).map((market) => {
-                    const isOverpowered = (market.yesOdds && market.yesOdds <= 1.08) || (market.noOdds && market.noOdds <= 1.08) || market.status === 'SUSPENDED';
+                    const isOverpowered = (market.yesOdds && market.yesOdds <= 1.43) || (market.noOdds && market.noOdds <= 1.43) || Boolean(market.isLocked || market.isOverpowered || market.status === 'SUSPENDED');
                     return (
                       <View key={market._id} style={styles.richMarketCard}>
                         <View style={styles.cardTopRow}>

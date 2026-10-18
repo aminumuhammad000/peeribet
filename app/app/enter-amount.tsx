@@ -236,13 +236,28 @@ export default function EnterAmountScreen() {
   const projectedPoolMultiplier = outcomeTotalStake > 0 ? (netPoolPot / outcomeTotalStake).toFixed(2) : (odds > 1 ? odds.toFixed(2) : '2.00');
   const estimatedPoolPayout = Math.round(parsedPoolStake * parseFloat(projectedPoolMultiplier));
 
-  const isOverpowered = odds <= 1.08;
+  // 70% Crowd Overpower Rule & Admin Lock Safeguard
+  const crowdRatio = basePot > 50000 && outcomePool > 0 ? outcomePool / basePot : 0;
+  const isCrowdOverpowered = crowdRatio >= 0.70;
+  const isOddsOverpowered = odds <= 1.43; // Implied probability >= 70%
+  const isAdminLocked = Boolean(
+    poolDetails?.isLocked ||
+    poolDetails?.isOverpowered ||
+    poolDetails?.status === 'SUSPENDED' ||
+    params.isLocked === 'true' ||
+    params.isOverpowered === 'true'
+  );
+  const isOverpowered = isOddsOverpowered || isCrowdOverpowered || isAdminLocked;
 
   // Handle Submission
   const handleSubmitTrade = async () => {
     setError('');
     if (isOverpowered) {
-      setError('Trading is currently locked on this outcome due to extreme probability imbalance.');
+      setError(
+        isAdminLocked
+          ? 'Trading on this market has been locked by administration.'
+          : 'Trading on this outcome is locked due to extreme crowd concentration (70%+ overpowered).'
+      );
       return;
     }
     if (!targetId) {
@@ -370,7 +385,11 @@ export default function EnterAmountScreen() {
                 {isOverpowered && (
                   <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', borderRadius: 12, padding: 12, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <ShieldCheck size={18} color="#EF4444" />
-                    <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700', flex: 1 }}>Trading on this outcome is locked due to extreme probability imbalance.</Text>
+                    <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700', flex: 1 }}>
+                      {isAdminLocked
+                        ? 'Trading on this market has been locked by administration.'
+                        : 'Trading on this outcome is locked due to extreme crowd concentration (70%+ overpowered).'}
+                    </Text>
                   </View>
                 )}
 
@@ -476,7 +495,7 @@ export default function EnterAmountScreen() {
                     <ActivityIndicator color="#050811" />
                   ) : (
                     <Text style={styles.p2pSubmitText}>
-                      {isOverpowered ? 'Trading Locked (Overpowered)' : `Place P2P Order (₦${p2pTotalAmount.toLocaleString()})`}
+                      {isOverpowered ? (isAdminLocked ? 'Market Locked by Admin' : 'Trading Locked (70%+ Crowd)') : `Place P2P Order (₦${p2pTotalAmount.toLocaleString()})`}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -487,7 +506,11 @@ export default function EnterAmountScreen() {
                 {isOverpowered && (
                   <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)', borderRadius: 12, padding: 12, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <ShieldCheck size={18} color="#EF4444" />
-                    <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700', flex: 1 }}>Trading on this outcome is locked due to extreme probability imbalance.</Text>
+                    <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700', flex: 1 }}>
+                      {isAdminLocked
+                        ? 'Trading on this market has been locked by administration.'
+                        : 'Trading on this outcome is locked due to extreme crowd concentration (70%+ overpowered).'}
+                    </Text>
                   </View>
                 )}
 
@@ -580,7 +603,7 @@ export default function EnterAmountScreen() {
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <Text style={styles.poolSubmitText}>
-                      {isOverpowered ? 'Trading Locked (Overpowered)' : `Enter Jackpot Pool (₦${parsedPoolStake.toLocaleString()})`}
+                      {isOverpowered ? (isAdminLocked ? 'Market Locked by Admin' : 'Trading Locked (70%+ Crowd)') : `Enter Jackpot Pool (₦${parsedPoolStake.toLocaleString()})`}
                     </Text>
                   )}
                 </TouchableOpacity>

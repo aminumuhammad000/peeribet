@@ -3,6 +3,7 @@ import User from '../models/User';
 import Transaction from '../models/Transaction';
 import Trade from '../models/Trade';
 import Market from '../models/Market';
+import Match from '../models/Match';
 import Bet from '../models/Bet';
 import SystemSetting from '../models/SystemSetting';
 import SecurityLog from '../models/SecurityLog';
@@ -418,6 +419,89 @@ export const updateMarketStatus = async (req: Request, res: Response) => {
     } catch (e) {}
 
     res.json(market);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const toggleMarketLock = async (req: Request, res: Response) => {
+  try {
+    const marketId = req.params.id || req.body.marketId || req.body.id;
+    const { isLocked, reason } = req.body;
+    const market = await Market.findById(marketId);
+    if (!market) return res.status(404).json({ message: 'Market not found' });
+
+    market.isLocked = typeof isLocked === 'boolean' ? isLocked : !market.isLocked;
+    market.isOverpowered = market.isLocked;
+    if (reason) market.lockedReason = reason;
+    else if (market.isLocked) market.lockedReason = 'Locked by Admin (Overpowered Safeguard)';
+    else market.lockedReason = '';
+
+    if (market.isLocked) {
+      market.status = 'SUSPENDED' as any;
+    } else {
+      market.status = 'ACTIVE' as any;
+    }
+    await market.save();
+
+    try {
+      await SecurityLog.create({
+        type: market.isLocked ? 'warning' : 'success',
+        text: `Admin ${market.isLocked ? 'LOCKED' : 'UNLOCKED'} market "${market.title}" (Overpower Control)`,
+        meta: reason || 'Admin manual overpower lock toggle',
+        icon: 'shield-alert',
+      });
+      const io = getIO();
+      if (io) io.emit('market_updated', { marketId: market._id, isLocked: market.isLocked, status: market.status });
+    } catch (e) {}
+
+    res.json({ message: `Market ${market.isLocked ? 'locked' : 'unlocked'} successfully`, market });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const toggleMatchLock = async (req: Request, res: Response) => {
+  try {
+    const matchId = req.params.id || req.body.matchId || req.body.id;
+    const { isLocked, reason } = req.body;
+    const match = await Match.findById(matchId);
+    if (!match) return res.status(404).json({ message: 'Match not found' });
+
+    match.isLocked = typeof isLocked === 'boolean' ? isLocked : !match.isLocked;
+    match.isOverpowered = match.isLocked;
+    if (reason) match.lockedReason = reason;
+    else if (match.isLocked) match.lockedReason = 'Locked by Admin (Overpowered Safeguard)';
+    else match.lockedReason = '';
+
+    if (match.isLocked) {
+      match.status = 'SUSPENDED';
+    } else {
+      match.status = 'UPCOMING';
+    }
+    await match.save();
+
+    try {
+      await SecurityLog.create({
+        type: match.isLocked ? 'warning' : 'success',
+        text: `Admin ${match.isLocked ? 'LOCKED' : 'UNLOCKED'} match "${match.homeTeam} vs ${match.awayTeam}" (Overpower Control)`,
+        meta: reason || 'Admin manual overpower lock toggle',
+        icon: 'shield-alert',
+      });
+      const io = getIO();
+      if (io) io.emit('match_updated', { matchId: match._id, isLocked: match.isLocked, status: match.status });
+    } catch (e) {}
+
+    res.json({ message: `Match ${match.isLocked ? 'locked' : 'unlocked'} successfully`, match });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getAllMatchesAdmin = async (req: Request, res: Response) => {
+  try {
+    const matches = await Match.find().sort({ startTime: -1 }).limit(100);
+    res.json(matches);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
