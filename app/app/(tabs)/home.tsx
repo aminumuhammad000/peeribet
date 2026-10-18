@@ -681,7 +681,7 @@ export default function HomeScreen() {
                               onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)}
                             >
                               <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                              <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                              <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -691,7 +691,7 @@ export default function HomeScreen() {
                               onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)}
                             >
                               <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                              <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                              <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
                             </TouchableOpacity>
                           </View>
                         );
@@ -796,7 +796,7 @@ export default function HomeScreen() {
                             onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
                           >
                             <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                            <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -806,7 +806,7 @@ export default function HomeScreen() {
                             onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.95 })}
                           >
                             <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                            <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
                           </TouchableOpacity>
                         </View>
 
@@ -938,7 +938,7 @@ export default function HomeScreen() {
                               onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)}
                             >
                               <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                              <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                              <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -948,7 +948,7 @@ export default function HomeScreen() {
                               onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)}
                             >
                               <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                              <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                              <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
                             </TouchableOpacity>
                           </View>
                         );
@@ -1052,7 +1052,7 @@ export default function HomeScreen() {
                             onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
                           >
                             <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                            <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -1062,7 +1062,7 @@ export default function HomeScreen() {
                             onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.95 })}
                           >
                             <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                            <Text style={styles.binaryOptionOdds}>₦1,000 / Share</Text>
+                            <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
                           </TouchableOpacity>
                         </View>
 

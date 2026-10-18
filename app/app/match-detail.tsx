@@ -462,20 +462,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, finishOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Stoppage (KO/TKO/Sub)', 'Yes', finishOdds)}
+                        disabled={finishOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{finishOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, decisionOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Stoppage (KO/TKO/Sub)', 'No', decisionOdds)}
+                        disabled={decisionOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{decisionOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -486,20 +488,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, decisionOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Goes to Decision', 'Yes', decisionOdds)}
+                        disabled={decisionOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{decisionOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, finishOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Goes to Decision', 'No', finishOdds)}
+                        disabled={finishOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{finishOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -527,20 +531,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, overRoundsOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Over 2.5 Rounds', 'Yes', overRoundsOdds)}
+                        disabled={overRoundsOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{overRoundsOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, underRoundsOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Over 2.5 Rounds', 'No', underRoundsOdds)}
+                        disabled={underRoundsOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{underRoundsOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -568,20 +574,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, earlyFinishOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Finish in Rounds 1-2', 'Yes', earlyFinishOdds)}
+                        disabled={earlyFinishOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{earlyFinishOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, lateFinishOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Finish in Rounds 1-2', 'No', lateFinishOdds)}
+                        disabled={lateFinishOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{lateFinishOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -681,20 +689,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, overPointsOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Over 218.5 Points', 'Yes', overPointsOdds)}
+                        disabled={overPointsOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{overPointsOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, underPointsOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Under 218.5 Points', 'No', underPointsOdds)}
+                        disabled={underPointsOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{underPointsOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -722,20 +732,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, halftimeHomeOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} Lead at Half`, 'Yes', halftimeHomeOdds)}
+                        disabled={halftimeHomeOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{halftimeHomeOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, halftimeAwayOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} Lead at Half`, 'No', halftimeAwayOdds)}
+                        disabled={halftimeAwayOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{halftimeAwayOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -763,20 +775,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, spreadHomeOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} -5.5 Spread`, 'Yes', spreadHomeOdds)}
+                        disabled={spreadHomeOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{spreadHomeOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, spreadAwayOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${awayTeam} +5.5 Spread`, 'No', spreadAwayOdds)}
+                        disabled={spreadAwayOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{spreadAwayOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -905,20 +919,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, over3Odds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Over 2.5 Goals', 'Yes', over3Odds)}
+                        disabled={over3Odds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{over3Odds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, under3Odds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Under 2.5 Goals', 'No', under3Odds)}
+                        disabled={under3Odds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{under3Odds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -946,20 +962,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, bttsYesOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Both Teams to Score', 'Yes', bttsYesOdds)}
+                        disabled={bttsYesOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{bttsYesOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, bttsNoOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Both Teams to Score', 'No', bttsNoOdds)}
+                        disabled={bttsNoOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{bttsNoOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -987,20 +1005,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, doubleChance1XOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} Win or Draw (1X)`, 'Yes', doubleChance1XOdds)}
+                        disabled={doubleChance1XOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{doubleChance1XOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, awayOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} Win or Draw (1X)`, 'No', awayOdds)}
+                        disabled={awayOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{awayOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1011,20 +1031,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, doubleChanceX2Odds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${awayTeam} Win or Draw (X2)`, 'Yes', doubleChanceX2Odds)}
+                        disabled={doubleChanceX2Odds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{doubleChanceX2Odds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, homeOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${awayTeam} Win or Draw (X2)`, 'No', homeOdds)}
+                        disabled={homeOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{homeOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1052,20 +1074,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={styles.actionBtnYes}
+                        style={[styles.actionBtnYes, halftimeLeadHomeOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} Lead at Halftime`, 'Yes', halftimeLeadHomeOdds)}
+                        disabled={halftimeLeadHomeOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubYes}>{halftimeLeadHomeOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.actionBtnNo}
+                        style={[styles.actionBtnNo, halftimeLeadAwayOdds <= 1.08 && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} Lead at Halftime`, 'No', halftimeLeadAwayOdds)}
+                        disabled={halftimeLeadAwayOdds <= 1.08}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>₦1k / Sh</Text>
+                        <Text style={styles.actionBtnSubNo}>{halftimeLeadAwayOdds <= 1.08 ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
