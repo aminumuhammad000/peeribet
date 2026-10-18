@@ -85,10 +85,86 @@ const FALLBACK_POLITICS_MARKETS = [
   },
 ];
 
-const FALLBACK_COMBAT_FIXTURES = [
+const isBoxingMatch = (m: any) => {
+  const s = String(m?.sport || '').toLowerCase();
+  const l = String(m?.league || m?.leagueName || '').toLowerCase();
+  const h = String(m?.homeTeam || '').toLowerCase();
+  const a = String(m?.awayTeam || '').toLowerCase();
+  if (s === 'boxing') return true;
+  if (l.includes('boxing') || l.includes('wbc') || l.includes('wba') || l.includes('ibf') || l.includes('wbo') || l.includes('heavyweight championship')) return true;
+  if (h.includes('fury') || h.includes('usyk') || h.includes('canelo') || h.includes('crawford') || h.includes('joshua')) return true;
+  if (a.includes('fury') || a.includes('usyk') || a.includes('canelo') || a.includes('crawford') || a.includes('joshua')) return true;
+  return false;
+};
+
+const isUFCMatch = (m: any) => {
+  if (isBoxingMatch(m)) return false;
+  const s = String(m?.sport || '').toLowerCase();
+  const l = String(m?.league || m?.leagueName || '').toLowerCase();
+  const h = String(m?.homeTeam || '').toLowerCase();
+  const a = String(m?.awayTeam || '').toLowerCase();
+  if (s === 'ufc' || s === 'mma') return true;
+  if (l.includes('ufc') || l.includes('mma') || l.includes('lightweight championship') || l.includes('unification title') || l.includes('light heavyweight')) return true;
+  if (h.includes('makhachev') || h.includes('jones') || h.includes('aspinall') || h.includes('pereira') || h.includes('ankalaev') || h.includes('tsarukyan')) return true;
+  if (a.includes('makhachev') || a.includes('jones') || a.includes('aspinall') || a.includes('pereira') || a.includes('ankalaev') || a.includes('tsarukyan')) return true;
+  return false;
+};
+
+const isBasketballMatch = (m: any) => {
+  const s = String(m?.sport || '').toLowerCase();
+  const l = String(m?.league || m?.leagueName || '').toLowerCase();
+  const h = String(m?.homeTeam || '').toLowerCase();
+  const a = String(m?.awayTeam || '').toLowerCase();
+  if (s.includes('basket') || s.includes('nba') || l.includes('nba') || l.includes('euroleague')) return true;
+  if (h.includes('lakers') || h.includes('celtics') || h.includes('warriors') || h.includes('nuggets') || h.includes('mavericks')) return true;
+  if (a.includes('lakers') || a.includes('celtics') || a.includes('warriors') || a.includes('nuggets') || a.includes('mavericks')) return true;
+  return false;
+};
+
+const isFootballMatch = (m: any) => {
+  return !isBoxingMatch(m) && !isUFCMatch(m) && !isBasketballMatch(m);
+};
+
+const FALLBACK_BOXING_FIXTURES = [
   {
-    _id: 'combat_f1',
-    sport: 'UFC & Boxing',
+    _id: 'box_1',
+    sport: 'Boxing',
+    homeTeam: 'Tyson Fury',
+    awayTeam: 'Oleksandr Usyk',
+    league: 'Undisputed World Heavyweight Championship',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 9400000,
+    odds: { home: 2.15, draw: 22.0, away: 1.72 },
+  },
+  {
+    _id: 'box_2',
+    sport: 'Boxing',
+    homeTeam: 'Canelo Alvarez',
+    awayTeam: 'Terence Crawford',
+    league: 'Super Middleweight World Championship',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 200 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 4300000,
+    odds: { home: 1.62, draw: 20.0, away: 2.30 },
+  },
+  {
+    _id: 'box_3',
+    sport: 'Boxing',
+    homeTeam: 'Anthony Joshua',
+    awayTeam: 'Daniel Dubois',
+    league: 'IBF Heavyweight World Title',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 5600000,
+    odds: { home: 1.70, draw: 24.0, away: 2.10 },
+  },
+];
+
+const FALLBACK_UFC_FIXTURES = [
+  {
+    _id: 'ufc_1',
+    sport: 'UFC',
     homeTeam: 'Islam Makhachev',
     awayTeam: 'Arman Tsarukyan',
     league: 'UFC 311: Lightweight Championship',
@@ -98,19 +174,33 @@ const FALLBACK_COMBAT_FIXTURES = [
     odds: { home: 1.40, draw: 35.0, away: 2.95 },
   },
   {
-    _id: 'combat_f2',
-    sport: 'UFC & Boxing',
-    homeTeam: 'Tyson Fury',
-    awayTeam: 'Oleksandr Usyk',
-    league: 'Undisputed World Heavyweight Title',
+    _id: 'ufc_2',
+    sport: 'UFC',
+    homeTeam: 'Jon Jones',
+    awayTeam: 'Tom Aspinall',
+    league: 'UFC Heavyweight Unification Title',
     status: 'UPCOMING',
-    startTime: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 9400000,
-    odds: { home: 2.15, draw: 22.0, away: 1.72 },
+    startTime: new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 5120000,
+    odds: { home: 1.78, draw: 30.0, away: 2.05 },
   },
   {
-    _id: 'combat_f3',
-    sport: 'NBA Basketball',
+    _id: 'ufc_3',
+    sport: 'UFC',
+    homeTeam: 'Alex Pereira',
+    awayTeam: 'Magomed Ankalaev',
+    league: 'UFC Light Heavyweight Championship',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 3200000,
+    odds: { home: 1.85, draw: 28.0, away: 1.95 },
+  },
+];
+
+const FALLBACK_BASKETBALL_FIXTURES = [
+  {
+    _id: 'bb_1',
+    sport: 'Basketball',
     homeTeam: 'Boston Celtics',
     awayTeam: 'Los Angeles Lakers',
     league: 'NBA Regular Season Matchup',
@@ -120,15 +210,26 @@ const FALLBACK_COMBAT_FIXTURES = [
     odds: { home: 1.55, draw: 15.0, away: 2.45 },
   },
   {
-    _id: 'combat_f4',
-    sport: 'UFC & Boxing',
-    homeTeam: 'Jon Jones',
-    awayTeam: 'Tom Aspinall',
-    league: 'UFC Heavyweight Unification Title',
+    _id: 'bb_2',
+    sport: 'Basketball',
+    homeTeam: 'Golden State Warriors',
+    awayTeam: 'Denver Nuggets',
+    league: 'NBA Western Conference Clash',
     status: 'UPCOMING',
-    startTime: new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 5120000,
-    odds: { home: 1.78, draw: 30.0, away: 2.05 },
+    startTime: new Date(Date.now() + 18 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 4100000,
+    odds: { home: 1.90, draw: 15.0, away: 1.90 },
+  },
+  {
+    _id: 'bb_3',
+    sport: 'Basketball',
+    homeTeam: 'Dallas Mavericks',
+    awayTeam: 'Phoenix Suns',
+    league: 'NBA Regular Season',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 2950000,
+    odds: { home: 1.80, draw: 15.0, away: 2.00 },
   },
 ];
 
@@ -197,14 +298,18 @@ export default function HomeScreen() {
 
   // Markets by Category
   const [sportsMatches, setSportsMatches] = useState<any[]>([]);
+  const [boxingMatches, setBoxingMatches] = useState<any[]>([]);
+  const [ufcMatches, setUfcMatches] = useState<any[]>([]);
+  const [basketballMatches, setBasketballMatches] = useState<any[]>([]);
   const [politicsMarkets, setPoliticsMarkets] = useState<any[]>([]);
-  const [combatMarkets, setCombatMarkets] = useState<any[]>([]);
   const [entertainmentMarkets, setEntertainmentMarkets] = useState<any[]>([]);
 
   // Category view all toggles
   const [expandedSports, setExpandedSports] = useState(false);
+  const [expandedBoxing, setExpandedBoxing] = useState(false);
+  const [expandedUFC, setExpandedUFC] = useState(false);
+  const [expandedBasketball, setExpandedBasketball] = useState(false);
   const [expandedPolitics, setExpandedPolitics] = useState(false);
-  const [expandedCombat, setExpandedCombat] = useState(false);
   const [expandedEntertainment, setExpandedEntertainment] = useState(false);
 
   // Quick Trade Modal
@@ -226,20 +331,18 @@ export default function HomeScreen() {
       if (userData) setUser(userData);
       setUnreadNotifications(notifData?.unreadCount || 0);
 
-      // Sports Matches (European Football)
       const rawMatches = matchesRes?.matches || [];
-      const fbMatches = rawMatches.filter((m: any) =>
-        !/ufc|boxing|mma|combat|basketball|nba/i.test(m.sport || '') &&
-        !/ufc|boxing|nba|wbc|wba/i.test(m.league || '')
-      );
-      setSportsMatches(fbMatches.length > 0 ? fbMatches : rawMatches);
+      const fbMatches = rawMatches.filter(isFootballMatch);
+      setSportsMatches(fbMatches);
 
-      // Combat & NBA Basketball Fixtures
-      const combatRaw = rawMatches.filter((m: any) =>
-        /ufc|boxing|mma|combat|basketball|nba/i.test(m.sport || '') ||
-        /ufc|boxing|nba|wbc|wba|bellator|pfl/i.test(m.league || '')
-      );
-      setCombatMarkets(combatRaw.length > 0 ? combatRaw : FALLBACK_COMBAT_FIXTURES);
+      const boxMatches = rawMatches.filter(isBoxingMatch);
+      setBoxingMatches(boxMatches.length > 0 ? boxMatches : FALLBACK_BOXING_FIXTURES);
+
+      const ufcRaw = rawMatches.filter(isUFCMatch);
+      setUfcMatches(ufcRaw.length > 0 ? ufcRaw : FALLBACK_UFC_FIXTURES);
+
+      const bbMatches = rawMatches.filter(isBasketballMatch);
+      setBasketballMatches(bbMatches.length > 0 ? bbMatches : FALLBACK_BASKETBALL_FIXTURES);
 
       // Prediction Markets
       const allMarkets = marketsRes?.markets || [];
@@ -360,8 +463,10 @@ export default function HomeScreen() {
   };
 
   const filteredSports = filterBySearch(sportsMatches, true);
+  const filteredBoxing = filterBySearch(boxingMatches, true);
+  const filteredUFC = filterBySearch(ufcMatches, true);
+  const filteredBasketball = filterBySearch(basketballMatches, true);
   const filteredPolitics = filterBySearch(politicsMarkets, false);
-  const filteredCombat = filterBySearch(combatMarkets, true);
   const filteredEntertainment = filterBySearch(entertainmentMarkets, false);
 
   const CARDS_PER_CATEGORY = 3;
@@ -470,7 +575,7 @@ export default function HomeScreen() {
           )}
 
           {/* Hero / Featured Live Card (When ALL or SPORTS tab selected) */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'SPORTS') &&
+          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'FOOTBALL') &&
             !searchText.trim() &&
             featuredMatch && (
               <View style={styles.featuredSection}>
@@ -714,7 +819,7 @@ export default function HomeScreen() {
                                 id: match._id,
                                 homeTeam: match.homeTeam,
                                 awayTeam: match.awayTeam,
-                                sport: match.sport || 'European Football',
+                                sport: 'Football',
                                 league: match.leagueName || match.league || '',
                               },
                             })
@@ -833,28 +938,28 @@ export default function HomeScreen() {
               </View>
             )}
 
-          {/* SECTION 3: 🥊 Boxing, UFC & Basketball */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'BOXING' || activeCategoryTab === 'UFC' || activeCategoryTab === 'BASKETBALL' || activeCategoryTab === 'COMBAT') &&
-            filteredCombat.length > 0 && (
+          {/* SECTION 2: 🥊 Boxing Ring Contracts */}
+          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'BOXING') &&
+            filteredBoxing.length > 0 && (
               <View style={styles.categorySection}>
                 <View style={styles.categoryHeaderRow}>
                   <View style={styles.categoryTitleBox}>
                     <Text style={styles.categorySectionEmoji}>🥊</Text>
-                    <Text style={styles.categorySectionTitle}>UFC, Boxing & NBA</Text>
+                    <Text style={styles.categorySectionTitle}>Boxing Ring Contracts</Text>
                     <View style={styles.categoryCountBadge}>
-                      <Text style={styles.categoryCountText}>{filteredCombat.length}</Text>
+                      <Text style={styles.categoryCountText}>{filteredBoxing.length}</Text>
                     </View>
                   </View>
-                  {filteredCombat.length > CARDS_PER_CATEGORY && !searchText.trim() && (
+                  {filteredBoxing.length > CARDS_PER_CATEGORY && !searchText.trim() && (
                     <TouchableOpacity
-                      onPress={() => setExpandedCombat(!expandedCombat)}
+                      onPress={() => setExpandedBoxing(!expandedBoxing)}
                       style={styles.viewAllBtn}
                       activeOpacity={0.7}
                     >
                       <Text style={styles.viewAllBtnText}>
-                        {expandedCombat ? 'Show Less' : `View All (${filteredCombat.length})`}
+                        {expandedBoxing ? 'Show Less' : `View All (${filteredBoxing.length})`}
                       </Text>
-                      {expandedCombat ? (
+                      {expandedBoxing ? (
                         <ChevronUp size={14} color="#00D285" />
                       ) : (
                         <ChevronDown size={14} color="#00D285" />
@@ -863,11 +968,11 @@ export default function HomeScreen() {
                   )}
                 </View>
 
-                {/* Unified Rich Match Cards for Combat & Basketball */}
+                {/* Boxing Cards */}
                 <View style={styles.cardsGrid}>
-                  {(expandedCombat || searchText.trim()
-                    ? filteredCombat
-                    : filteredCombat.slice(0, CARDS_PER_CATEGORY)
+                  {(expandedBoxing || searchText.trim()
+                    ? filteredBoxing
+                    : filteredBoxing.slice(0, CARDS_PER_CATEGORY)
                   ).map((match) => (
                     <View
                       key={match._id}
@@ -876,7 +981,7 @@ export default function HomeScreen() {
                       {/* Card Top: League & Status */}
                       <View style={styles.cardTopRow}>
                         <Text style={styles.cardLeagueText} numberOfLines={1}>
-                          {(match.leagueName || match.league || 'CHAMPIONSHIP BOUT').toUpperCase()}
+                          {(match.leagueName || match.league || 'WORLD CHAMPIONSHIP BOXING').toUpperCase()}
                         </Text>
                         <View
                           style={[
@@ -895,7 +1000,7 @@ export default function HomeScreen() {
                         </View>
                       </View>
 
-                      {/* Fighters / Teams Matchup Row */}
+                      {/* Fighters Matchup Row */}
                       <View style={styles.matchupRow}>
                         <View style={styles.teamSide}>
                           <View style={[styles.smallTeamBadge, { borderColor: '#F59E0B' }]}>
@@ -959,7 +1064,7 @@ export default function HomeScreen() {
                         <View>
                           <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
                           <Text style={styles.cardPoolValue}>
-                            ₦{(match.poolAmount || 3450000).toLocaleString()}
+                            ₦{(match.poolAmount || 4500000).toLocaleString()}
                           </Text>
                         </View>
                         <TouchableOpacity
@@ -971,7 +1076,313 @@ export default function HomeScreen() {
                                 id: match._id,
                                 homeTeam: match.homeTeam,
                                 awayTeam: match.awayTeam,
-                                sport: match.sport || 'UFC & Boxing',
+                                sport: 'Boxing',
+                                league: match.leagueName || match.league || '',
+                              },
+                            })
+                          }
+                        >
+                          <Text style={styles.quickTradePillText}>All Contracts</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+          {/* SECTION 3: 🥋 UFC Octagon Contracts */}
+          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'UFC') &&
+            filteredUFC.length > 0 && (
+              <View style={styles.categorySection}>
+                <View style={styles.categoryHeaderRow}>
+                  <View style={styles.categoryTitleBox}>
+                    <Text style={styles.categorySectionEmoji}>🥋</Text>
+                    <Text style={styles.categorySectionTitle}>UFC Octagon Contracts</Text>
+                    <View style={styles.categoryCountBadge}>
+                      <Text style={styles.categoryCountText}>{filteredUFC.length}</Text>
+                    </View>
+                  </View>
+                  {filteredUFC.length > CARDS_PER_CATEGORY && !searchText.trim() && (
+                    <TouchableOpacity
+                      onPress={() => setExpandedUFC(!expandedUFC)}
+                      style={styles.viewAllBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.viewAllBtnText}>
+                        {expandedUFC ? 'Show Less' : `View All (${filteredUFC.length})`}
+                      </Text>
+                      {expandedUFC ? (
+                        <ChevronUp size={14} color="#00D285" />
+                      ) : (
+                        <ChevronDown size={14} color="#00D285" />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* UFC Cards */}
+                <View style={styles.cardsGrid}>
+                  {(expandedUFC || searchText.trim()
+                    ? filteredUFC
+                    : filteredUFC.slice(0, CARDS_PER_CATEGORY)
+                  ).map((match) => (
+                    <View
+                      key={match._id}
+                      style={styles.richMarketCard}
+                    >
+                      {/* Card Top: League & Status */}
+                      <View style={styles.cardTopRow}>
+                        <Text style={styles.cardLeagueText} numberOfLines={1}>
+                          {(match.leagueName || match.league || 'UFC CHAMPIONSHIP').toUpperCase()}
+                        </Text>
+                        <View
+                          style={[
+                            styles.statusPill,
+                            match.status === 'LIVE' ? styles.statusPillLive : styles.statusPillUpcoming,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.statusPillText,
+                              match.status === 'LIVE' ? styles.statusTextLive : styles.statusTextUpcoming,
+                            ]}
+                          >
+                            {match.status === 'LIVE' ? '● LIVE' : formatMatchTime(match.startTime)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Fighters Matchup Row */}
+                      <View style={styles.matchupRow}>
+                        <View style={styles.teamSide}>
+                          <View style={[styles.smallTeamBadge, { borderColor: '#10B981' }]}>
+                            <Text style={[styles.smallTeamBadgeText, { color: '#10B981' }]}>
+                              {(match.homeTeam || 'H').slice(0, 2).toUpperCase()}
+                            </Text>
+                          </View>
+                          <Text style={styles.teamNameMain} numberOfLines={1}>
+                            {match.homeTeam}
+                          </Text>
+                        </View>
+
+                        <View style={styles.vsBadgeSmall}>
+                          <Text style={styles.vsBadgeSmallText}>VS</Text>
+                        </View>
+
+                        <View style={styles.teamSideRight}>
+                          <Text style={[styles.teamNameMain, { textAlign: 'right' }]} numberOfLines={1}>
+                            {match.awayTeam}
+                          </Text>
+                          <View style={[styles.smallTeamBadge, { borderColor: '#EF4444' }]}>
+                            <Text style={[styles.smallTeamBadgeText, { color: '#EF4444' }]}>
+                              {(match.awayTeam || 'A').slice(0, 2).toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Outcomes & Trade Buttons */}
+                      {(() => {
+                        const homeOdds = match.odds?.home || 1.85;
+                        const noHomeOdds = calcNoOdds(homeOdds, 2.10);
+                        const isOverpowered = homeOdds <= 1.43 || Boolean(match.isLocked || match.isOverpowered || match.status === 'SUSPENDED');
+                        return (
+                          <View style={styles.binaryChoiceRow}>
+                            <TouchableOpacity
+                              style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                              activeOpacity={0.8}
+                              disabled={isOverpowered}
+                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)}
+                            >
+                              <Text style={styles.binaryOptionLabelYes}>YES</Text>
+                              <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                              activeOpacity={0.8}
+                              disabled={isOverpowered}
+                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)}
+                            >
+                              <Text style={styles.binaryOptionLabelNo}>NO</Text>
+                              <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })()}
+
+                      {/* Pool & Action Footer */}
+                      <View style={styles.cardFooterRow}>
+                        <View>
+                          <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
+                          <Text style={styles.cardPoolValue}>
+                            ₦{(match.poolAmount || 3900000).toLocaleString()}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.quickTradePill}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/match-detail',
+                              params: {
+                                id: match._id,
+                                homeTeam: match.homeTeam,
+                                awayTeam: match.awayTeam,
+                                sport: 'UFC',
+                                league: match.leagueName || match.league || '',
+                              },
+                            })
+                          }
+                        >
+                          <Text style={styles.quickTradePillText}>All Contracts</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+          {/* SECTION 4: 🏀 NBA Basketball Contracts */}
+          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'BASKETBALL') &&
+            filteredBasketball.length > 0 && (
+              <View style={styles.categorySection}>
+                <View style={styles.categoryHeaderRow}>
+                  <View style={styles.categoryTitleBox}>
+                    <Text style={styles.categorySectionEmoji}>🏀</Text>
+                    <Text style={styles.categorySectionTitle}>NBA Basketball Contracts</Text>
+                    <View style={styles.categoryCountBadge}>
+                      <Text style={styles.categoryCountText}>{filteredBasketball.length}</Text>
+                    </View>
+                  </View>
+                  {filteredBasketball.length > CARDS_PER_CATEGORY && !searchText.trim() && (
+                    <TouchableOpacity
+                      onPress={() => setExpandedBasketball(!expandedBasketball)}
+                      style={styles.viewAllBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.viewAllBtnText}>
+                        {expandedBasketball ? 'Show Less' : `View All (${filteredBasketball.length})`}
+                      </Text>
+                      {expandedBasketball ? (
+                        <ChevronUp size={14} color="#00D285" />
+                      ) : (
+                        <ChevronDown size={14} color="#00D285" />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Basketball Cards */}
+                <View style={styles.cardsGrid}>
+                  {(expandedBasketball || searchText.trim()
+                    ? filteredBasketball
+                    : filteredBasketball.slice(0, CARDS_PER_CATEGORY)
+                  ).map((match) => (
+                    <View
+                      key={match._id}
+                      style={styles.richMarketCard}
+                    >
+                      {/* Card Top: League & Status */}
+                      <View style={styles.cardTopRow}>
+                        <Text style={styles.cardLeagueText} numberOfLines={1}>
+                          {(match.leagueName || match.league || 'NBA BASKETBALL').toUpperCase()}
+                        </Text>
+                        <View
+                          style={[
+                            styles.statusPill,
+                            match.status === 'LIVE' ? styles.statusPillLive : styles.statusPillUpcoming,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.statusPillText,
+                              match.status === 'LIVE' ? styles.statusTextLive : styles.statusTextUpcoming,
+                            ]}
+                          >
+                            {match.status === 'LIVE' ? '● LIVE' : formatMatchTime(match.startTime)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Teams Matchup Row */}
+                      <View style={styles.matchupRow}>
+                        <View style={styles.teamSide}>
+                          <View style={[styles.smallTeamBadge, { borderColor: '#8B5CF6' }]}>
+                            <Text style={[styles.smallTeamBadgeText, { color: '#8B5CF6' }]}>
+                              {(match.homeTeam || 'H').slice(0, 2).toUpperCase()}
+                            </Text>
+                          </View>
+                          <Text style={styles.teamNameMain} numberOfLines={1}>
+                            {match.homeTeam}
+                          </Text>
+                        </View>
+
+                        <View style={styles.vsBadgeSmall}>
+                          <Text style={styles.vsBadgeSmallText}>VS</Text>
+                        </View>
+
+                        <View style={styles.teamSideRight}>
+                          <Text style={[styles.teamNameMain, { textAlign: 'right' }]} numberOfLines={1}>
+                            {match.awayTeam}
+                          </Text>
+                          <View style={[styles.smallTeamBadge, { borderColor: '#EC4899' }]}>
+                            <Text style={[styles.smallTeamBadgeText, { color: '#EC4899' }]}>
+                              {(match.awayTeam || 'A').slice(0, 2).toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Outcomes & Trade Buttons */}
+                      {(() => {
+                        const homeOdds = match.odds?.home || 1.85;
+                        const noHomeOdds = calcNoOdds(homeOdds, 2.10);
+                        const isOverpowered = homeOdds <= 1.43 || Boolean(match.isLocked || match.isOverpowered || match.status === 'SUSPENDED');
+                        return (
+                          <View style={styles.binaryChoiceRow}>
+                            <TouchableOpacity
+                              style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                              activeOpacity={0.8}
+                              disabled={isOverpowered}
+                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)}
+                            >
+                              <Text style={styles.binaryOptionLabelYes}>YES</Text>
+                              <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                              activeOpacity={0.8}
+                              disabled={isOverpowered}
+                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)}
+                            >
+                              <Text style={styles.binaryOptionLabelNo}>NO</Text>
+                              <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })()}
+
+                      {/* Pool & Action Footer */}
+                      <View style={styles.cardFooterRow}>
+                        <View>
+                          <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
+                          <Text style={styles.cardPoolValue}>
+                            ₦{(match.poolAmount || 3820000).toLocaleString()}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.quickTradePill}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/match-detail',
+                              params: {
+                                id: match._id,
+                                homeTeam: match.homeTeam,
+                                awayTeam: match.awayTeam,
+                                sport: 'Basketball',
                                 league: match.leagueName || match.league || '',
                               },
                             })

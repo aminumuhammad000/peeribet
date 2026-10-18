@@ -58,6 +58,190 @@ const SUBCATEGORIES: Record<string, string[]> = {
   'Live Event Prediction': ['All', 'Real Life Events', 'Politics & Policy', 'Tech & AI', 'Pop Culture'],
 };
 
+const isBoxingMatch = (m: any) => {
+  const s = String(m?.sport || '').toLowerCase();
+  const l = String(m?.league || m?.leagueName || '').toLowerCase();
+  const h = String(m?.homeTeam || '').toLowerCase();
+  const a = String(m?.awayTeam || '').toLowerCase();
+  if (s === 'boxing') return true;
+  if (l.includes('boxing') || l.includes('wbc') || l.includes('wba') || l.includes('ibf') || l.includes('wbo') || l.includes('heavyweight championship')) return true;
+  if (h.includes('fury') || h.includes('usyk') || h.includes('canelo') || h.includes('crawford') || h.includes('joshua')) return true;
+  if (a.includes('fury') || a.includes('usyk') || a.includes('canelo') || a.includes('crawford') || a.includes('joshua')) return true;
+  return false;
+};
+
+const isUFCMatch = (m: any) => {
+  if (isBoxingMatch(m)) return false;
+  const s = String(m?.sport || '').toLowerCase();
+  const l = String(m?.league || m?.leagueName || '').toLowerCase();
+  const h = String(m?.homeTeam || '').toLowerCase();
+  const a = String(m?.awayTeam || '').toLowerCase();
+  if (s === 'ufc' || s === 'mma') return true;
+  if (l.includes('ufc') || l.includes('mma') || l.includes('lightweight championship') || l.includes('unification title') || l.includes('light heavyweight')) return true;
+  if (h.includes('makhachev') || h.includes('jones') || h.includes('aspinall') || h.includes('pereira') || h.includes('ankalaev') || h.includes('tsarukyan')) return true;
+  if (a.includes('makhachev') || a.includes('jones') || a.includes('aspinall') || a.includes('pereira') || a.includes('ankalaev') || a.includes('tsarukyan')) return true;
+  return false;
+};
+
+const isBasketballMatch = (m: any) => {
+  const s = String(m?.sport || '').toLowerCase();
+  const l = String(m?.league || m?.leagueName || '').toLowerCase();
+  const h = String(m?.homeTeam || '').toLowerCase();
+  const a = String(m?.awayTeam || '').toLowerCase();
+  if (s.includes('basket') || s.includes('nba') || l.includes('nba') || l.includes('euroleague')) return true;
+  if (h.includes('lakers') || h.includes('celtics') || h.includes('warriors') || h.includes('nuggets') || h.includes('mavericks')) return true;
+  if (a.includes('lakers') || a.includes('celtics') || a.includes('warriors') || a.includes('nuggets') || a.includes('mavericks')) return true;
+  return false;
+};
+
+const isFootballMatch = (m: any) => {
+  return !isBoxingMatch(m) && !isUFCMatch(m) && !isBasketballMatch(m);
+};
+
+const FALLBACK_FOOTBALL_FIXTURES = [
+  {
+    _id: 'fb_1',
+    sport: 'Football',
+    homeTeam: 'Arsenal',
+    awayTeam: 'Chelsea',
+    league: 'Premier League Super Derby',
+    status: 'LIVE',
+    startTime: new Date().toISOString(),
+    poolAmount: 4850000,
+    odds: { home: 1.85, draw: 3.10, away: 2.40 },
+  },
+  {
+    _id: 'fb_2',
+    sport: 'Football',
+    homeTeam: 'Real Madrid',
+    awayTeam: 'Barcelona',
+    league: 'La Liga El Clásico',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 7200000,
+    odds: { home: 1.95, draw: 3.40, away: 2.30 },
+  },
+  {
+    _id: 'fb_3',
+    sport: 'Football',
+    homeTeam: 'Manchester City',
+    awayTeam: 'Liverpool',
+    league: 'Premier League Title Clash',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 6400000,
+    odds: { home: 1.75, draw: 3.60, away: 2.70 },
+  },
+];
+
+const FALLBACK_BOXING_FIXTURES = [
+  {
+    _id: 'box_1',
+    sport: 'Boxing',
+    homeTeam: 'Tyson Fury',
+    awayTeam: 'Oleksandr Usyk',
+    league: 'Undisputed World Heavyweight Championship',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 9400000,
+    odds: { home: 2.15, draw: 22.0, away: 1.72 },
+  },
+  {
+    _id: 'box_2',
+    sport: 'Boxing',
+    homeTeam: 'Canelo Alvarez',
+    awayTeam: 'Terence Crawford',
+    league: 'Super Middleweight World Championship',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 200 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 4300000,
+    odds: { home: 1.62, draw: 20.0, away: 2.30 },
+  },
+  {
+    _id: 'box_3',
+    sport: 'Boxing',
+    homeTeam: 'Anthony Joshua',
+    awayTeam: 'Daniel Dubois',
+    league: 'IBF Heavyweight World Title',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 5600000,
+    odds: { home: 1.70, draw: 24.0, away: 2.10 },
+  },
+];
+
+const FALLBACK_UFC_FIXTURES = [
+  {
+    _id: 'ufc_1',
+    sport: 'UFC',
+    homeTeam: 'Islam Makhachev',
+    awayTeam: 'Arman Tsarukyan',
+    league: 'UFC 311: Lightweight Championship',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 4650000,
+    odds: { home: 1.40, draw: 35.0, away: 2.95 },
+  },
+  {
+    _id: 'ufc_2',
+    sport: 'UFC',
+    homeTeam: 'Jon Jones',
+    awayTeam: 'Tom Aspinall',
+    league: 'UFC Heavyweight Unification Title',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 5120000,
+    odds: { home: 1.78, draw: 30.0, away: 2.05 },
+  },
+  {
+    _id: 'ufc_3',
+    sport: 'UFC',
+    homeTeam: 'Alex Pereira',
+    awayTeam: 'Magomed Ankalaev',
+    league: 'UFC Light Heavyweight Championship',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 3200000,
+    odds: { home: 1.85, draw: 28.0, away: 1.95 },
+  },
+];
+
+const FALLBACK_BASKETBALL_FIXTURES = [
+  {
+    _id: 'bb_1',
+    sport: 'Basketball',
+    homeTeam: 'Boston Celtics',
+    awayTeam: 'Los Angeles Lakers',
+    league: 'NBA Regular Season Matchup',
+    status: 'LIVE',
+    startTime: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
+    poolAmount: 3820000,
+    odds: { home: 1.55, draw: 15.0, away: 2.45 },
+  },
+  {
+    _id: 'bb_2',
+    sport: 'Basketball',
+    homeTeam: 'Golden State Warriors',
+    awayTeam: 'Denver Nuggets',
+    league: 'NBA Western Conference Clash',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 18 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 4100000,
+    odds: { home: 1.90, draw: 15.0, away: 1.90 },
+  },
+  {
+    _id: 'bb_3',
+    sport: 'Basketball',
+    homeTeam: 'Dallas Mavericks',
+    awayTeam: 'Phoenix Suns',
+    league: 'NBA Regular Season',
+    status: 'UPCOMING',
+    startTime: new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString(),
+    poolAmount: 2950000,
+    odds: { home: 1.80, draw: 15.0, away: 2.00 },
+  },
+];
+
 const STAKE_PRESETS = [500, 1000, 2500, 5000, 10000];
 
 export default function MarketScreen() {
@@ -89,7 +273,7 @@ export default function MarketScreen() {
     }
   };
 
-  // Fetch Sports Matches
+  // Fetch Sports Matches strictly categorized
   const fetchMatches = async (sportCategory: string) => {
     try {
       let normalized = 'Football';
@@ -99,9 +283,30 @@ export default function MarketScreen() {
       else if (sportCategory === 'Basketball' || sportCategory === 'NBA Basketball') normalized = 'Basketball';
 
       const data = await matchService.getMatches({ sport: normalized, limit: 50 });
-      setMatches(data.matches || []);
+      let list = data.matches || [];
+
+      // Client-side categorization filter safeguard
+      if (normalized === 'Boxing') {
+        list = list.filter(isBoxingMatch);
+        if (list.length === 0) list = FALLBACK_BOXING_FIXTURES;
+      } else if (normalized === 'UFC') {
+        list = list.filter(isUFCMatch);
+        if (list.length === 0) list = FALLBACK_UFC_FIXTURES;
+      } else if (normalized === 'Basketball') {
+        list = list.filter(isBasketballMatch);
+        if (list.length === 0) list = FALLBACK_BASKETBALL_FIXTURES;
+      } else if (normalized === 'Football') {
+        list = list.filter(isFootballMatch);
+        if (list.length === 0) list = FALLBACK_FOOTBALL_FIXTURES;
+      }
+
+      setMatches(list);
     } catch (error) {
       console.error('Error fetching matches:', error);
+      if (sportCategory === 'Boxing') setMatches(FALLBACK_BOXING_FIXTURES);
+      else if (sportCategory === 'UFC') setMatches(FALLBACK_UFC_FIXTURES);
+      else if (sportCategory === 'Basketball') setMatches(FALLBACK_BASKETBALL_FIXTURES);
+      else setMatches(FALLBACK_FOOTBALL_FIXTURES);
     }
   };
 
@@ -459,9 +664,10 @@ export default function MarketScreen() {
 
                 const totalMatchPool = match.poolAmount || match.pool?.totalPot || 250000;
 
-                const matchSportLower = String(match.sport || selectedCategory || '').toLowerCase();
-                const isCombatMatch = matchSportLower.includes('ufc') || matchSportLower.includes('box') || matchSportLower.includes('mma') || matchSportLower.includes('combat');
-                const isBasketballMatch = matchSportLower.includes('basket') || matchSportLower.includes('nba');
+                const isBoxing = selectedCategory === 'Boxing' || isBoxingMatch(match);
+                const isUFC = selectedCategory === 'UFC' || isUFCMatch(match);
+                const isCombatMatch = isBoxing || isUFC;
+                const isBasketball = selectedCategory === 'Basketball' || isBasketballMatch(match);
 
                 return (
                   <TouchableOpacity
@@ -474,7 +680,7 @@ export default function MarketScreen() {
                           id: match._id,
                           homeTeam: match.homeTeam,
                           awayTeam: match.awayTeam,
-                          sport: match.sport || selectedCategory,
+                          sport: selectedCategory,
                           league: match.league || '',
                           isLocked: String(isMatchAdminLocked),
                         },
@@ -556,11 +762,11 @@ export default function MarketScreen() {
                     <View style={styles.cardInnerHeader}>
                       <View style={styles.cardHeaderTitleWrap}>
                         <Text style={styles.cardMainTitle}>
-                          {isCombatMatch ? 'Bout Winner (2-Way)' : isBasketballMatch ? 'Game Winner (2-Way)' : 'Match Contracts (1X2)'}
+                          {isCombatMatch ? 'Bout Winner (2-Way)' : isBasketball ? 'Game Winner (2-Way)' : 'Match Contracts (1X2)'}
                         </Text>
                         <View style={styles.yesNoTagBadge}>
                           <Text style={styles.yesNoTagText}>
-                            {isCombatMatch ? 'FIGHT WINNER' : isBasketballMatch ? '2-WAY' : 'YES / NO'}
+                            {isBoxing ? 'RING WINNER' : isUFC ? 'OCTAGON WINNER' : isBasketball ? '2-WAY' : 'YES / NO'}
                           </Text>
                         </View>
                       </View>
@@ -615,7 +821,7 @@ export default function MarketScreen() {
                         })()}
 
                         {/* Outcome 2: Draw (Only for European Football, not Combat/Basketball) */}
-                        {!isCombatMatch && !isBasketballMatch && (() => {
+                        {!isCombatMatch && !isBasketball && (() => {
                           const isDrawCrowdOverpowered = totalMatchPool > 50000 && (match.pool?.drawPot || 0) / totalMatchPool >= 0.70;
                           const isDrawOverpowered = drawOdds <= 1.43 || isDrawCrowdOverpowered || isMatchAdminLocked;
                           return (

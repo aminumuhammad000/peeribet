@@ -152,28 +152,50 @@ export const getMatches = async (req: Request, res: Response) => {
     if (sport) {
       const normalizedSport = String(sport).trim().toLowerCase();
       if (normalizedSport.includes('football') || normalizedSport.includes('soccer')) {
-        filter.$or = [
-          { sport: { $regex: /football|soccer/i } },
-          { league: { $regex: /premier league|champions league|la liga|serie a|bundesliga|ligue 1|europa|eredivisie|primeira/i } },
+        filter.$and = [
+          {
+            $or: [
+              { sport: { $regex: /football|soccer/i } },
+              { league: { $regex: /premier league|champions league|la liga|serie a|bundesliga|ligue 1|europa|eredivisie|primeira/i } },
+            ],
+          },
+          { sport: { $not: /boxing|ufc|mma|combat|basketball|nba/i } },
+          { league: { $not: /boxing|ufc|mma|nba|wba|wbc/i } },
+          { homeTeam: { $not: /fury|usyk|canelo|crawford|joshua|makhachev|jones|aspinall|celtics|lakers|warriors/i } },
         ];
       } else if (normalizedSport.includes('box')) {
-        filter.$or = [
-          { sport: { $regex: /boxing/i } },
-          { league: { $regex: /boxing|wba|wbc|ibf|wbo|heavyweight|championship/i } },
-          { homeTeam: { $regex: /fury|usyk|canelo|crawford|joshua|wilder|haney|davis/i } },
-          { awayTeam: { $regex: /fury|usyk|canelo|crawford|joshua|wilder|haney|davis/i } },
+        filter.$and = [
+          {
+            $or: [
+              { sport: { $regex: /^boxing$/i } },
+              { league: { $regex: /boxing|wba|wbc|ibf|wbo|heavyweight|championship/i } },
+              { homeTeam: { $regex: /fury|usyk|canelo|crawford|joshua|wilder|haney|davis/i } },
+              { awayTeam: { $regex: /fury|usyk|canelo|crawford|joshua|wilder|haney|davis/i } },
+            ],
+          },
+          { league: { $not: /ufc|mma|bellator|pfl|octag/i } },
+          { homeTeam: { $not: /makhachev|tsarukyan|jones|aspinall|pereira|ankalaev/i } },
+          { awayTeam: { $not: /makhachev|tsarukyan|jones|aspinall|pereira|ankalaev/i } },
         ];
-      } else if (normalizedSport.includes('ufc') || normalizedSport.includes('mma') || normalizedSport.includes('combat')) {
-        filter.$or = [
-          { sport: { $regex: /ufc|mma|bellator|pfl|combat/i } },
-          { league: { $regex: /ufc|mma|bellator|pfl/i } },
-          { homeTeam: { $regex: /makhachev|tsarukyan|jones|aspinall|pereira|ankalaev|adesanya/i } },
-          { awayTeam: { $regex: /makhachev|tsarukyan|jones|aspinall|pereira|ankalaev|adesanya/i } },
+      } else if (normalizedSport.includes('ufc') || normalizedSport.includes('mma')) {
+        filter.$and = [
+          {
+            $or: [
+              { sport: { $regex: /^ufc$|^mma$/i } },
+              { league: { $regex: /ufc|mma|bellator|pfl|lightweight|unification/i } },
+              { homeTeam: { $regex: /makhachev|tsarukyan|jones|aspinall|pereira|ankalaev|adesanya/i } },
+              { awayTeam: { $regex: /makhachev|tsarukyan|jones|aspinall|pereira|ankalaev|adesanya/i } },
+            ],
+          },
+          { homeTeam: { $not: /fury|usyk|canelo|crawford|joshua|wilder|haney|davis/i } },
+          { awayTeam: { $not: /fury|usyk|canelo|crawford|joshua|wilder|haney|davis/i } },
         ];
       } else if (normalizedSport.includes('basket') || normalizedSport.includes('nba')) {
         filter.$or = [
           { sport: { $regex: /basketball|nba/i } },
           { league: { $regex: /nba|euroleague|wnba/i } },
+          { homeTeam: { $regex: /celtics|lakers|warriors|nuggets|mavericks/i } },
+          { awayTeam: { $regex: /celtics|lakers|warriors|nuggets|mavericks/i } },
         ];
       } else {
         filter.$or = [

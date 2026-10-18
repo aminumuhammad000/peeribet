@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl, Image, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, ShieldCheck, Key, Settings, HelpCircle, FileText, LogOut, ChevronRight, Edit2, Check, X, Lock, Camera, Sparkles, Gift } from 'lucide-react-native';
+import { User, ShieldCheck, ShieldAlert, Key, Settings, HelpCircle, FileText, LogOut, ChevronRight, Edit2, Check, X, Lock, Camera, Sparkles, Gift } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../constants/Colors';
@@ -414,6 +414,27 @@ export default function ProfileScreen() {
               <Text style={styles.bbButtonText}>View Rank</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Admin Management Console (Visible for Admin role) */}
+          {user?.role === 'admin' && (
+            <View style={[styles.balanceBanner, { marginTop: 0, backgroundColor: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.35)' }]}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <ShieldAlert size={16} color="#EF4444" />
+                  <Text style={[styles.bbLabel, { color: '#EF4444', fontWeight: '800' }]}>ADMINISTRATOR</Text>
+                </View>
+                <Text style={[styles.bbNum, { fontSize: 16, marginTop: 2 }]}>Market Overpower Controls</Text>
+                <Text style={{ color: '#94A3B8', fontSize: 11, marginTop: 2 }}>Lock/unlock markets and sports fixtures</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push('/admin')}
+                activeOpacity={0.8}
+                style={[styles.bbButton, { backgroundColor: '#EF4444' }]}
+              >
+                <Text style={styles.bbButtonText}>Manage</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Configuration Lists */}
           <Text style={styles.sectionTitle}>Account Settings</Text>

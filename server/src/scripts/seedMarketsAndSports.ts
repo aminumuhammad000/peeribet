@@ -101,7 +101,7 @@ async function seed() {
     // 2. UFC & Boxing Fights
     const combatSportsFights = [
       {
-        sport: 'UFC & Boxing',
+        sport: 'UFC',
         homeTeam: 'Islam Makhachev',
         awayTeam: 'Arman Tsarukyan',
         league: 'UFC 311: Lightweight Championship',
@@ -114,7 +114,7 @@ async function seed() {
         awayLogo: 'https://ui-avatars.com/api/?name=Arman+Tsarukyan&background=1e293b&color=EF4444',
       },
       {
-        sport: 'UFC & Boxing',
+        sport: 'Boxing',
         homeTeam: 'Tyson Fury',
         awayTeam: 'Oleksandr Usyk',
         league: 'Undisputed World Heavyweight Championship',
@@ -127,7 +127,7 @@ async function seed() {
         awayLogo: 'https://ui-avatars.com/api/?name=Oleksandr+Usyk&background=1e293b&color=3B82F6',
       },
       {
-        sport: 'UFC & Boxing',
+        sport: 'UFC',
         homeTeam: 'Jon Jones',
         awayTeam: 'Tom Aspinall',
         league: 'UFC Heavyweight Unification Title',
@@ -140,7 +140,7 @@ async function seed() {
         awayLogo: 'https://ui-avatars.com/api/?name=Tom+Aspinall&background=1e293b&color=EF4444',
       },
       {
-        sport: 'UFC & Boxing',
+        sport: 'Boxing',
         homeTeam: 'Canelo Alvarez',
         awayTeam: 'Terence Crawford',
         league: 'Super Middleweight World Championship',
@@ -153,7 +153,7 @@ async function seed() {
         awayLogo: 'https://ui-avatars.com/api/?name=Terence+Crawford&background=1e293b&color=3B82F6',
       },
       {
-        sport: 'UFC & Boxing',
+        sport: 'UFC',
         homeTeam: 'Alex Pereira',
         awayTeam: 'Magomed Ankalaev',
         league: 'UFC Light Heavyweight Championship',
