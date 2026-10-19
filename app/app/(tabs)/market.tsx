@@ -1025,8 +1025,8 @@ export default function MarketScreen() {
                     {/* Card Title & Shares Rate Pill */}
                     <View style={styles.cardInnerHeader}>
                       <View style={styles.cardHeaderTitleWrap}>
-                        <Text style={styles.cardMainTitle}>
-                          {isCombatMatch ? 'Bout Winner (2-Way)' : isBasketball ? 'Game Winner (2-Way)' : 'Match Contracts (1X2)'}
+                        <Text style={styles.cardMainTitle} numberOfLines={1}>
+                          {isCombatMatch ? 'Bout Winner' : isBasketball ? 'Game Winner' : 'Match Winner'}
                         </Text>
                         <View style={styles.yesNoTagBadge}>
                           <Text style={styles.yesNoTagText}>
@@ -2368,45 +2368,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 6,
-    marginBottom: 2,
+    marginTop: 10,
+    marginBottom: 10,
+    gap: 8,
   },
   cardHeaderTitleWrap: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
+    gap: 8,
   },
   cardMainTitle: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFFFFF',
     fontFamily: 'Inter',
+    letterSpacing: -0.2,
   },
   yesNoTagBadge: {
-    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    backgroundColor: 'rgba(0, 210, 133, 0.12)',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
-    marginLeft: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0, 210, 133, 0.3)',
+    borderColor: 'rgba(0, 210, 133, 0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   yesNoTagText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800',
     color: '#00D285',
     fontFamily: 'Inter',
+    letterSpacing: 0.3,
+    lineHeight: 12,
+    includeFontPadding: false,
   },
   shareUnitPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   shareUnitPillText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '700',
     color: '#94A3B8',
     fontFamily: 'Inter',
+    letterSpacing: 0.2,
+    lineHeight: 12,
+    includeFontPadding: false,
   },
   cardHeaderSubtitle: {
     fontSize: 11,
