@@ -911,134 +911,6 @@ export default function MatchDetailScreen() {
                   </View>
                 </View>
               </View>
-
-              {/* Card 4: Will they be takedown landed in round 1 */}
-              <View style={styles.contractShowcaseCard}>
-                <View style={styles.showcaseCardHeader}>
-                  <View style={styles.showcaseBadgeTitleRow}>
-                    <Text style={styles.showcaseCardTitle}>Will they be takedown landed in round 1</Text>
-                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(234, 179, 8, 0.15)', borderColor: 'rgba(234, 179, 8, 0.3)' }]}>
-                      <Text style={[styles.greenTagText, { color: '#EAB308' }]}>ROUND 1</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.infoIconButton}
-                      onPress={() => setSelectedInfoContract(getContractInfo('ufc_r1_takedown'))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={13} color="#94A3B8" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.shareUnitPill}>
-                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-                  </View>
-                </View>
-
-                <View style={styles.showcaseRowsList}>
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName}>Takedown Landed in Round 1</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(r1TakedownYesOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Takedown Landed in Round 1', 'Yes', r1TakedownYesOdds)}
-                        disabled={isOutcomeOverpowered(r1TakedownYesOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(r1TakedownYesOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(r1TakedownNoOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Takedown Landed in Round 1', 'No', r1TakedownNoOdds)}
-                        disabled={isOutcomeOverpowered(r1TakedownNoOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(r1TakedownNoOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Card 5: Rounds even or odd */}
-              <View style={styles.contractShowcaseCard}>
-                <View style={styles.showcaseCardHeader}>
-                  <View style={styles.showcaseBadgeTitleRow}>
-                    <Text style={styles.showcaseCardTitle}>Rounds even or odd</Text>
-                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.3)' }]}>
-                      <Text style={[styles.greenTagText, { color: '#A855F7' }]}>ODD / EVEN</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.infoIconButton}
-                      onPress={() => setSelectedInfoContract(getContractInfo('ufc_rounds_even_odd'))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={13} color="#94A3B8" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.shareUnitPill}>
-                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-                  </View>
-                </View>
-
-                <View style={styles.showcaseRowsList}>
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName}>Completed Rounds: Odd</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(ufcRoundsOddOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Completed Rounds Parity: Odd', 'Yes', ufcRoundsOddOdds)}
-                        disabled={isOutcomeOverpowered(ufcRoundsOddOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(ufcRoundsOddOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(ufcRoundsEvenOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Completed Rounds Parity: Odd', 'No', ufcRoundsEvenOdds)}
-                        disabled={isOutcomeOverpowered(ufcRoundsEvenOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(ufcRoundsEvenOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName}>Completed Rounds: Even</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(ufcRoundsEvenOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Completed Rounds Parity: Even', 'Yes', ufcRoundsEvenOdds)}
-                        disabled={isOutcomeOverpowered(ufcRoundsEvenOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(ufcRoundsEvenOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(ufcRoundsOddOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Completed Rounds Parity: Even', 'No', ufcRoundsOddOdds)}
-                        disabled={isOutcomeOverpowered(ufcRoundsOddOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(ufcRoundsOddOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
             </>
           ) : isBoxing ? (
             /* ==================== BOXING (RING CONTRACTS) ==================== */
@@ -1190,57 +1062,6 @@ export default function MatchDetailScreen() {
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
                         <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(boxEarlyKoNoOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Card 4: Will the fight go full scheduled distance */}
-              <View style={styles.contractShowcaseCard}>
-                <View style={styles.showcaseCardHeader}>
-                  <View style={styles.showcaseBadgeTitleRow}>
-                    <Text style={styles.showcaseCardTitle}>Will the fight go full scheduled distance</Text>
-                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
-                      <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>FULL DISTANCE</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.infoIconButton}
-                      onPress={() => setSelectedInfoContract(getContractInfo('box_distance'))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={13} color="#94A3B8" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.shareUnitPill}>
-                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-                  </View>
-                </View>
-
-                <View style={styles.showcaseRowsList}>
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName}>Fight Goes Full Scheduled Distance</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(boxFullDistanceYesOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Fight Goes Full Scheduled Distance', 'Yes', boxFullDistanceYesOdds)}
-                        disabled={isOutcomeOverpowered(boxFullDistanceYesOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(boxFullDistanceYesOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(boxFullDistanceNoOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Fight Goes Full Scheduled Distance', 'No', boxFullDistanceNoOdds)}
-                        disabled={isOutcomeOverpowered(boxFullDistanceNoOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(boxFullDistanceNoOdds) ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1402,57 +1223,6 @@ export default function MatchDetailScreen() {
                   </View>
                 </View>
               </View>
-
-              {/* Card 4: Team B total points even */}
-              <View style={styles.contractShowcaseCard}>
-                <View style={styles.showcaseCardHeader}>
-                  <View style={styles.showcaseBadgeTitleRow}>
-                    <Text style={styles.showcaseCardTitle}>Team B total points even</Text>
-                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.3)' }]}>
-                      <Text style={[styles.greenTagText, { color: '#A855F7' }]}>TEAM B EVEN</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.infoIconButton}
-                      onPress={() => setSelectedInfoContract(getContractInfo('nba_team_b_even'))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={13} color="#94A3B8" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.shareUnitPill}>
-                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-                  </View>
-                </View>
-
-                <View style={styles.showcaseRowsList}>
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName}>{awayTeam} Total Points: Even</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(teamBEvenOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome(`${awayTeam} Total Points: Even`, 'Yes', teamBEvenOdds)}
-                        disabled={isOutcomeOverpowered(teamBEvenOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(teamBEvenOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(teamBOddOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome(`${awayTeam} Total Points: Even`, 'No', teamBOddOdds)}
-                        disabled={isOutcomeOverpowered(teamBOddOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(teamBOddOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
             </>
           ) : (
             /* ==================== EUROPEAN FOOTBALL (DEFAULT) ==================== */
@@ -1562,338 +1332,6 @@ export default function MatchDetailScreen() {
                   </View>
                 </View>
               </View>
-
-              {/* Card 2: Over/Under Goals (2.5 Line) */}
-              <View style={styles.contractShowcaseCard}>
-                <View style={styles.showcaseCardHeader}>
-                  <View style={styles.showcaseBadgeTitleRow}>
-                    <Text style={styles.showcaseCardTitle}>Over / Under Goals</Text>
-                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
-                      <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>2.5 LINE</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.infoIconButton}
-                      onPress={() => setSelectedInfoContract(getContractInfo('fb_over25'))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={13} color="#94A3B8" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.shareUnitPill}>
-                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-                  </View>
-                </View>
-
-                <View style={styles.showcaseRowsList}>
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName}>Over 2.5 Goals</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(over3Odds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Over 2.5 Goals', 'Yes', over3Odds)}
-                        disabled={isOutcomeOverpowered(over3Odds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(over3Odds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(under3Odds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Under 2.5 Goals', 'No', under3Odds)}
-                        disabled={isOutcomeOverpowered(under3Odds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(under3Odds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Card 3: Both Teams to Score (BTTS) */}
-              <View style={styles.contractShowcaseCard}>
-                <View style={styles.showcaseCardHeader}>
-                  <View style={styles.showcaseBadgeTitleRow}>
-                    <Text style={styles.showcaseCardTitle}>Both Teams to Score</Text>
-                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
-                      <Text style={[styles.greenTagText, { color: '#F59E0B' }]}>BTTS</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.infoIconButton}
-                      onPress={() => setSelectedInfoContract(getContractInfo('fb_btts'))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={13} color="#94A3B8" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.shareUnitPill}>
-                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-                  </View>
-                </View>
-
-                <View style={styles.showcaseRowsList}>
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName}>Both Teams Score</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(bttsYesOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Both Teams to Score', 'Yes', bttsYesOdds)}
-                        disabled={isOutcomeOverpowered(bttsYesOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(bttsYesOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(bttsNoOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Both Teams to Score', 'No', bttsNoOdds)}
-                        disabled={isOutcomeOverpowered(bttsNoOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(bttsNoOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Card 4: Double Chance Hedge (1X / X2) */}
-              <View style={styles.contractShowcaseCard}>
-                <View style={styles.showcaseCardHeader}>
-                  <View style={styles.showcaseBadgeTitleRow}>
-                    <Text style={styles.showcaseCardTitle}>Double Chance Hedge</Text>
-                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.3)' }]}>
-                      <Text style={[styles.greenTagText, { color: '#A855F7' }]}>HEDGE</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.infoIconButton}
-                      onPress={() => setSelectedInfoContract(getContractInfo('fb_double_chance'))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={13} color="#94A3B8" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.shareUnitPill}>
-                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-                  </View>
-                </View>
-
-                <View style={styles.showcaseRowsList}>
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName} numberOfLines={1}>{homeTeam} Win or Draw (1X)</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(doubleChance1XOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome(`${homeTeam} Win or Draw (1X)`, 'Yes', doubleChance1XOdds)}
-                        disabled={isOutcomeOverpowered(doubleChance1XOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(doubleChance1XOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(awayOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome(`${homeTeam} Win or Draw (1X)`, 'No', awayOdds)}
-                        disabled={isOutcomeOverpowered(awayOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(awayOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName} numberOfLines={1}>{awayTeam} Win or Draw (X2)</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(doubleChanceX2Odds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome(`${awayTeam} Win or Draw (X2)`, 'Yes', doubleChanceX2Odds)}
-                        disabled={isOutcomeOverpowered(doubleChanceX2Odds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(doubleChanceX2Odds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(homeOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome(`${awayTeam} Win or Draw (X2)`, 'No', homeOdds)}
-                        disabled={isOutcomeOverpowered(homeOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(homeOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Card 5: Halftime Settlement (1st Half Lead) */}
-              <View style={styles.contractShowcaseCard}>
-                <View style={styles.showcaseCardHeader}>
-                  <View style={styles.showcaseBadgeTitleRow}>
-                    <Text style={styles.showcaseCardTitle}>Halftime Settlement</Text>
-                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(234, 179, 8, 0.15)', borderColor: 'rgba(234, 179, 8, 0.3)' }]}>
-                      <Text style={[styles.greenTagText, { color: '#EAB308' }]}>1ST HALF</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.infoIconButton}
-                      onPress={() => setSelectedInfoContract(getContractInfo('fb_halftime'))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={13} color="#94A3B8" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.shareUnitPill}>
-                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-                  </View>
-                </View>
-
-                <View style={styles.showcaseRowsList}>
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName} numberOfLines={1}>{homeTeam} Lead at Halftime</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(halftimeLeadHomeOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome(`${homeTeam} Lead at Halftime`, 'Yes', halftimeLeadHomeOdds)}
-                        disabled={isOutcomeOverpowered(halftimeLeadHomeOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(halftimeLeadHomeOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(halftimeLeadAwayOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome(`${homeTeam} Lead at Halftime`, 'No', halftimeLeadAwayOdds)}
-                        disabled={isOutcomeOverpowered(halftimeLeadAwayOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(halftimeLeadAwayOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Card 6: Total Match Corners (9.5 Line) - Football Addition 1 */}
-              <View style={styles.contractShowcaseCard}>
-                <View style={styles.showcaseCardHeader}>
-                  <View style={styles.showcaseBadgeTitleRow}>
-                    <Text style={styles.showcaseCardTitle}>Total Match Corners</Text>
-                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
-                      <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>9.5 CORNERS</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.infoIconButton}
-                      onPress={() => setSelectedInfoContract(getContractInfo('fb_corners'))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={13} color="#94A3B8" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.shareUnitPill}>
-                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-                  </View>
-                </View>
-
-                <View style={styles.showcaseRowsList}>
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName}>Over 9.5 Match Corners</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(cornersOverOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Over 9.5 Match Corners', 'Yes', cornersOverOdds)}
-                        disabled={isOutcomeOverpowered(cornersOverOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(cornersOverOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(cornersUnderOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Under 9.5 Match Corners', 'No', cornersUnderOdds)}
-                        disabled={isOutcomeOverpowered(cornersUnderOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(cornersUnderOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              {/* Card 7: Total Match Bookings (3.5 Cards Line) - Football Addition 2 */}
-              <View style={styles.contractShowcaseCard}>
-                <View style={styles.showcaseCardHeader}>
-                  <View style={styles.showcaseBadgeTitleRow}>
-                    <Text style={styles.showcaseCardTitle}>Total Match Bookings</Text>
-                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
-                      <Text style={[styles.greenTagText, { color: '#EF4444' }]}>3.5 CARDS</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.infoIconButton}
-                      onPress={() => setSelectedInfoContract(getContractInfo('fb_bookings'))}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      activeOpacity={0.7}
-                    >
-                      <Info size={13} color="#94A3B8" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.shareUnitPill}>
-                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
-                  </View>
-                </View>
-
-                <View style={styles.showcaseRowsList}>
-                  <View style={styles.showcaseOutcomeRow}>
-                    <View style={styles.outcomeInfoLeft}>
-                      <Text style={styles.outcomeName}>Over 3.5 Match Cards</Text>
-                    </View>
-                    <View style={styles.outcomeActionBtns}>
-                      <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(bookingsOverOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Over 3.5 Match Cards', 'Yes', bookingsOverOdds)}
-                        disabled={isOutcomeOverpowered(bookingsOverOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(bookingsOverOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(bookingsUnderOdds) && { opacity: 0.5 }]}
-                        onPress={() => handleSelectOutcome('Under 3.5 Match Cards', 'No', bookingsUnderOdds)}
-                        disabled={isOutcomeOverpowered(bookingsUnderOdds)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(bookingsUnderOdds) ? 'Locked' : '₦1k / Sh'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
             </>
           )}
 
@@ -1941,9 +1379,9 @@ export default function MatchDetailScreen() {
                         <Text style={styles.ruleBulletNum}>2</Text>
                       </View>
                       <View style={styles.ruleContent}>
-                        <Text style={styles.ruleHeading}>Takedown Counts Verification</Text>
+                        <Text style={styles.ruleHeading}>Takedown Counts Odds Verification</Text>
                         <Text style={styles.ruleDesc}>
-                          Takedowns are verified strictly according to official UFC stats feed (UFC.com / UFCStats). A takedown is officially counted when a fighter establishes control on the canvas.
+                          Takedowns are verified strictly according to official UFC stats feed (UFC.com / UFCStats). Trade on whether total fight takedowns will be an odd or even number.
                         </Text>
                       </View>
                     </View>
@@ -1953,9 +1391,9 @@ export default function MatchDetailScreen() {
                         <Text style={styles.ruleBulletNum}>3</Text>
                       </View>
                       <View style={styles.ruleContent}>
-                        <Text style={styles.ruleHeading}>Round 1 Takedown & Parity Settlement</Text>
+                        <Text style={styles.ruleHeading}>Fight Duration & Amount of Rounds Parity</Text>
                         <Text style={styles.ruleDesc}>
-                          Round 1 takedown resolves YES upon the first recorded takedown before the round 1 horn. Completed rounds parity is determined by the total number of fully concluded rounds.
+                          Trade on how many rounds the fight lasts or if it ends early, and whether the total rounds fought ends in an even or odd number.
                         </Text>
                       </View>
                     </View>
@@ -1981,7 +1419,7 @@ export default function MatchDetailScreen() {
                       <View style={styles.ruleContent}>
                         <Text style={styles.ruleHeading}>Knockdown Protocol</Text>
                         <Text style={styles.ruleDesc}>
-                          Knockdown recorded resolves YES only when the referee initiates an official mandatory eight count following a strike that forces any part other than the boxer's feet to touch the canvas.
+                          Knockdown recorded resolves YES only when either boxer gets officially knocked down and the referee initiates a mandatory count.
                         </Text>
                       </View>
                     </View>
@@ -1991,9 +1429,9 @@ export default function MatchDetailScreen() {
                         <Text style={styles.ruleBulletNum}>3</Text>
                       </View>
                       <View style={styles.ruleContent}>
-                        <Text style={styles.ruleHeading}>Distance & 9.5 Rounds Duration</Text>
+                        <Text style={styles.ruleHeading}>Rounds Duration & Early Knockout (R1-4)</Text>
                         <Text style={styles.ruleDesc}>
-                          Over 9.5 rounds resolves YES as soon as 1 minute and 30 seconds of Round 10 have elapsed. Full 12 rounds distance resolves YES only if the final bell concludes Round 12.
+                          Settles on whether the fight makes it past the 9th round, and whether the fight ends by KO in rounds 1, 2, 3, or 4.
                         </Text>
                       </View>
                     </View>
@@ -2007,7 +1445,7 @@ export default function MatchDetailScreen() {
                       <View style={styles.ruleContent}>
                         <Text style={styles.ruleHeading}>Official Final Score & Overtime Inclusion</Text>
                         <Text style={styles.ruleDesc}>
-                          All game winner and total game points contracts resolve on the official final score including all overtime (OT) periods played.
+                          All game points and parity contracts resolve on the official final score including all overtime (OT) periods played.
                         </Text>
                       </View>
                     </View>
@@ -2017,9 +1455,9 @@ export default function MatchDetailScreen() {
                         <Text style={styles.ruleBulletNum}>2</Text>
                       </View>
                       <View style={styles.ruleContent}>
-                        <Text style={styles.ruleHeading}>Points Parity Protocol (Odd vs Even)</Text>
+                        <Text style={styles.ruleHeading}>Total Game Points Parity (Odd vs Even)</Text>
                         <Text style={styles.ruleDesc}>
-                          Parity contracts settle on whether the aggregate final points total (or individual team score) ends in an odd or even integer after all regulation and overtime play.
+                          Trade on whether the combined total final game points scored by both teams ends in an odd or even number.
                         </Text>
                       </View>
                     </View>
@@ -2029,9 +1467,9 @@ export default function MatchDetailScreen() {
                         <Text style={styles.ruleBulletNum}>3</Text>
                       </View>
                       <View style={styles.ruleContent}>
-                        <Text style={styles.ruleHeading}>Halftime & Spread Settlement</Text>
+                        <Text style={styles.ruleHeading}>Team Points Parity Protocol</Text>
                         <Text style={styles.ruleDesc}>
-                          Halftime leader resolves strictly on the score at the end of the 2nd quarter (24 minutes). Spread handicap is determined by adjusting the final score by the designated spread.
+                          Trade on whether the final score for Team A concludes with an odd total number of points.
                         </Text>
                       </View>
                     </View>
@@ -2045,7 +1483,7 @@ export default function MatchDetailScreen() {
                       <View style={styles.ruleContent}>
                         <Text style={styles.ruleHeading}>Official 90-Minute Regulation Time</Text>
                         <Text style={styles.ruleDesc}>
-                          All contracts resolve strictly on the official 90 minutes of play plus referee stoppage/injury time. Extra time (ET) and penalty shootouts do not count unless specified.
+                          All contracts resolve strictly on the official 90 minutes of play plus referee stoppage/injury time. Extra time (ET) and penalty shootouts do not count.
                         </Text>
                       </View>
                     </View>
@@ -2055,9 +1493,9 @@ export default function MatchDetailScreen() {
                         <Text style={styles.ruleBulletNum}>2</Text>
                       </View>
                       <View style={styles.ruleContent}>
-                        <Text style={styles.ruleHeading}>Both Teams to Score (BTTS) & Corners</Text>
+                        <Text style={styles.ruleHeading}>Match Winner (1X2) Settlement</Text>
                         <Text style={styles.ruleDesc}>
-                          BTTS resolves YES once both clubs score in regulation. Corners settle on the official total match corners taken (awarded corners not taken do not count).
+                          Settles Home Win, Draw, or Away Win based on the official final whistle score announced by the match officials and league authority.
                         </Text>
                       </View>
                     </View>
@@ -2067,9 +1505,9 @@ export default function MatchDetailScreen() {
                         <Text style={styles.ruleBulletNum}>3</Text>
                       </View>
                       <View style={styles.ruleContent}>
-                        <Text style={styles.ruleHeading}>Total Match Bookings (Cards Line)</Text>
+                        <Text style={styles.ruleHeading}>Escrow Settlement & Payout Protection</Text>
                         <Text style={styles.ruleDesc}>
-                          Settles on official disciplinary cards shown to active players during regulation (Yellow = 1 card, Red = 2 cards). Cards shown to managers or substitutes do not count.
+                          All peer orders and pool liquidity are held in secure escrow. Winning outcome shares settle at ₦1,000 per share with instant dividend wallet credit.
                         </Text>
                       </View>
                     </View>
