@@ -690,21 +690,70 @@ export default function MatchDetailScreen() {
             </View>
           </View>
 
-          {/* Top Liquidity Strip (Minimalist & Compact) */}
-          <View style={styles.liquidityStrip}>
-            <View style={styles.liquidityStripItem}>
-              <Text style={styles.liquidityStripLabel}>TOTAL POOL</Text>
-              <Text style={styles.liquidityStripVal}>₦{totalLiquidity.toLocaleString()}</Text>
+          {/* Top Liquidity Monitor (Separate Pool, P2P Pool, Pool Trading, and Combined Pool) */}
+          <View style={styles.liquidityMonitorCard}>
+            <View style={styles.monitorHeaderRow}>
+              <View style={styles.monitorTitleLeft}>
+                <View style={styles.pulsingDot} />
+                <Text style={styles.monitorTitle}>LIQUIDITY MONITOR</Text>
+              </View>
+              <View style={styles.totalLiquidityBadge}>
+                <Text style={styles.totalLiquidityLabel}>COMBINED POOL</Text>
+                <Text style={styles.totalLiquidityValue}>₦{totalLiquidity.toLocaleString()}</Text>
+              </View>
             </View>
-            <View style={styles.liquidityStripDivider} />
-            <View style={styles.liquidityStripItem}>
-              <Text style={styles.liquidityStripLabel}>AMM POOL</Text>
-              <Text style={[styles.liquidityStripVal, { color: '#00D285' }]}>₦{poolLiquidity.toLocaleString()}</Text>
+
+            {/* Split Liquidity Grid (P2P vs Pool Separate) */}
+            <View style={styles.liquidityGrid}>
+              {/* Pool Trading Liquidity Panel */}
+              <View style={[styles.liquidityPanel, styles.poolPanelBorder]}>
+                <View style={styles.panelHeader}>
+                  <View style={[styles.panelIconBox, { backgroundColor: 'rgba(0, 210, 133, 0.12)' }]}>
+                    <Layers size={14} color="#00D285" />
+                  </View>
+                  <View style={styles.panelTag}>
+                    <Text style={styles.panelTagText}>AMM POOL</Text>
+                  </View>
+                </View>
+                <Text style={styles.panelTypeTitle}>Pool Trading</Text>
+                <Text style={styles.panelAmount}>₦{poolLiquidity.toLocaleString()}</Text>
+                <View style={styles.panelFooterRow}>
+                  <Text style={styles.panelSubText}>
+                    {Math.round(poolLiquidity / 1000).toLocaleString()} Shares
+                  </Text>
+                  <Text style={[styles.panelSharePct, { color: '#00D285' }]}>{poolPercent}%</Text>
+                </View>
+              </View>
+
+              {/* P2P Order Book Liquidity Panel */}
+              <View style={[styles.liquidityPanel, styles.p2pPanelBorder]}>
+                <View style={styles.panelHeader}>
+                  <View style={[styles.panelIconBox, { backgroundColor: 'rgba(56, 189, 248, 0.12)' }]}>
+                    <TrendingUp size={14} color="#38BDF8" />
+                  </View>
+                  <View style={[styles.panelTag, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
+                    <Text style={[styles.panelTagText, { color: '#38BDF8' }]}>ORDER BOOK</Text>
+                  </View>
+                </View>
+                <Text style={styles.panelTypeTitle}>P2P Trading</Text>
+                <Text style={[styles.panelAmount, { color: '#38BDF8' }]}>₦{p2pLiquidity.toLocaleString()}</Text>
+                <View style={styles.panelFooterRow}>
+                  <Text style={styles.panelSubText}>
+                    {Math.round(p2pLiquidity / 1000).toLocaleString()} Open
+                  </Text>
+                  <Text style={[styles.panelSharePct, { color: '#38BDF8' }]}>{p2pPercent}%</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.liquidityStripDivider} />
-            <View style={styles.liquidityStripItem}>
-              <Text style={styles.liquidityStripLabel}>ORDER BOOK</Text>
-              <Text style={[styles.liquidityStripVal, { color: '#38BDF8' }]}>₦{p2pLiquidity.toLocaleString()}</Text>
+
+            {/* Visual Liquidity Split Ratio Bar */}
+            <View style={styles.ratioBarTrack}>
+              <View style={[styles.ratioBarFillPool, { width: `${poolPercent}%` }]} />
+              <View style={[styles.ratioBarFillP2P, { width: `${p2pPercent}%` }]} />
+            </View>
+            <View style={styles.ratioLabelsRow}>
+              <Text style={styles.ratioLabelText}>Pool: {poolPercent}%</Text>
+              <Text style={styles.ratioLabelText}>P2P: {p2pPercent}%</Text>
             </View>
           </View>
 
@@ -2057,42 +2106,165 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
   },
 
-  // Compact Liquidity Strip Styles
-  liquidityStrip: {
+  // Liquidity Monitor Styles (Separate Pool, P2P Pool, Pool Trading, and Combined Pool)
+  liquidityMonitorCard: {
+    backgroundColor: 'rgba(15, 26, 48, 0.95)',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.25)',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  monitorHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  monitorTitleLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(15, 26, 48, 0.95)',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    marginBottom: 12,
+    gap: 6,
   },
-  liquidityStripItem: {
-    flex: 1,
+  pulsingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#00D285',
+    shadowColor: '#00D285',
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+  },
+  monitorTitle: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    fontFamily: 'Inter',
+    letterSpacing: 0.8,
+  },
+  totalLiquidityBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
-  liquidityStripLabel: {
+  totalLiquidityLabel: {
     fontSize: 9,
     color: '#8FA2C7',
     fontFamily: 'Inter',
     fontWeight: '700',
-    marginBottom: 2,
-    letterSpacing: 0.4,
   },
-  liquidityStripVal: {
-    fontSize: 12,
-    color: '#FFFFFF',
+  totalLiquidityValue: {
+    fontSize: 11,
+    color: '#00D285',
     fontFamily: 'Inter',
     fontWeight: '800',
   },
-  liquidityStripDivider: {
-    width: 1,
-    height: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  liquidityGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  liquidityPanel: {
+    flex: 1,
+    backgroundColor: 'rgba(10, 18, 36, 0.85)',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+  },
+  poolPanelBorder: {
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+  },
+  p2pPanelBorder: {
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  panelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  panelIconBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  panelTag: {
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  panelTagText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  panelTypeTitle: {
+    fontSize: 10,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  panelAmount: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+    marginBottom: 4,
+  },
+  panelFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  panelSubText: {
+    fontSize: 9,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  panelSharePct: {
+    fontSize: 9,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  ratioBarTrack: {
+    flexDirection: 'row',
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 4,
+  },
+  ratioBarFillPool: {
+    backgroundColor: '#00D285',
+    height: '100%',
+  },
+  ratioBarFillP2P: {
+    backgroundColor: '#38BDF8',
+    height: '100%',
+  },
+  ratioLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  ratioLabelText: {
+    fontSize: 9,
+    color: '#64748B',
+    fontFamily: 'Inter',
+    fontWeight: '600',
   },
 
   // Prediction Contracts Styles (Slick & Not Bulky)
