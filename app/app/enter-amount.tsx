@@ -113,6 +113,21 @@ export default function EnterAmountScreen() {
       return out === 'NO' ? 'HALF_AWAY' : 'HALF_HOME';
     }
 
+    // 4b. Coin Toss & Parity Markets
+    if (market.includes('COIN TOSS')) {
+      if (market.includes(homeUpper)) return out === 'NO' ? 'COIN_TOSS_AWAY' : 'COIN_TOSS_HOME';
+      return out === 'NO' ? 'COIN_TOSS_HOME' : 'COIN_TOSS_AWAY';
+    }
+    if (market.includes('GOAL') && (market.includes('EVEN') || market.includes('ODD'))) {
+      return out === 'NO' ? 'GOALS_ODD' : 'GOALS_EVEN';
+    }
+    if (market.includes('CORNER') && (market.includes('EVEN') || market.includes('ODD'))) {
+      return out === 'NO' ? 'CORNERS_ODD' : 'CORNERS_EVEN';
+    }
+    if (market.includes('CARD') && (market.includes('EVEN') || market.includes('ODD'))) {
+      return out === 'NO' ? 'CARDS_EVEN' : 'CARDS_ODD';
+    }
+
     // 5. Over/Under Goals & Corners
     if (market.includes('OVER') || market.includes('GOAL') || market.includes('CORNER') || market.includes('UNDER')) {
       return out === 'NO' || out === 'UNDER' || out === 'UNDER_25' ? 'UNDER_25' : 'OVER_25';

@@ -244,6 +244,38 @@ export default function MatchDetailScreen() {
           rule: 'Settles on official 90-minute result. Extra time and penalty shootouts are excluded.',
           example: `If ${homeTeam} wins 2 - 1 at 90 minutes, ${homeTeam} Win settles YES.`,
         };
+      case 'fb_goals_even':
+        return {
+          title: 'Total goals even',
+          tag: 'EVEN GOALS',
+          description: 'Trade on whether the combined aggregate final goals scored by both teams will be an even number (0, 2, 4, 6...).',
+          rule: 'Settles YES if the combined goals in regulation is an even number (0-0 equals 0 goals and settles YES). Settles NO if odd (1, 3, 5...).',
+          example: 'A 1 - 1 (2 goals) or 2 - 2 (4 goals) or 0 - 0 (0 goals) settles YES. A 1 - 0 or 2 - 1 settles NO.',
+        };
+      case 'fb_coin_toss':
+        return {
+          title: 'Coin toss winner',
+          tag: 'COIN TOSS',
+          description: 'Trade on which team wins the official pre-match referee coin toss ceremony.',
+          rule: 'Settles strictly on the referee coin toss conducted on the pitch prior to kickoff deciding side or initial kickoff.',
+          example: `If ${homeTeam} captain wins the referee coin toss, ${homeTeam} Wins Coin Toss settles YES.`,
+        };
+      case 'fb_corners_even':
+        return {
+          title: 'Total corners even',
+          tag: 'EVEN CORNERS',
+          description: 'Trade on whether the combined number of corner kicks taken by both clubs will be an even number.',
+          rule: 'Settles YES if the total combined corner kicks taken in regulation ends in an even number (0, 2, 4, 6...). Un-taken corners do not count.',
+          example: 'If 10 total match corners are taken, Combined Corner Kicks: Even settles YES.',
+        };
+      case 'fb_cards_odd':
+        return {
+          title: 'Total cards odd',
+          tag: 'ODD CARDS',
+          description: 'Trade on whether the combined yellow and red cards shown during regulation will be an odd number (1, 3, 5...).',
+          rule: 'Settles YES if total disciplinary cards shown to active players during regulation equals an odd integer (Yellow = 1, Red = 2). Bench cards excluded.',
+          example: '1 yellow card + 1 red card = 3 card points (odd number), resolving Total cards odd to YES.',
+        };
       case 'fb_over25':
         return {
           title: 'Over / Under Goals',
@@ -392,6 +424,14 @@ export default function MatchDetailScreen() {
   const cornersUnderOdds = 1.95;
   const bookingsOverOdds = 1.80;
   const bookingsUnderOdds = 2.00;
+  const goalsEvenOdds = 1.90;
+  const goalsOddOdds = 1.90;
+  const coinTossHomeOdds = 1.90;
+  const coinTossAwayOdds = 1.90;
+  const cornersEvenOdds = 1.90;
+  const cornersOddOdds = 1.90;
+  const cardsOddOdds = 1.90;
+  const cardsEvenOdds = 1.90;
 
   // UFC additions (takedown counts, fight duration/stoppage, rounds even/odd, takedown in r1)
   const finishOdds = formatOdds(match?.odds?.over25, 1.65);
@@ -1332,6 +1372,238 @@ export default function MatchDetailScreen() {
                   </View>
                 </View>
               </View>
+
+              {/* Card 2: Total goals even */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Total goals even</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>EVEN GOALS</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_goals_even'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>Total Goals: Even (0, 2, 4...)</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={[styles.actionBtnYes, isOutcomeOverpowered(goalsEvenOdds) && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome('Total Goals: Even', 'Yes', goalsEvenOdds)}
+                        disabled={isOutcomeOverpowered(goalsEvenOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(goalsEvenOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtnNo, isOutcomeOverpowered(goalsOddOdds) && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome('Total Goals: Even', 'No', goalsOddOdds)}
+                        disabled={isOutcomeOverpowered(goalsOddOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(goalsOddOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 3: Coin toss winner */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Coin toss winner</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(234, 179, 8, 0.15)', borderColor: 'rgba(234, 179, 8, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#EAB308' }]}>COIN TOSS</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_coin_toss'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  {/* Home Team Wins Coin Toss */}
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName} numberOfLines={1}>{homeTeam} Wins Coin Toss</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={[styles.actionBtnYes, isOutcomeOverpowered(coinTossHomeOdds) && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${homeTeam} Wins Coin Toss`, 'Yes', coinTossHomeOdds)}
+                        disabled={isOutcomeOverpowered(coinTossHomeOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(coinTossHomeOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtnNo, isOutcomeOverpowered(coinTossAwayOdds) && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${homeTeam} Wins Coin Toss`, 'No', coinTossAwayOdds)}
+                        disabled={isOutcomeOverpowered(coinTossAwayOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(coinTossAwayOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Away Team Wins Coin Toss */}
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName} numberOfLines={1}>{awayTeam} Wins Coin Toss</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={[styles.actionBtnYes, isOutcomeOverpowered(coinTossAwayOdds) && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${awayTeam} Wins Coin Toss`, 'Yes', coinTossAwayOdds)}
+                        disabled={isOutcomeOverpowered(coinTossAwayOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(coinTossAwayOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtnNo, isOutcomeOverpowered(coinTossHomeOdds) && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome(`${awayTeam} Wins Coin Toss`, 'No', coinTossHomeOdds)}
+                        disabled={isOutcomeOverpowered(coinTossHomeOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(coinTossHomeOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 4: Total corners even */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Total corners even</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(20, 184, 166, 0.15)', borderColor: 'rgba(20, 184, 166, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#14B8A6' }]}>EVEN CORNERS</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_corners_even'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>Total Corners: Even (0, 2, 4...)</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={[styles.actionBtnYes, isOutcomeOverpowered(cornersEvenOdds) && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome('Total Corners: Even', 'Yes', cornersEvenOdds)}
+                        disabled={isOutcomeOverpowered(cornersEvenOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(cornersEvenOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtnNo, isOutcomeOverpowered(cornersOddOdds) && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome('Total Corners: Even', 'No', cornersOddOdds)}
+                        disabled={isOutcomeOverpowered(cornersOddOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(cornersOddOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Card 5: Total cards odd */}
+              <View style={styles.contractShowcaseCard}>
+                <View style={styles.showcaseCardHeader}>
+                  <View style={styles.showcaseBadgeTitleRow}>
+                    <Text style={styles.showcaseCardTitle}>Total cards odd</Text>
+                    <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                      <Text style={[styles.greenTagText, { color: '#EF4444' }]}>ODD CARDS</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_cards_odd'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.shareUnitPill}>
+                    <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
+                  </View>
+                </View>
+
+                <View style={styles.showcaseRowsList}>
+                  <View style={styles.showcaseOutcomeRow}>
+                    <View style={styles.outcomeInfoLeft}>
+                      <Text style={styles.outcomeName}>Total Cards: Odd (1, 3, 5...)</Text>
+                    </View>
+                    <View style={styles.outcomeActionBtns}>
+                      <TouchableOpacity
+                        style={[styles.actionBtnYes, isOutcomeOverpowered(cardsOddOdds) && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome('Total Cards: Odd', 'Yes', cardsOddOdds)}
+                        disabled={isOutcomeOverpowered(cardsOddOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnYesText}>YES</Text>
+                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(cardsOddOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtnNo, isOutcomeOverpowered(cardsEvenOdds) && { opacity: 0.5 }]}
+                        onPress={() => handleSelectOutcome('Total Cards: Odd', 'No', cardsEvenOdds)}
+                        disabled={isOutcomeOverpowered(cardsEvenOdds)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.actionBtnNoText}>NO</Text>
+                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(cardsEvenOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
             </>
           )}
 
@@ -1481,9 +1753,9 @@ export default function MatchDetailScreen() {
                         <Text style={styles.ruleBulletNum}>1</Text>
                       </View>
                       <View style={styles.ruleContent}>
-                        <Text style={styles.ruleHeading}>Official 90-Minute Regulation Time</Text>
+                        <Text style={styles.ruleHeading}>Official 90-Minute Regulation & Coin Toss</Text>
                         <Text style={styles.ruleDesc}>
-                          All contracts resolve strictly on the official 90 minutes of play plus referee stoppage/injury time. Extra time (ET) and penalty shootouts do not count.
+                          All match winner, goals, corners, and cards contracts resolve strictly on official 90 minutes of regulation play plus injury time (extra time excluded). Coin toss settles on the official pre-match pitch ceremony.
                         </Text>
                       </View>
                     </View>
@@ -1493,9 +1765,9 @@ export default function MatchDetailScreen() {
                         <Text style={styles.ruleBulletNum}>2</Text>
                       </View>
                       <View style={styles.ruleContent}>
-                        <Text style={styles.ruleHeading}>Match Winner (1X2) Settlement</Text>
+                        <Text style={styles.ruleHeading}>Total Goals Even Parity Protocol</Text>
                         <Text style={styles.ruleDesc}>
-                          Settles Home Win, Draw, or Away Win based on the official final whistle score announced by the match officials and league authority.
+                          Total goals even settles YES if the combined aggregate goals scored by both clubs ends in an even number (0, 2, 4, 6...). A 0-0 scoreline has 0 goals and resolves YES.
                         </Text>
                       </View>
                     </View>
@@ -1505,9 +1777,9 @@ export default function MatchDetailScreen() {
                         <Text style={styles.ruleBulletNum}>3</Text>
                       </View>
                       <View style={styles.ruleContent}>
-                        <Text style={styles.ruleHeading}>Escrow Settlement & Payout Protection</Text>
+                        <Text style={styles.ruleHeading}>Corners Even & Cards Odd Settlement</Text>
                         <Text style={styles.ruleDesc}>
-                          All peer orders and pool liquidity are held in secure escrow. Winning outcome shares settle at ₦1,000 per share with instant dividend wallet credit.
+                          Corners even settles on total combined corner kicks taken. Total cards odd settles YES if active player disciplinary cards (Yellow = 1, Red = 2) total an odd number (1, 3, 5...).
                         </Text>
                       </View>
                     </View>
