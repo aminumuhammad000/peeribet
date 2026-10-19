@@ -1205,10 +1205,10 @@ export default function MarketScreen() {
               predictionMarkets.map((market) => {
                 const yesOption = market.options?.find(
                   (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
-                );
+                ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
                 const noOption = market.options?.find(
                   (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
-                );
+                ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
 
                 const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
                 const noOdds = market.noOdds || noOption?.odds || 1.95;
@@ -1275,64 +1275,28 @@ export default function MarketScreen() {
                     {/* Question Title with compact sleek styling */}
                     <Text style={styles.marketTitleText}>{market.title}</Text>
 
-                    {/* Trading Interface */}
-                    {market.marketType !== 'MULTIPLE_CHOICE' ? (
-                      /* Outcomes & Trade Buttons (Clean YES / NO layout) */
-                      <View style={styles.binaryChoiceRow}>
-                        <TouchableOpacity
-                          style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
-                          activeOpacity={0.8}
-                          disabled={isOverpowered}
-                          onPress={() => handleOpenTrade(market, yesOption || { label: 'YES', odds: yesOdds })}
-                        >
-                          <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                          <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
-                        </TouchableOpacity>
+                    {/* Outcomes & Trade Buttons (Clean YES / NO layout matching Home Page) */}
+                    <View style={styles.binaryChoiceRow}>
+                      <TouchableOpacity
+                        style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                        activeOpacity={0.8}
+                        disabled={isOverpowered}
+                        onPress={() => handleOpenTrade(market, yesOption)}
+                      >
+                        <Text style={styles.binaryOptionLabelYes}>YES</Text>
+                        <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                      </TouchableOpacity>
 
-                        <TouchableOpacity
-                          style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
-                          activeOpacity={0.8}
-                          disabled={isOverpowered}
-                          onPress={() => handleOpenTrade(market, noOption || { label: 'NO', odds: noOdds })}
-                        >
-                          <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                          <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      /* Multiple Choice Options List */
-                      <View style={styles.mcContainer}>
-                        <Text style={styles.mcHeaderLabel}>Select an Outcome:</Text>
-                        <View style={styles.mcList}>
-                          {(market.options || []).map((opt: any) => {
-                            const isOptOverpowered = isMarketAdminLocked || Boolean(opt.odds && opt.odds <= 1.43);
-                            return (
-                              <TouchableOpacity
-                                key={opt.id || opt.label}
-                                onPress={() => handleOpenTrade(market, opt)}
-                                activeOpacity={0.8}
-                                disabled={isOptOverpowered}
-                                style={[styles.mcItem, isOptOverpowered && { opacity: 0.5 }]}
-                              >
-                                <View style={{ flex: 1 }}>
-                                  <Text style={styles.mcItemLabel}>{opt.label}</Text>
-                                  {opt.totalStaked ? (
-                                    <Text style={styles.mcItemVolume}>
-                                      ₦{(opt.totalStaked).toLocaleString()} Pool
-                                    </Text>
-                                  ) : null}
-                                </View>
-                                <View style={styles.mcItemOddsBadge}>
-                                  <Text style={styles.mcItemOddsText}>
-                                    {isOptOverpowered ? 'Locked' : '₦1k / Share'}
-                                  </Text>
-                                </View>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      </View>
-                    )}
+                      <TouchableOpacity
+                        style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                        activeOpacity={0.8}
+                        disabled={isOverpowered}
+                        onPress={() => handleOpenTrade(market, noOption)}
+                      >
+                        <Text style={styles.binaryOptionLabelNo}>NO</Text>
+                        <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                      </TouchableOpacity>
+                    </View>
 
                     {/* Card Footer: Total Volume & Trade Outcome Button */}
                     <View style={styles.cardFooterRow}>
@@ -1343,7 +1307,7 @@ export default function MarketScreen() {
                         </Text>
                       </View>
                       <TouchableOpacity
-                        onPress={() => handleOpenTrade(market, yesOption || { label: 'YES', odds: yesOdds })}
+                        onPress={() => handleOpenTrade(market, yesOption)}
                         style={[styles.quickTradePill, isOverpowered && { opacity: 0.5 }]}
                         activeOpacity={0.8}
                         disabled={isOverpowered}
