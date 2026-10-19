@@ -32,6 +32,8 @@ import {
   HelpCircle,
   ArrowRight,
   ShieldAlert,
+  Info,
+  Zap,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
@@ -399,11 +401,20 @@ const FALLBACK_LIVE_EVENT_MARKETS = [
 
 const STAKE_PRESETS = [500, 1000, 2500, 5000, 10000];
 
+export interface ContractInfoDetail {
+  title: string;
+  tag: string;
+  description: string;
+  rule: string;
+  example: string;
+}
+
 export default function MarketScreen() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<string>('Football');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedInfoContract, setSelectedInfoContract] = useState<ContractInfoDetail | null>(null);
 
   // Sports & Prediction data
   const [matches, setMatches] = useState<any[]>([]);
@@ -600,6 +611,84 @@ export default function MarketScreen() {
     const impliedProb = 1 / yesOdds;
     const noProb = Math.max(0.05, 1 - impliedProb);
     return Number(((1 / noProb) * 0.95).toFixed(2)) || fallback;
+  };
+
+  const getContractDetailInfo = (item: any, isMatch = false): ContractInfoDetail => {
+    if (isMatch) {
+      const sport = (item?.sport || selectedCategory || 'Football').toUpperCase();
+      const home = item?.homeTeam || 'Home';
+      const away = item?.awayTeam || 'Away';
+      const league = (item?.leagueName || item?.league || 'Championship Match').toUpperCase();
+      return {
+        title: `${home} vs ${away}`,
+        tag: `${sport} • ${league}`,
+        description: `Trade on the outright full-time match winner. Choose YES for ${home} victory, or NO for draw or ${away} victory.`,
+        rule: 'Resolves strictly based on the official final score at the conclusion of regular and stoppage time (or official judges decision / KO / stoppage for combat sports).',
+        example: '₦1,000 = 1 Share. Winners receive their proportional pro-rata share of the loser escrow pot upon official settlement.',
+      };
+    }
+
+    const title = item?.title || 'Prediction Contract';
+    const subcat = (item?.subcategory || item?.category || selectedCategory || 'REAL LIFE EVENTS').toUpperCase();
+    const rules = item?.rules || 'Resolves based on official announcement or verified public records.';
+
+    if (title.toLowerCase().includes('spacex') || title.toLowerCase().includes('starship')) {
+      return {
+        title,
+        tag: 'AEROSPACE & TECH',
+        description: 'Trade on whether SpaceX successfully executes the orbital catch and booster recovery during the designated flight test window.',
+        rule: 'Settles to YES if SpaceX public mission telemetry, FAA flight logs, or company broadcast confirms successful booster catch/recovery.',
+        example: '₦1,000 = 1 Share. If YES wins, payout is distributed pro-rata from the entire loser pool at market resolution.',
+      };
+    }
+
+    if (title.toLowerCase().includes('openai') || title.toLowerCase().includes('gpt')) {
+      return {
+        title,
+        tag: 'ARTIFICIAL INTELLIGENCE',
+        description: 'Trade on whether OpenAI officially announces or launches GPT-5 or next-gen flagship foundation model before the specified deadline.',
+        rule: 'Resolves to YES if OpenAI formally announces the model on their official website, developer livestream, or executive press release.',
+        example: '₦1,000 = 1 Share. Winning YES shares receive proportional distribution from the NO escrow pot.',
+      };
+    }
+
+    if (title.toLowerCase().includes('gta') || title.toLowerCase().includes('grand theft auto')) {
+      return {
+        title,
+        tag: 'GAMING & ENTERTAINMENT',
+        description: 'Trade on whether Grand Theft Auto VI achieves over $1 Billion in retail and digital gross revenue within 24 hours of official launch.',
+        rule: 'Settles based on verified SEC regulatory filings or official publisher press release from Take-Two Interactive.',
+        example: '₦1,000 = 1 Share. Pro-rata pool distribution to winning outcome holders upon verified commercial confirmation.',
+      };
+    }
+
+    if (title.toLowerCase().includes('rate') || title.toLowerCase().includes('cpi') || title.toLowerCase().includes('inflation')) {
+      return {
+        title,
+        tag: 'ECONOMIC POLICY',
+        description: 'Trade on official macroeconomic indicator releases and central bank monetary committee decisions.',
+        rule: rules,
+        example: '₦1,000 = 1 Share. Resolves strictly based on headline data from the National Bureau of Statistics or Central Bank.',
+      };
+    }
+
+    if (title.toLowerCase().includes('grammy') || title.toLowerCase().includes('spotify') || title.toLowerCase().includes('album')) {
+      return {
+        title,
+        tag: 'MUSIC & ENTERTAINMENT',
+        description: 'Trade on cultural awards, Billboard chart achievements, and global streaming milestones.',
+        rule: rules,
+        example: '₦1,000 = 1 Share. Official award organization or verified chart provider data determines settlement.',
+      };
+    }
+
+    return {
+      title,
+      tag: subcat,
+      description: `Trade on whether this binary event outcome occurs before the scheduled resolution time.`,
+      rule: rules,
+      example: '₦1,000 = 1 Share. All funds are locked in transparent smart escrow and distributed pro-rata upon verified resolution.',
+    };
   };
 
   const getOutcomeSharesText = (pot: number | undefined, ratio: number, totalPool: number) => {
@@ -875,9 +964,19 @@ export default function MarketScreen() {
 
                     {/* Top League & Status Bar */}
                     <View style={styles.sportsCardHeader}>
-                      <View style={styles.sportsLeagueWrap}>
-                        {isLive && <Flame size={13} color="#EF4444" style={{ marginRight: 4 }} />}
-                        <Text style={styles.sportsLeagueText}>{match.league || selectedCategory}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                        <View style={styles.sportsLeagueWrap}>
+                          {isLive && <Flame size={13} color="#EF4444" style={{ marginRight: 4 }} />}
+                          <Text style={styles.sportsLeagueText}>{match.league || selectedCategory}</Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => setSelectedInfoContract(getContractDetailInfo(match, true))}
+                          style={styles.infoIconButton}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Info size={13} color="#00D285" />
+                        </TouchableOpacity>
                       </View>
                       <View style={styles.timeTagWrap}>
                         <Clock size={11} color={isLive ? '#EF4444' : '#8FA2C7'} style={{ marginRight: 4 }} />
@@ -1104,7 +1203,6 @@ export default function MarketScreen() {
               </View>
             ) : (
               predictionMarkets.map((market) => {
-                const isRulesExpanded = expandedRulesId === market._id;
                 const yesOption = market.options?.find(
                   (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
                 );
@@ -1112,17 +1210,14 @@ export default function MarketScreen() {
                   (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
                 );
 
-                const totalPool = market.poolAmount || 1000000;
-                const yesStaked = yesOption?.totalStaked || totalPool * 0.52;
-                const noStaked = noOption?.totalStaked || totalPool * 0.48;
-                const sumStakes = yesStaked + noStaked || 1;
-                const yesPercent = Math.round((yesStaked / sumStakes) * 100);
-                const noPercent = 100 - yesPercent;
+                const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
+                const noOdds = market.noOdds || noOption?.odds || 1.95;
 
                 const isMarketAdminLocked = Boolean(market.isLocked || market.isOverpowered || market.status === 'SUSPENDED');
+                const isOverpowered = (yesOdds && yesOdds <= 1.43) || (noOdds && noOdds <= 1.43) || isMarketAdminLocked;
 
                 return (
-                  <View key={market._id} style={styles.predCard}>
+                  <View key={market._id} style={styles.richMarketCard}>
                     {/* Admin Lock / Unlock Control Strip */}
                     {user?.role === 'admin' && (
                       <View style={styles.adminControlStrip}>
@@ -1142,123 +1237,67 @@ export default function MarketScreen() {
                       </View>
                     )}
 
-                    {/* Subcategory & Closing Date */}
-                    <View style={styles.predCardHeader}>
-                      <View style={styles.predSubcategoryBadge}>
-                        <Text style={styles.predSubcategoryText}>
-                          {market.subcategory || selectedCategory}
+                    {/* Top Row: Subcategory & Info Icon & Status */}
+                    <View style={styles.cardTopRow}>
+                      <View style={styles.cardCategoryGroup}>
+                        <Text style={styles.cardCategoryBadge}>
+                          {(market.subcategory || selectedCategory || 'REAL LIFE EVENTS').toUpperCase()}
                         </Text>
+                        <TouchableOpacity
+                          onPress={() => setSelectedInfoContract(getContractDetailInfo(market, false))}
+                          style={styles.infoIconButton}
+                          activeOpacity={0.7}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Info size={13} color="#00D285" />
+                        </TouchableOpacity>
                       </View>
-                      <View style={styles.closingBadge}>
-                        <Clock size={11} color="#8FA2C7" style={{ marginRight: 4 }} />
-                        <Text style={styles.closingBadgeText}>
-                          {market.closingDate
-                            ? `Closes ${new Date(market.closingDate).toLocaleDateString([], {
-                                month: 'short',
-                                day: 'numeric',
-                              })}`
-                            : 'Active Trading'}
-                        </Text>
-                      </View>
+                      {isOverpowered ? (
+                        <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+                          <Lock size={11} color="#EF4444" />
+                          <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.closingBadge}>
+                          <Clock size={11} color="#64748B" />
+                          <Text style={styles.closingBadgeText}>
+                            {market.closingDate
+                              ? `Closes ${new Date(market.closingDate).toLocaleDateString([], {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}`
+                              : 'Closes Soon'}
+                          </Text>
+                        </View>
+                      )}
                     </View>
 
-                    {/* Question Title */}
-                    <Text style={styles.predQuestionTitle}>{market.title}</Text>
-
-                    {/* Resolution Source & Transparency */}
-                    <View style={styles.resolutionRow}>
-                      <ShieldCheck size={13} color={Colors.dark.primary} style={{ marginRight: 5 }} />
-                      <Text style={styles.resolutionText} numberOfLines={1}>
-                        Settlement: {market.resolutionSource || 'Official Public Record'}
-                      </Text>
-                    </View>
-
-                    {/* Accordion: Full Rules */}
-                    {market.rules && (
-                      <TouchableOpacity
-                        onPress={() =>
-                          setExpandedRulesId(isRulesExpanded ? null : market._id)
-                        }
-                        activeOpacity={0.7}
-                        style={styles.rulesToggleBtn}
-                      >
-                        <Text style={styles.rulesToggleText}>
-                          {isRulesExpanded ? 'Hide resolution rules' : 'Show resolution rules'}
-                        </Text>
-                        {isRulesExpanded ? (
-                          <ChevronUp size={13} color="#8FA2C7" />
-                        ) : (
-                          <ChevronDown size={13} color="#8FA2C7" />
-                        )}
-                      </TouchableOpacity>
-                    )}
-
-                    {isRulesExpanded && market.rules && (
-                      <View style={styles.rulesDrawer}>
-                        <Text style={styles.rulesContentText}>{market.rules}</Text>
-                      </View>
-                    )}
+                    {/* Question Title with compact sleek styling */}
+                    <Text style={styles.marketTitleText}>{market.title}</Text>
 
                     {/* Trading Interface */}
-                    {market.marketType === 'YES_NO' ? (
-                      <View style={styles.yesNoContainer}>
-                        {/* Probability Sentiment Bar */}
-                        <View style={styles.sentimentBarContainer}>
-                          <View style={styles.sentimentLabels}>
-                            <Text style={styles.sentimentYesLabel}>YES {yesPercent}%</Text>
-                            <Text style={styles.sentimentNoLabel}>NO {noPercent}%</Text>
-                          </View>
-                          <View style={styles.sentimentTrack}>
-                            <View
-                              style={[
-                                styles.sentimentYesFill,
-                                { width: `${Math.max(10, Math.min(90, yesPercent))}%` },
-                              ]}
-                            />
-                            <View
-                              style={[
-                                styles.sentimentNoFill,
-                                { width: `${Math.max(10, Math.min(90, noPercent))}%` },
-                              ]}
-                            />
-                          </View>
-                        </View>
+                    {market.marketType !== 'MULTIPLE_CHOICE' ? (
+                      /* Outcomes & Trade Buttons (Clean YES / NO layout) */
+                      <View style={styles.binaryChoiceRow}>
+                        <TouchableOpacity
+                          style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                          activeOpacity={0.8}
+                          disabled={isOverpowered}
+                          onPress={() => handleOpenTrade(market, yesOption || { label: 'YES', odds: yesOdds })}
+                        >
+                          <Text style={styles.binaryOptionLabelYes}>YES</Text>
+                          <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                        </TouchableOpacity>
 
-                        {/* Large YES & NO Trade Buttons */}
-                        {(() => {
-                          const isYesCrowdOverpowered = yesPercent >= 70;
-                          const isNoCrowdOverpowered = noPercent >= 70;
-                          const isYesOddsOverpowered = Boolean(yesOption?.odds && yesOption.odds <= 1.43);
-                          const isNoOddsOverpowered = Boolean(noOption?.odds && noOption.odds <= 1.43);
-                          const isOverpowered = isYesOddsOverpowered || isNoOddsOverpowered || isYesCrowdOverpowered || isNoCrowdOverpowered || isMarketAdminLocked;
-                          return (
-                            <View style={styles.binaryBtnsRow}>
-                              <TouchableOpacity
-                                onPress={() => handleOpenTrade(market, yesOption || { label: 'Yes', odds: 1.9 })}
-                                activeOpacity={0.8}
-                                disabled={isOverpowered}
-                                style={[styles.btnYes, isOverpowered && { opacity: 0.5 }]}
-                              >
-                                <Text style={styles.btnYesLabel}>TRADE YES</Text>
-                                <Text style={styles.btnOddsText}>
-                                  {isOverpowered ? 'Locked' : '₦1,000 / Share'}
-                                </Text>
-                              </TouchableOpacity>
-
-                              <TouchableOpacity
-                                onPress={() => handleOpenTrade(market, noOption || { label: 'No', odds: 1.9 })}
-                                activeOpacity={0.8}
-                                disabled={isOverpowered}
-                                style={[styles.btnNo, isOverpowered && { opacity: 0.5 }]}
-                              >
-                                <Text style={styles.btnNoLabel}>TRADE NO</Text>
-                                <Text style={styles.btnOddsText}>
-                                  {isOverpowered ? 'Locked' : '₦1,000 / Share'}
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-                          );
-                        })()}
+                        <TouchableOpacity
+                          style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                          activeOpacity={0.8}
+                          disabled={isOverpowered}
+                          onPress={() => handleOpenTrade(market, noOption || { label: 'NO', odds: noOdds })}
+                        >
+                          <Text style={styles.binaryOptionLabelNo}>NO</Text>
+                          <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                        </TouchableOpacity>
                       </View>
                     ) : (
                       /* Multiple Choice Options List */
@@ -1266,10 +1305,7 @@ export default function MarketScreen() {
                         <Text style={styles.mcHeaderLabel}>Select an Outcome:</Text>
                         <View style={styles.mcList}>
                           {(market.options || []).map((opt: any) => {
-                            const optStakeShare = totalPool > 50000 ? (opt.totalStaked || 0) / totalPool : 0;
-                            const isOptCrowdOverpowered = optStakeShare >= 0.70;
-                            const isOptOddsOverpowered = Boolean(opt.odds && opt.odds <= 1.43);
-                            const isOptOverpowered = isOptOddsOverpowered || isOptCrowdOverpowered || isMarketAdminLocked;
+                            const isOptOverpowered = isMarketAdminLocked || Boolean(opt.odds && opt.odds <= 1.43);
                             return (
                               <TouchableOpacity
                                 key={opt.id || opt.label}
@@ -1298,18 +1334,22 @@ export default function MarketScreen() {
                       </View>
                     )}
 
-                    {/* Footer Stats Row */}
-                    <View style={styles.predCardFooter}>
-                      <View style={styles.footerStatItem}>
-                        <TrendingUp size={12} color="#00D285" style={{ marginRight: 4 }} />
-                        <Text style={styles.footerStatText}>
-                          {market.volume || `₦${(market.poolAmount || 850000).toLocaleString()}`} Volume
+                    {/* Card Footer: Total Volume & Trade Outcome Button */}
+                    <View style={styles.cardFooterRow}>
+                      <View>
+                        <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
+                        <Text style={styles.cardPoolValue}>
+                          ₦{(market.poolAmount || 2500000).toLocaleString()}
                         </Text>
                       </View>
-                      <View style={styles.footerTradePrompt}>
-                        <Sparkles size={11} color={Colors.dark.primary} style={{ marginRight: 4 }} />
-                        <Text style={styles.footerTradePromptText}>Verified Contract</Text>
-                      </View>
+                      <TouchableOpacity
+                        onPress={() => handleOpenTrade(market, yesOption || { label: 'YES', odds: yesOdds })}
+                        style={[styles.quickTradePill, isOverpowered && { opacity: 0.5 }]}
+                        activeOpacity={0.8}
+                        disabled={isOverpowered}
+                      >
+                        <Text style={styles.quickTradePillText}>{isOverpowered ? 'Locked' : 'Trade Outcome'}</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 );
@@ -1317,6 +1357,81 @@ export default function MarketScreen() {
             )
           )}
         </ScrollView>
+
+        {/* Contract Info / Specification Modal */}
+        <Modal
+          visible={!!selectedInfoContract}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setSelectedInfoContract(null)}
+        >
+          <View style={styles.infoModalOverlay}>
+            <View style={styles.infoModalCard}>
+              <View style={styles.infoModalHeader}>
+                <View style={styles.infoModalTitleCol}>
+                  <View style={styles.infoModalBadgeRow}>
+                    <Text style={styles.infoModalTag}>
+                      {selectedInfoContract?.tag || 'MARKET SPEC'}
+                    </Text>
+                  </View>
+                  <Text style={styles.infoModalTitle} numberOfLines={2}>
+                    {selectedInfoContract?.title}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setSelectedInfoContract(null)}
+                  style={styles.infoModalCloseBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                style={styles.infoModalBody}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Section 1: Overview */}
+                <View style={styles.infoSection}>
+                  <Text style={styles.infoSectionLabel}>HOW THIS TRADE WORKS</Text>
+                  <Text style={styles.infoSectionText}>
+                    {selectedInfoContract?.description}
+                  </Text>
+                </View>
+
+                {/* Section 2: Settlement Rules */}
+                <View style={styles.infoSection}>
+                  <Text style={styles.infoSectionLabel}>SETTLEMENT RULES</Text>
+                  <View style={styles.infoRuleBox}>
+                    <ShieldCheck size={16} color="#00D285" style={{ marginTop: 2 }} />
+                    <Text style={styles.infoRuleText}>
+                      {selectedInfoContract?.rule}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Section 3: Payout Example */}
+                <View style={styles.infoSection}>
+                  <Text style={styles.infoSectionLabel}>TRADING EXAMPLE</Text>
+                  <View style={styles.infoExampleBox}>
+                    <Zap size={14} color="#38BDF8" style={{ marginTop: 2 }} />
+                    <Text style={styles.infoExampleText}>
+                      {selectedInfoContract?.example}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              <TouchableOpacity
+                onPress={() => setSelectedInfoContract(null)}
+                style={styles.infoModalDismissBtn}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.infoModalDismissText}>Got It</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -2473,6 +2588,237 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     fontFamily: 'Inter',
+  },
+  richMarketCard: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  cardCategoryGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  cardCategoryBadge: {
+    color: '#00D285',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  infoIconButton: {
+    padding: 3,
+    backgroundColor: 'rgba(0, 210, 133, 0.1)',
+    borderRadius: 12,
+  },
+  marketTitleText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  binaryChoiceRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  binaryOptionBtn: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+  },
+  binaryOptionYes: {
+    backgroundColor: 'rgba(0, 210, 133, 0.08)',
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+  },
+  binaryOptionNo: {
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  binaryOptionLabelYes: {
+    color: '#00D285',
+    fontSize: 11.5,
+    fontWeight: '800',
+    marginBottom: 1,
+  },
+  binaryOptionLabelNo: {
+    color: '#EF4444',
+    fontSize: 11.5,
+    fontWeight: '800',
+    marginBottom: 1,
+  },
+  binaryOptionOdds: {
+    color: '#94A3B8',
+    fontSize: 9.5,
+    fontWeight: '600',
+  },
+  cardFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+    paddingTop: 10,
+  },
+  cardPoolLabel: {
+    color: '#64748B',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  cardPoolValue: {
+    color: '#00D285',
+    fontSize: 13.5,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  quickTradePill: {
+    backgroundColor: '#00D285',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  quickTradePillText: {
+    color: '#090D16',
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  infoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  infoModalCard: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: '#0F1A30',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  infoModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    paddingBottom: 14,
+    marginBottom: 14,
+  },
+  infoModalTitleCol: {
+    flex: 1,
+    marginRight: 10,
+  },
+  infoModalBadgeRow: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  infoModalTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#00D285',
+    letterSpacing: 0.5,
+  },
+  infoModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 22,
+  },
+  infoModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoModalBody: {
+    marginBottom: 16,
+  },
+  infoSection: {
+    marginBottom: 16,
+  },
+  infoSectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  infoSectionText: {
+    fontSize: 13,
+    color: '#E2E8F0',
+    lineHeight: 19,
+  },
+  infoRuleBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(0, 210, 133, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.25)',
+    borderRadius: 10,
+    padding: 10,
+  },
+  infoRuleText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#E2E8F0',
+    lineHeight: 18,
+  },
+  infoExampleBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderRadius: 10,
+    padding: 10,
+  },
+  infoExampleText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#E2E8F0',
+    lineHeight: 18,
+  },
+  infoModalDismissBtn: {
+    backgroundColor: '#00D285',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoModalDismissText: {
+    color: '#090D16',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });
 
