@@ -15,6 +15,7 @@ import {
   BarChart3,
   Landmark,
   Lock,
+  Unlock,
   Wallet,
   MoreVertical,
   Download,
@@ -181,6 +182,8 @@ export default function App() {
 
   // Markets & Backdoor Trades State
   const [markets, setMarkets] = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [marketSubTab, setMarketSubTab] = useState('markets'); // 'markets' | 'sports'
   const [marketCategoryFilter, setMarketCategoryFilter] = useState('ALL');
   const [marketStatusFilter, setMarketStatusFilter] = useState('ALL');
   const [marketSearchText, setMarketSearchText] = useState('');
@@ -363,6 +366,7 @@ export default function App() {
       fetchTransactions();
       fetchTrades();
       fetchMarkets();
+      fetchMatches();
       fetchSettings();
       fetchSecurityLogs();
       fetchVaults();
@@ -477,6 +481,9 @@ export default function App() {
         poolAmount: m.poolAmount || 0,
         volume: m.volume || `₦${(m.poolAmount || 0).toLocaleString()}`,
         status: m.status || 'ACTIVE',
+        isLocked: Boolean(m.isLocked),
+        isOverpowered: Boolean(m.isOverpowered || m.isLocked),
+        lockedReason: m.lockedReason || '',
         winningOption: m.winningOption,
         closingDate: m.closingDate,
         resolutionDate: m.resolutionDate,
@@ -489,6 +496,16 @@ export default function App() {
       })));
     } catch (error) {
       console.error('Error fetching markets:', error);
+    }
+  };
+
+  const fetchMatches = async () => {
+    try {
+      const { data } = await api.get('/admin/matches');
+      const list = Array.isArray(data) ? data : (data?.matches || []);
+      setMatches(list);
+    } catch (error) {
+      console.error('Error fetching matches:', error);
     }
   };
 
@@ -1132,6 +1149,48 @@ export default function App() {
     }
   };
 
+  // Handle Toggle Admin Market Overpower Lock
+  const handleToggleMarketLock = async (marketId, currentLocked) => {
+    try {
+      const res = await api.post(`/admin/markets/${marketId}/lock`, {
+        isLocked: !currentLocked,
+        reason: !currentLocked ? 'Locked by admin: overpowered crowd probability (>70%)' : '',
+      });
+      showToast(res.data?.message || (!currentLocked ? 'Market locked (overpowered).' : 'Market unlocked.'), 'success');
+      fetchMarkets();
+      logSecurityEvent(
+        'warning',
+        `Market ID ${marketId} ${!currentLocked ? 'LOCKED (Overpowered)' : 'UNLOCKED'}`,
+        `Authorized: ${adminName}`,
+        'shield'
+      );
+    } catch (error) {
+      console.error('Error toggling market lock:', error);
+      showToast(error.response?.data?.message || 'Failed to update market lock.', 'error');
+    }
+  };
+
+  // Handle Toggle Admin Match Overpower Lock
+  const handleToggleMatchLock = async (matchId, currentLocked) => {
+    try {
+      const res = await api.post(`/admin/matches/${matchId}/lock`, {
+        isLocked: !currentLocked,
+        reason: !currentLocked ? 'Locked by admin: overpowered match odds/crowd safeguard' : '',
+      });
+      showToast(res.data?.message || (!currentLocked ? 'Match locked (overpowered).' : 'Match unlocked.'), 'success');
+      fetchMatches();
+      logSecurityEvent(
+        'warning',
+        `Match ID ${matchId} ${!currentLocked ? 'LOCKED (Overpowered)' : 'UNLOCKED'}`,
+        `Authorized: ${adminName}`,
+        'shield'
+      );
+    } catch (error) {
+      console.error('Error toggling match lock:', error);
+      showToast(error.response?.data?.message || 'Failed to update match lock.', 'error');
+    }
+  };
+
   // Open Resolution Modal
   const handleOpenResolveModal = (market) => {
     setResolvingMarket(market);
@@ -1385,9 +1444,12 @@ export default function App() {
         (m.category && m.category.toLowerCase() === marketCategoryFilter.toLowerCase());
 
       // 2. Status Filter
-      const matchesStatus =
-        marketStatusFilter === 'ALL' ||
-        (m.status && m.status.toUpperCase() === marketStatusFilter.toUpperCase());
+      let matchesStatus = true;
+      if (marketStatusFilter === 'LOCKED') {
+        matchesStatus = Boolean(m.isLocked || m.isOverpowered || m.status === 'SUSPENDED');
+      } else if (marketStatusFilter !== 'ALL') {
+        matchesStatus = m.status && m.status.toUpperCase() === marketStatusFilter.toUpperCase();
+      }
 
       // 3. Search query
       const q = marketSearchText.toLowerCase().trim();
@@ -1401,6 +1463,29 @@ export default function App() {
       return matchesCategory && matchesStatus && matchesSearch;
     });
   }, [markets, marketCategoryFilter, marketStatusFilter, marketSearchText]);
+
+  // Filtered Sports Matches calculation
+  const filteredAdminMatches = useMemo(() => {
+    return matches.filter((match) => {
+      const q = marketSearchText.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        (match.homeTeam && match.homeTeam.toLowerCase().includes(q)) ||
+        (match.awayTeam && match.awayTeam.toLowerCase().includes(q)) ||
+        (match.sport && match.sport.toLowerCase().includes(q)) ||
+        (match.league && match.league.toLowerCase().includes(q)) ||
+        (match.leagueName && match.leagueName.toLowerCase().includes(q));
+
+      let matchesStatus = true;
+      if (marketStatusFilter === 'LOCKED') {
+        matchesStatus = Boolean(match.isLocked || match.isOverpowered || match.status === 'SUSPENDED');
+      } else if (marketStatusFilter !== 'ALL') {
+        matchesStatus = match.status && match.status.toUpperCase() === marketStatusFilter.toUpperCase();
+      }
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [matches, marketSearchText, marketStatusFilter]);
 
   // Log out administrative session
   const handleLogout = () => {
@@ -3432,6 +3517,55 @@ export default function App() {
               </div>
             </div>
 
+            {/* View Sub-Tabs: Prediction Markets vs Sports Fixtures */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 14, marginBottom: 18 }}>
+              <button
+                type="button"
+                onClick={() => setMarketSubTab('markets')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  backgroundColor: marketSubTab === 'markets' ? '#00D285' : 'rgba(255, 255, 255, 0.05)',
+                  color: marketSubTab === 'markets' ? '#090D16' : '#94A3B8',
+                  border: marketSubTab === 'markets' ? '1px solid #00D285' : '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span>Prediction Markets &amp; Backdoor Trades</span>
+                <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, backgroundColor: marketSubTab === 'markets' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)' }}>
+                  {markets.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMarketSubTab('sports')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  backgroundColor: marketSubTab === 'sports' ? '#00D285' : 'rgba(255, 255, 255, 0.05)',
+                  color: marketSubTab === 'sports' ? '#090D16' : '#94A3B8',
+                  border: marketSubTab === 'sports' ? '1px solid #00D285' : '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span>Sports Fixtures &amp; Contracts (Overpower Safeguards)</span>
+                <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, backgroundColor: marketSubTab === 'sports' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)' }}>
+                  {matches.length}
+                </span>
+              </button>
+            </div>
+
             {/* Metrics Ribbon */}
             <div className="metrics-grid" style={{ marginBottom: 20 }}>
               <div className="metric-card">
@@ -3445,6 +3579,13 @@ export default function App() {
                   {markets.filter((m) => m.status === 'ACTIVE').length}
                 </span>
                 <span className="metric-sub-text" style={{ color: '#00D285' }}>Open for user trading</span>
+              </div>
+              <div className="metric-card">
+                <span className="metric-label">LOCKED (OVERPOWERED)</span>
+                <span className="metric-value" style={{ color: '#EF4444' }}>
+                  {markets.filter((m) => m.isLocked || m.isOverpowered || m.status === 'SUSPENDED').length + matches.filter((m) => m.isLocked || m.isOverpowered || m.status === 'SUSPENDED').length}
+                </span>
+                <span className="metric-sub-text" style={{ color: '#EF4444' }}>Crowd &gt;70% / Admin Lock</span>
               </div>
               <div className="metric-card">
                 <span className="metric-label">BACKDOOR DRAFTS</span>
@@ -3519,6 +3660,7 @@ export default function App() {
                     >
                       <option value="ALL">Status: All</option>
                       <option value="ACTIVE">Status: Published (Live)</option>
+                      <option value="LOCKED">Status: Locked (Overpowered)</option>
                       <option value="DRAFT">Status: Backdoor Drafts</option>
                       <option value="RESOLVED">Status: Resolved</option>
                       <option value="VOIDED">Status: Voided</option>
@@ -3555,7 +3697,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Markets Table */}
+              {marketSubTab === 'markets' ? (
+              /* Markets Table */
               <div className="trades-table-container">
                 <table className="trades-table">
                   <thead>
@@ -3695,44 +3838,70 @@ export default function App() {
 
                             {/* Status */}
                             <td>
-                              <span
-                                className="status-badge-td"
-                                style={{
-                                  backgroundColor: isDraft
-                                    ? 'rgba(245, 158, 11, 0.12)'
+                              {mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED' ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                  <span
+                                    className="status-badge-td"
+                                    style={{
+                                      backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                                      color: '#EF4444',
+                                      fontSize: 10,
+                                      fontWeight: '800',
+                                      padding: '4px 8px',
+                                      borderRadius: 6,
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                    }}
+                                  >
+                                    <Lock size={10} color="#EF4444" />
+                                    <span>LOCKED (OVERPOWERED)</span>
+                                  </span>
+                                  {mkt.lockedReason && (
+                                    <span style={{ fontSize: 9.5, color: '#f87171' }}>{mkt.lockedReason}</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span
+                                  className="status-badge-td"
+                                  style={{
+                                    backgroundColor: isDraft
+                                      ? 'rgba(245, 158, 11, 0.12)'
+                                      : isActive
+                                      ? 'rgba(0, 210, 133, 0.12)'
+                                      : isResolved
+                                      ? 'rgba(168, 85, 247, 0.12)'
+                                      : 'rgba(100, 116, 139, 0.12)',
+                                    border: isDraft
+                                      ? '1px solid rgba(245, 158, 11, 0.3)'
+                                      : isActive
+                                      ? '1px solid rgba(0, 210, 133, 0.3)'
+                                      : isResolved
+                                      ? '1px solid rgba(168, 85, 247, 0.3)'
+                                      : '1px solid rgba(100, 116, 139, 0.3)',
+                                    color: isDraft
+                                      ? '#F59E0B'
+                                      : isActive
+                                      ? '#00D285'
+                                      : isResolved
+                                      ? '#A855F7'
+                                      : '#94A3B8',
+                                    fontSize: 10,
+                                    fontWeight: '800',
+                                    padding: '4px 8px',
+                                    borderRadius: 6,
+                                  }}
+                                >
+                                  {isDraft
+                                    ? 'BACKDOOR DRAFT'
                                     : isActive
-                                    ? 'rgba(0, 210, 133, 0.12)'
+                                    ? 'PUBLISHED (LIVE)'
                                     : isResolved
-                                    ? 'rgba(168, 85, 247, 0.12)'
-                                    : 'rgba(100, 116, 139, 0.12)',
-                                  border: isDraft
-                                    ? '1px solid rgba(245, 158, 11, 0.3)'
-                                    : isActive
-                                    ? '1px solid rgba(0, 210, 133, 0.3)'
-                                    : isResolved
-                                    ? '1px solid rgba(168, 85, 247, 0.3)'
-                                    : '1px solid rgba(100, 116, 139, 0.3)',
-                                  color: isDraft
-                                    ? '#F59E0B'
-                                    : isActive
-                                    ? '#00D285'
-                                    : isResolved
-                                    ? '#A855F7'
-                                    : '#94A3B8',
-                                  fontSize: 10,
-                                  fontWeight: '800',
-                                  padding: '4px 8px',
-                                  borderRadius: 6,
-                                }}
-                              >
-                                {isDraft
-                                  ? 'BACKDOOR DRAFT'
-                                  : isActive
-                                  ? 'PUBLISHED (LIVE)'
-                                  : isResolved
-                                  ? `RESOLVED: ${mkt.winningOption?.toUpperCase()}`
-                                  : mkt.status}
-                              </span>
+                                    ? `RESOLVED: ${mkt.winningOption?.toUpperCase()}`
+                                    : mkt.status}
+                                </span>
+                              )}
                             </td>
 
                             {/* Closing Date */}
@@ -3750,6 +3919,49 @@ export default function App() {
                             {/* Actions */}
                             <td style={{ textAlign: 'right' }}>
                               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, alignItems: 'center' }}>
+                                {/* Overpower Lock / Unlock Action Button */}
+                                {!isResolved && !isVoided && (
+                                  <button
+                                    style={{
+                                      backgroundColor: (mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED')
+                                        ? 'rgba(0, 210, 133, 0.15)'
+                                        : 'rgba(239, 68, 68, 0.15)',
+                                      border: (mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED')
+                                        ? '1px solid #00D285'
+                                        : '1px solid #EF4444',
+                                      color: (mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED')
+                                        ? '#00D285'
+                                        : '#EF4444',
+                                      fontSize: 11,
+                                      fontWeight: '700',
+                                      padding: '4px 10px',
+                                      borderRadius: 6,
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 4,
+                                    }}
+                                    onClick={() => handleToggleMarketLock(mkt.id || mkt._id, Boolean(mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED'))}
+                                    title={
+                                      (mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED')
+                                        ? 'Unlock market for client trading'
+                                        : 'Lock market: Overpowered crowd (>70%) / Extreme odds'
+                                    }
+                                  >
+                                    {(mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED') ? (
+                                      <>
+                                        <Unlock size={12} />
+                                        <span>Unlock</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Lock size={12} />
+                                        <span>Lock Overpowered</span>
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+
                                 {/* Publish / Unpublish Toggle */}
                                 {!isResolved && !isVoided && (
                                   <button
@@ -3832,6 +4044,130 @@ export default function App() {
                   </tbody>
                 </table>
               </div>
+              ) : (
+              /* Sports Matches & Safeguard Overpower Table */
+              <div className="trades-table-container">
+                <table className="trades-table">
+                  <thead>
+                    <tr>
+                      <th style={{ minWidth: 240 }}>Match / Fixture</th>
+                      <th>Sport &amp; League</th>
+                      <th>Scheduled Kickoff</th>
+                      <th>Pool Volume</th>
+                      <th>Status &amp; Overpower</th>
+                      <th style={{ textAlign: 'right', minWidth: 170 }}>Admin Safeguard Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAdminMatches.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '36px 12px', color: '#64748B' }}>
+                          No sports matches found matching filter.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredAdminMatches.map((match) => {
+                        const isMatchLocked = Boolean(match.isLocked || match.isOverpowered || match.status === 'SUSPENDED');
+                        return (
+                          <tr key={match._id || match.id}>
+                            <td>
+                              <div style={{ fontWeight: '700', color: '#ffffff', fontSize: 13.5 }}>
+                                {match.homeTeam} vs {match.awayTeam}
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <span style={{ fontSize: 11, fontWeight: '700', color: '#00D285' }}>
+                                  {match.sport || 'Football'}
+                                </span>
+                                <span style={{ fontSize: 10.5, color: '#94A3B8' }}>
+                                  {match.leagueName || match.league || 'Championship'}
+                                </span>
+                              </div>
+                            </td>
+                            <td style={{ color: '#cbd5e1', fontSize: 11 }}>
+                              {match.startTime ? new Date(match.startTime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Live'}
+                            </td>
+                            <td>
+                              <span style={{ color: '#00D285', fontWeight: '700', fontSize: 13 }}>
+                                ₦{(match.poolAmount || 0).toLocaleString()}
+                              </span>
+                            </td>
+                            <td>
+                              {isMatchLocked ? (
+                                <span
+                                  className="status-badge-td"
+                                  style={{
+                                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                                    color: '#EF4444',
+                                    fontSize: 10,
+                                    fontWeight: '800',
+                                    padding: '4px 8px',
+                                    borderRadius: 6,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                  }}
+                                >
+                                  <Lock size={10} color="#EF4444" />
+                                  <span>LOCKED (OVERPOWERED)</span>
+                                </span>
+                              ) : (
+                                <span
+                                  className="status-badge-td"
+                                  style={{
+                                    backgroundColor: match.status === 'LIVE' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(0, 210, 133, 0.12)',
+                                    border: match.status === 'LIVE' ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(0, 210, 133, 0.3)',
+                                    color: match.status === 'LIVE' ? '#EF4444' : '#00D285',
+                                    fontSize: 10,
+                                    fontWeight: '800',
+                                    padding: '4px 8px',
+                                    borderRadius: 6,
+                                  }}
+                                >
+                                  {match.status || 'UPCOMING'}
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <button
+                                style={{
+                                  backgroundColor: isMatchLocked ? 'rgba(0, 210, 133, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                  border: isMatchLocked ? '1px solid #00D285' : '1px solid #EF4444',
+                                  color: isMatchLocked ? '#00D285' : '#EF4444',
+                                  fontSize: 11,
+                                  fontWeight: '700',
+                                  padding: '5px 12px',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                }}
+                                onClick={() => handleToggleMatchLock(match._id || match.id, isMatchLocked)}
+                              >
+                                {isMatchLocked ? (
+                                  <>
+                                    <Unlock size={12} />
+                                    <span>Unlock Match</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Lock size={12} />
+                                    <span>Lock (Overpowered)</span>
+                                  </>
+                                )}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              )}
             </section>
           </main>
         ) : activeTab === 'portfolio' ? (

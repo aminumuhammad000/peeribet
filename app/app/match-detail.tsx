@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, CheckCircle, Zap, Shield, ShieldAlert, TrendingUp, Layers, HelpCircle, Activity, Info, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, Zap, Shield, ShieldAlert, TrendingUp, Layers, HelpCircle, Activity, Info, ChevronDown, ChevronUp, ArrowRight, X, ShieldCheck } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
 import { matchService, p2pService, adminService, authService, showToast } from '../services/apiService';
@@ -18,6 +18,14 @@ interface ContractConfig {
   p2pShares?: number;
 }
 
+export interface ContractInfoDetail {
+  title: string;
+  tag: string;
+  description: string;
+  rule: string;
+  example: string;
+}
+
 export default function MatchDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -28,6 +36,7 @@ export default function MatchDetailScreen() {
   const [rulesExpanded, setRulesExpanded] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [togglingLock, setTogglingLock] = useState(false);
+  const [selectedInfoContract, setSelectedInfoContract] = useState<ContractInfoDetail | null>(null);
 
   const homeTeam = (params.homeTeam as string) || 'Chelsea';
   const awayTeam = (params.awayTeam as string) || 'Arsenal';
@@ -112,6 +121,227 @@ export default function MatchDetailScreen() {
     const impliedProb = 1 / yesOdds;
     const noProb = Math.max(0.05, 1 - impliedProb);
     return Number(((1 / noProb) * 0.95).toFixed(2)) || fallback;
+  };
+
+  const getContractInfo = (key: string): ContractInfoDetail => {
+    switch (key) {
+      // UFC
+      case 'ufc_winner':
+        return {
+          title: 'Bout Winner (2-Way)',
+          tag: 'OCTAGON WINNER',
+          description: 'Trade on which fighter will be declared the official victor of the bout.',
+          rule: 'Settles YES for the winning fighter upon official UFC announcement (KO, TKO, submission, disqualification, or decision). In the event of a No Contest, all stakes are refunded.',
+          example: `Buying YES on ${homeTeam} yields ₦1,000 per share if ${homeTeam} wins the bout.`,
+        };
+      case 'ufc_method':
+        return {
+          title: 'Method of Settlement',
+          tag: 'STOPPAGE VS DECISION',
+          description: 'Trade on whether the bout concludes inside the distance or goes to the judges’ scorecards.',
+          rule: 'KO / TKO / Submission settles YES if the referee or doctor stops the fight, or a fighter taps out. Decision settles YES if all scheduled rounds complete and outcome is determined by judges.',
+          example: 'If the fight ends by 2nd-round submission, Stoppage (KO/TKO/Sub) settles YES.',
+        };
+      case 'ufc_duration':
+        return {
+          title: 'Fight Duration Contract',
+          tag: 'DURATION',
+          description: 'Trade on whether the fight ends before the final bell or goes the full distance.',
+          rule: 'Stoppage Before Final Bell settles YES if a stoppage occurs before the final round bell. Otherwise settles NO.',
+          example: 'Buying YES pays out if either fighter achieves a finish at any point in the fight.',
+        };
+      case 'ufc_takedowns':
+        return {
+          title: 'Takedown Counts Line',
+          tag: '2.5 TAKEDOWNS',
+          description: 'Trade on whether the aggregate official takedowns landed by both fighters will be over or under 2.5.',
+          rule: 'Settles based on official UFC/Stats Perform stats. Over 2.5 settles YES if 3 or more takedowns are landed; Under settles YES if 2 or fewer are landed.',
+          example: 'If Fighter A lands 2 takedowns and Fighter B lands 1, total is 3, resolving Over 2.5 to YES.',
+        };
+      case 'ufc_r1_takedown':
+        return {
+          title: 'Round 1 Takedown Contract',
+          tag: 'ROUND 1',
+          description: 'Trade YES or NO on whether an official takedown is landed by either fighter during Round 1.',
+          rule: 'Settles YES if at least one fighter successfully completes a controlled takedown in the opening 5 minutes.',
+          example: 'A single completed takedown within Round 1 triggers an immediate YES settlement.',
+        };
+      case 'ufc_rounds_parity':
+        return {
+          title: 'Completed Rounds Parity',
+          tag: 'ODD / EVEN',
+          description: 'Trade on whether the total number of full completed rounds finishes on an odd or even number.',
+          rule: 'Settles on the number of rounds that officially reach completion. E.g., if a 5-round fight ends in Round 2, 1 round was completed (Odd). If it goes all 5 rounds, 5 rounds were completed (Odd).',
+          example: 'If stopped during Round 3, exactly 2 full rounds were completed, resolving Even to YES.',
+        };
+
+      // BOXING
+      case 'box_winner':
+        return {
+          title: 'Bout Winner (2-Way)',
+          tag: 'RING WINNER',
+          description: 'Trade on which boxer will emerge victorious in the bout.',
+          rule: 'Settles YES for the declared winner via KO, TKO, RTD, DQ, or points decision.',
+          example: 'Holding YES yields ₦1,000 per share if your chosen boxer wins.',
+        };
+      case 'box_distance':
+        return {
+          title: 'Full Scheduled Distance',
+          tag: '12 ROUNDS',
+          description: 'Trade on whether the fight goes all the way to the final bell of the scheduled distance.',
+          rule: 'Settles YES if all scheduled rounds (e.g. 12 full rounds) are completed and results are decided by the scorecards.',
+          example: 'If the fight reaches the final bell without a stoppage, Full Distance settles YES.',
+        };
+      case 'box_over9':
+        return {
+          title: 'Fight Duration Contract',
+          tag: '9.5 ROUNDS',
+          description: 'Trade on whether the fight lasts longer than 9.5 rounds (past 1:30 of Round 10).',
+          rule: 'Settles Over 9.5 if the fight progresses past the 1-minute 30-second mark of Round 10. Settles Under if stopped earlier.',
+          example: 'A stoppage in Round 8 settles Under to YES.',
+        };
+      case 'box_knockdown':
+        return {
+          title: 'Knockdown Recorded Contract',
+          tag: 'KNOCKDOWN',
+          description: 'Trade YES or NO on whether either boxer is officially knocked down during the fight.',
+          rule: 'Settles YES if the referee issues an official knockdown 8-count to either boxer following a legal blow.',
+          example: 'If either fighter touches the canvas from a punch and receives a count, YES settles as winning.',
+        };
+      case 'box_early_ko':
+        return {
+          title: 'Early Stoppage Hedge',
+          tag: 'ROUNDS 1-4',
+          description: 'Trade on whether the bout concludes with a stoppage or knockout in the first four rounds.',
+          rule: 'Settles YES if a KO, TKO, or retirement occurs during Rounds 1, 2, 3, or 4.',
+          example: 'A 3rd-round technical knockout awards YES holders full payout.',
+        };
+
+      // BASKETBALL
+      case 'nba_winner':
+        return {
+          title: 'Game Winner (Moneyline)',
+          tag: '2-WAY',
+          description: 'Trade on which team will win the game outright, including overtime.',
+          rule: 'Settles YES for the team that wins the final official score after regulation and any overtime periods.',
+          example: `Holding YES on ${homeTeam} pays out if ${homeTeam} wins the match.`,
+        };
+      case 'nba_points_line':
+        return {
+          title: 'Total Game Points Line',
+          tag: '218.5 LINE',
+          description: 'Trade on whether the aggregate points scored by both teams exceed or stay under 218.5.',
+          rule: 'Settles Over if combined score is 219 or higher. Settles Under if combined score is 218 or lower (includes OT).',
+          example: 'A final score of 112 - 108 totals 220 points, settling Over to YES.',
+        };
+      case 'nba_points_parity':
+        return {
+          title: 'Total Game Points Parity',
+          tag: 'ODD / EVEN',
+          description: 'Trade on whether the combined final score of both teams adds up to an odd or even number.',
+          rule: 'Settles Odd if the sum of both teams’ final points divided by 2 has a remainder of 1; otherwise settles Even.',
+          example: 'Score: 110 + 105 = 215 (Odd number). Odd settles YES.',
+        };
+      case 'nba_team_a_parity':
+        return {
+          title: `${homeTeam} Total Points Parity`,
+          tag: 'TEAM PARITY',
+          description: `Trade on whether ${homeTeam}'s final point tally finishes as an odd or even number.`,
+          rule: `Evaluates solely ${homeTeam}'s points at final whistle (including OT). Odd if points end in 1,3,5,7,9.`,
+          example: `If ${homeTeam} finishes with 113 points, ${homeTeam} Odd settles YES.`,
+        };
+      case 'nba_team_b_parity':
+        return {
+          title: `${awayTeam} Total Points Parity`,
+          tag: 'TEAM PARITY',
+          description: `Trade on whether ${awayTeam}'s final point tally finishes as an odd or even number.`,
+          rule: `Evaluates solely ${awayTeam}'s points at final whistle (including OT). Even if points end in 0,2,4,6,8.`,
+          example: `If ${awayTeam} finishes with 106 points, ${awayTeam} Even settles YES.`,
+        };
+      case 'nba_halftime':
+        return {
+          title: 'Halftime Settlement',
+          tag: '1ST HALF',
+          description: `Trade on which team will be leading the score at the 2nd quarter halftime intermission.`,
+          rule: 'Settles immediately based on the official score at the end of the 2nd quarter (24 minutes played).',
+          example: `If ${homeTeam} leads 58 - 52 at halftime, ${homeTeam} Lead at Half settles YES.`,
+        };
+      case 'nba_spread':
+        return {
+          title: 'Point Spread Handicap',
+          tag: '+/- 5.5 PTS',
+          description: `Trade on whether ${homeTeam} covers a -5.5 spread or ${awayTeam} keeps the deficit within +5.5 points.`,
+          rule: `Settles YES for ${homeTeam} (-5.5) if they win by 6 or more points. Settles YES for ${awayTeam} (+5.5) if they win or lose by 5 or fewer points.`,
+          example: `If ${homeTeam} wins by 8 points (110 - 102), ${homeTeam} (-5.5) covers and settles YES.`,
+        };
+
+      // EUROPEAN FOOTBALL
+      case 'fb_winner':
+        return {
+          title: 'Match Winner (1X2)',
+          tag: 'REGULAR TIME',
+          description: 'Trade on the match outcome at the end of standard regulation time (90 minutes plus added injury time).',
+          rule: 'Settles on official 90-minute result. Extra time and penalty shootouts are excluded.',
+          example: `If ${homeTeam} wins 2 - 1 at 90 minutes, ${homeTeam} Win settles YES.`,
+        };
+      case 'fb_over25':
+        return {
+          title: 'Over / Under Goals',
+          tag: '2.5 LINE',
+          description: 'Trade on whether the total goals scored in regular time will be 3 or more, or 2 or fewer.',
+          rule: 'Settles Over if 3+ total goals are scored; settles Under if 0, 1, or 2 total goals are scored.',
+          example: 'A 2 - 1 scoreline equals 3 goals, resolving Over 2.5 Goals to YES.',
+        };
+      case 'fb_btts':
+        return {
+          title: 'Both Teams to Score (BTTS)',
+          tag: 'BTTS',
+          description: 'Trade on whether both competing clubs will each score at least 1 goal during regular time.',
+          rule: 'Settles YES if both teams score 1 or more goals. Settles NO if either or both teams fail to score.',
+          example: 'A 1 - 1 or 2 - 1 scoreline settles YES; a 2 - 0 or 0 - 0 scoreline settles NO.',
+        };
+      case 'fb_double_chance':
+        return {
+          title: 'Double Chance Hedge',
+          tag: 'HEDGE',
+          description: 'Trade on two possible outcomes combined into a single contract to protect against downside variance.',
+          rule: '1X settles YES if Home Team wins or draws. X2 settles YES if Away Team wins or draws.',
+          example: 'Holding 1X pays out ₦1,000 per share as long as the home team does not lose.',
+        };
+      case 'fb_halftime':
+        return {
+          title: 'Halftime Settlement',
+          tag: '1ST HALF',
+          description: 'Trade on which club leads the score at the 45-minute referee halftime whistle.',
+          rule: 'Settles directly upon completion of the first half (45 mins + first-half stoppage time).',
+          example: `If ${homeTeam} is ahead 1 - 0 at the break, ${homeTeam} Lead at Halftime settles YES.`,
+        };
+      case 'fb_corners':
+        return {
+          title: 'Total Match Corners',
+          tag: '9.5 CORNERS',
+          description: 'Trade on whether the combined number of corner kicks taken by both clubs will exceed 9.5.',
+          rule: 'Settles Over 9.5 if 10 or more corner kicks are taken. Awarded but un-taken corners do not count.',
+          example: 'If total corners taken equals 11, Over 9.5 Match Corners settles YES.',
+        };
+      case 'fb_bookings':
+        return {
+          title: 'Total Match Bookings',
+          tag: '3.5 CARDS',
+          description: 'Trade on whether total disciplinary cards issued to players on the pitch will exceed 3.5.',
+          rule: 'Settles Over 3.5 if combined card points exceed 3.5 (Yellow = 1 card, Red = 2 cards). Maximum 3 cards per player.',
+          example: '3 yellow cards + 1 red card = 5 card points, resolving Over 3.5 Bookings to YES.',
+        };
+
+      default:
+        return {
+          title: 'Trade Market Details',
+          tag: 'CONTRACT INFO',
+          description: 'Trade on binary YES / NO outcomes with peer-matched order execution or liquidity pool jackpot distribution.',
+          rule: 'All trades settle according to verified match statistics provided by official sports data providers.',
+          example: 'Each winning P2P share returns ₦1,000 upon official match verification.',
+        };
+    }
   };
 
   const matchSport = String(match?.sport || params.sport || '').toLowerCase();
@@ -495,6 +725,14 @@ export default function MatchDetailScreen() {
                     <View style={styles.greenTagBadge}>
                       <Text style={styles.greenTagText}>OCTAGON WINNER</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('ufc_winner'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -564,6 +802,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#EF4444' }]}>STOPPAGE</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('ufc_method'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -633,6 +879,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>DURATION</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('ufc_duration'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -676,6 +930,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#A855F7' }]}>2.5 TAKEDOWNS</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('ufc_takedowns'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -719,6 +981,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(234, 179, 8, 0.15)', borderColor: 'rgba(234, 179, 8, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#EAB308' }]}>ROUND 1</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('ufc_r1_takedown'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -762,6 +1032,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(20, 184, 166, 0.15)', borderColor: 'rgba(20, 184, 166, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#14B8A6' }]}>ODD / EVEN</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('ufc_rounds_parity'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -834,6 +1112,14 @@ export default function MatchDetailScreen() {
                     <View style={styles.greenTagBadge}>
                       <Text style={styles.greenTagText}>RING WINNER</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('box_winner'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -903,6 +1189,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>12 ROUNDS</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('box_distance'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -946,6 +1240,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#F59E0B' }]}>9.5 ROUNDS</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('box_over9'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -989,6 +1291,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#EF4444' }]}>KNOCKDOWN</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('box_knockdown'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1032,6 +1342,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#A855F7' }]}>ROUNDS 1-4</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('box_early_ko'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1078,6 +1396,14 @@ export default function MatchDetailScreen() {
                     <View style={styles.greenTagBadge}>
                       <Text style={styles.greenTagText}>2-WAY</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('nba_winner'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1147,6 +1473,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>218.5 LINE</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('nba_points_line'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1190,6 +1524,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(20, 184, 166, 0.15)', borderColor: 'rgba(20, 184, 166, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#14B8A6' }]}>ODD / EVEN</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('nba_points_parity'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1233,6 +1575,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#F59E0B' }]}>TEAM PARITY</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('nba_team_a_parity'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1276,6 +1626,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#A855F7' }]}>TEAM PARITY</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('nba_team_b_parity'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1319,6 +1677,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#F59E0B' }]}>1ST HALF</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('nba_halftime'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1362,6 +1728,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(139, 92, 246, 0.15)', borderColor: 'rgba(139, 92, 246, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#8B5CF6' }]}>+/- 5.5 PTS</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('nba_spread'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1408,6 +1782,14 @@ export default function MatchDetailScreen() {
                     <View style={styles.greenTagBadge}>
                       <Text style={styles.greenTagText}>YES / NO</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_winner'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1506,6 +1888,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>2.5 LINE</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_over25'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1549,6 +1939,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#F59E0B' }]}>BTTS</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_btts'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1592,6 +1990,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#A855F7' }]}>HEDGE</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_double_chance'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1661,6 +2067,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(234, 179, 8, 0.15)', borderColor: 'rgba(234, 179, 8, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#EAB308' }]}>1ST HALF</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_halftime'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1704,6 +2118,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#38BDF8' }]}>9.5 CORNERS</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_corners'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1747,6 +2169,14 @@ export default function MatchDetailScreen() {
                     <View style={[styles.greenTagBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
                       <Text style={[styles.greenTagText, { color: '#EF4444' }]}>3.5 CARDS</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.infoIconButton}
+                      onPress={() => setSelectedInfoContract(getContractInfo('fb_bookings'))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Info size={13} color="#94A3B8" />
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.shareUnitPill}>
                     <Text style={styles.shareUnitPillText}>1k = 1 Share</Text>
@@ -1986,6 +2416,78 @@ export default function MatchDetailScreen() {
             )}
           </View>
         </ScrollView>
+
+        {/* Professional Contract Info Modal (Zero UI Overlap) */}
+        <Modal
+          visible={!!selectedInfoContract}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setSelectedInfoContract(null)}
+        >
+          <View style={styles.infoModalOverlay}>
+            <View style={styles.infoModalCard}>
+              <View style={styles.infoModalHeader}>
+                <View style={styles.infoModalTitleCol}>
+                  <View style={styles.infoModalBadgeRow}>
+                    <Text style={styles.infoModalTag}>
+                      {selectedInfoContract?.tag || 'MARKET DETAILS'}
+                    </Text>
+                  </View>
+                  <Text style={styles.infoModalTitle}>
+                    {selectedInfoContract?.title}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setSelectedInfoContract(null)}
+                  style={styles.infoModalCloseBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} style={styles.infoModalBody}>
+                {/* Section 1: Overview */}
+                <View style={styles.infoSection}>
+                  <Text style={styles.infoSectionLabel}>HOW IT WORKS</Text>
+                  <Text style={styles.infoSectionText}>
+                    {selectedInfoContract?.description}
+                  </Text>
+                </View>
+
+                {/* Section 2: Settlement Rules */}
+                <View style={styles.infoSection}>
+                  <Text style={styles.infoSectionLabel}>SETTLEMENT RULES</Text>
+                  <View style={styles.infoRuleBox}>
+                    <ShieldCheck size={16} color="#00D285" style={{ marginTop: 2 }} />
+                    <Text style={styles.infoRuleText}>
+                      {selectedInfoContract?.rule}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Section 3: Payout Example */}
+                <View style={styles.infoSection}>
+                  <Text style={styles.infoSectionLabel}>TRADING EXAMPLE</Text>
+                  <View style={styles.infoExampleBox}>
+                    <Zap size={14} color="#38BDF8" style={{ marginTop: 2 }} />
+                    <Text style={styles.infoExampleText}>
+                      {selectedInfoContract?.example}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              <TouchableOpacity
+                onPress={() => setSelectedInfoContract(null)}
+                style={styles.infoModalDismissBtn}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.infoModalDismissText}>Got It</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -2603,6 +3105,144 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  infoIconButton: {
+    padding: 3,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
+  infoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  infoModalCard: {
+    width: '100%',
+    maxHeight: '80%',
+    backgroundColor: '#0F1A30',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  infoModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    paddingBottom: 14,
+    marginBottom: 14,
+  },
+  infoModalTitleCol: {
+    flex: 1,
+    marginRight: 10,
+  },
+  infoModalBadgeRow: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  infoModalTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+    letterSpacing: 0.5,
+  },
+  infoModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  infoModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoModalBody: {
+    marginBottom: 16,
+  },
+  infoSection: {
+    marginBottom: 16,
+  },
+  infoSectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.8,
+    fontFamily: 'Inter',
+    marginBottom: 6,
+  },
+  infoSectionText: {
+    fontSize: 13,
+    color: '#E2E8F0',
+    lineHeight: 19,
+    fontFamily: 'Inter',
+  },
+  infoRuleBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(0, 210, 133, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.25)',
+    borderRadius: 10,
+    padding: 10,
+  },
+  infoRuleText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#E2E8F0',
+    lineHeight: 18,
+    fontFamily: 'Inter',
+  },
+  infoExampleBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderRadius: 10,
+    padding: 10,
+  },
+  infoExampleText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#E2E8F0',
+    lineHeight: 18,
+    fontFamily: 'Inter',
+  },
+  infoModalDismissBtn: {
+    backgroundColor: '#00D285',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoModalDismissText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#050B14',
     fontFamily: 'Inter',
   },
 });
