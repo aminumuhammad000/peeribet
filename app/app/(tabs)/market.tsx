@@ -104,7 +104,7 @@ const isFootballMatch = (m: any) => {
 
 const FALLBACK_FOOTBALL_FIXTURES = [
   {
-    _id: 'fb_1',
+    _id: '65f100000000000000000001',
     sport: 'Football',
     homeTeam: 'Arsenal',
     awayTeam: 'Chelsea',
@@ -115,7 +115,7 @@ const FALLBACK_FOOTBALL_FIXTURES = [
     odds: { home: 1.85, draw: 3.10, away: 2.40 },
   },
   {
-    _id: 'fb_2',
+    _id: '65f100000000000000000002',
     sport: 'Football',
     homeTeam: 'Real Madrid',
     awayTeam: 'Barcelona',
@@ -126,7 +126,7 @@ const FALLBACK_FOOTBALL_FIXTURES = [
     odds: { home: 1.95, draw: 3.40, away: 2.30 },
   },
   {
-    _id: 'fb_3',
+    _id: '65f100000000000000000003',
     sport: 'Football',
     homeTeam: 'Manchester City',
     awayTeam: 'Liverpool',
@@ -140,7 +140,7 @@ const FALLBACK_FOOTBALL_FIXTURES = [
 
 const FALLBACK_BOXING_FIXTURES = [
   {
-    _id: 'box_1',
+    _id: '65f1a0000000000000000001',
     sport: 'Boxing',
     homeTeam: 'Tyson Fury',
     awayTeam: 'Oleksandr Usyk',
@@ -151,7 +151,7 @@ const FALLBACK_BOXING_FIXTURES = [
     odds: { home: 2.15, draw: 22.0, away: 1.72 },
   },
   {
-    _id: 'box_2',
+    _id: '65f1a0000000000000000002',
     sport: 'Boxing',
     homeTeam: 'Canelo Alvarez',
     awayTeam: 'Terence Crawford',
@@ -162,7 +162,7 @@ const FALLBACK_BOXING_FIXTURES = [
     odds: { home: 1.62, draw: 20.0, away: 2.30 },
   },
   {
-    _id: 'box_3',
+    _id: '65f1a0000000000000000003',
     sport: 'Boxing',
     homeTeam: 'Anthony Joshua',
     awayTeam: 'Daniel Dubois',
@@ -176,7 +176,7 @@ const FALLBACK_BOXING_FIXTURES = [
 
 const FALLBACK_UFC_FIXTURES = [
   {
-    _id: 'ufc_1',
+    _id: '65f1b0000000000000000001',
     sport: 'UFC',
     homeTeam: 'Islam Makhachev',
     awayTeam: 'Arman Tsarukyan',
@@ -187,7 +187,7 @@ const FALLBACK_UFC_FIXTURES = [
     odds: { home: 1.40, draw: 35.0, away: 2.95 },
   },
   {
-    _id: 'ufc_2',
+    _id: '65f1b0000000000000000002',
     sport: 'UFC',
     homeTeam: 'Jon Jones',
     awayTeam: 'Tom Aspinall',
@@ -198,7 +198,7 @@ const FALLBACK_UFC_FIXTURES = [
     odds: { home: 1.78, draw: 30.0, away: 2.05 },
   },
   {
-    _id: 'ufc_3',
+    _id: '65f1b0000000000000000003',
     sport: 'UFC',
     homeTeam: 'Alex Pereira',
     awayTeam: 'Magomed Ankalaev',
@@ -212,7 +212,7 @@ const FALLBACK_UFC_FIXTURES = [
 
 const FALLBACK_BASKETBALL_FIXTURES = [
   {
-    _id: 'bb_1',
+    _id: '65f1c0000000000000000001',
     sport: 'Basketball',
     homeTeam: 'Boston Celtics',
     awayTeam: 'Los Angeles Lakers',
@@ -223,7 +223,7 @@ const FALLBACK_BASKETBALL_FIXTURES = [
     odds: { home: 1.55, draw: 15.0, away: 2.45 },
   },
   {
-    _id: 'bb_2',
+    _id: '65f1c0000000000000000002',
     sport: 'Basketball',
     homeTeam: 'Golden State Warriors',
     awayTeam: 'Denver Nuggets',
@@ -234,7 +234,7 @@ const FALLBACK_BASKETBALL_FIXTURES = [
     odds: { home: 1.90, draw: 15.0, away: 1.90 },
   },
   {
-    _id: 'bb_3',
+    _id: '65f1c0000000000000000003',
     sport: 'Basketball',
     homeTeam: 'Dallas Mavericks',
     awayTeam: 'Phoenix Suns',
@@ -248,7 +248,7 @@ const FALLBACK_BASKETBALL_FIXTURES = [
 
 const FALLBACK_POLITICS_MARKETS = [
   {
-    _id: 'pol_1',
+    _id: '65f1d0000000000000000001',
     title: 'Central Bank to cut benchmark interest rate in Q4?',
     category: 'Politics',
     subcategory: 'Policy & Economy',
@@ -264,7 +264,7 @@ const FALLBACK_POLITICS_MARKETS = [
     ],
   },
   {
-    _id: 'pol_2',
+    _id: '65f1d0000000000000000002',
     title: 'US Federal Reserve to lower rates at upcoming FOMC meeting?',
     category: 'Politics',
     subcategory: 'Global Affairs',
@@ -280,7 +280,7 @@ const FALLBACK_POLITICS_MARKETS = [
     ],
   },
   {
-    _id: 'pol_3',
+    _id: '65f1d0000000000000000003',
     title: 'Nigeria Inflation Rate to drop below 28% in official NBS report?',
     category: 'Politics',
     subcategory: 'Policy & Economy',
@@ -299,7 +299,7 @@ const FALLBACK_POLITICS_MARKETS = [
 
 const FALLBACK_ENTERTAINMENT_MARKETS = [
   {
-    _id: 'ent_1',
+    _id: '65f1e0000000000000000001',
     title: 'Grammy Awards: Album of the Year Winner 2026',
     category: 'Entertainment',
     subcategory: 'Awards & Grammys',
@@ -315,7 +315,7 @@ const FALLBACK_ENTERTAINMENT_MARKETS = [
     ],
   },
   {
-    _id: 'ent_2',
+    _id: '65f1e0000000000000000002',
     title: 'Spotify Global #1: Burna Boy new track to hit #1 within 72 hours?',
     category: 'Entertainment',
     subcategory: 'Spotify & Music',
@@ -331,7 +331,7 @@ const FALLBACK_ENTERTAINMENT_MARKETS = [
     ],
   },
   {
-    _id: 'ent_3',
+    _id: '65f1e0000000000000000003',
     title: 'Global Box Office: First 2026 blockbuster to cross $1B revenue',
     category: 'Entertainment',
     subcategory: 'Movies & Box Office',
@@ -350,7 +350,7 @@ const FALLBACK_ENTERTAINMENT_MARKETS = [
 
 const FALLBACK_LIVE_EVENT_MARKETS = [
   {
-    _id: 'live_1',
+    _id: '65f1f0000000000000000001',
     title: 'SpaceX Starship orbital catch & recovery test in Q4?',
     category: 'Real Life Events',
     subcategory: 'Space & Tech',

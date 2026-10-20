@@ -98,7 +98,7 @@ export default function MatchDetailScreen() {
     router.push({
       pathname: '/enter-amount',
       params: {
-        matchId: matchId,
+        matchId: match?._id || matchId,
         matchTitle: `${homeTeam} vs ${awayTeam}`,
         homeTeam: homeTeam,
         awayTeam: awayTeam,

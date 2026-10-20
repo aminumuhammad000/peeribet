@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Match from '../models/Match';
 import { footballApiService } from '../services/footballApiService';
+import { resolveTargetMatchOrMarket } from '../utils/fixtureResolver';
 
 const statusMap: Record<string, 'UPCOMING' | 'LIVE' | 'FINISHED' | 'SUSPENDED'> = {
   NS: 'UPCOMING',
@@ -286,7 +287,8 @@ export const syncMatches = async (req: Request, res: Response) => {
 // @access Private
 export const getMatchById = async (req: Request, res: Response) => {
   try {
-    const match = await Match.findById(req.params.id);
+    const id = String(req.params.id || '');
+    const { match } = await resolveTargetMatchOrMarket(id);
     if (!match) return res.status(404).json({ message: 'Match not found' });
     res.json(match);
   } catch (error: any) {

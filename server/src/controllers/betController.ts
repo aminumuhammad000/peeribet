@@ -5,6 +5,7 @@ import Match from '../models/Match';
 import Transaction from '../models/Transaction';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { settlePendingBetsForMatch } from '../services/settlementService';
+import { resolveTargetMatchOrMarket } from '../utils/fixtureResolver';
 
 // @route  POST /api/bets
 // @access Private
@@ -12,7 +13,7 @@ export const placeBet = async (req: AuthRequest, res: Response) => {
   try {
     const { matchId, selection, amount } = req.body;
     const user = await User.findById(req.user?._id);
-    const match = await Match.findById(matchId);
+    const { match } = await resolveTargetMatchOrMarket(matchId);
 
     if (!user) return res.status(404).json({ message: 'User not found' });
     if (!match) return res.status(404).json({ message: 'Match not found' });

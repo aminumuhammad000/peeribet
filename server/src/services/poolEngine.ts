@@ -5,6 +5,7 @@ import Market from '../models/Market';
 import User from '../models/User';
 import Transaction from '../models/Transaction';
 import { createNotification } from './notificationService';
+import { resolveTargetMatchOrMarket } from '../utils/fixtureResolver';
 
 export const enterPool = async ({
   userId,
@@ -39,7 +40,9 @@ export const enterPool = async ({
   let predictionMarket: any = null;
   let targetTitle = 'Market';
 
-  match = await Match.findById(targetId);
+  const resolved = await resolveTargetMatchOrMarket(targetId);
+  match = resolved.match;
+  predictionMarket = resolved.predictionMarket;
   if (match) {
     const selNorm = String(selection).trim().toUpperCase();
 
@@ -238,10 +241,17 @@ export const enterPool = async ({
 };
 
 export const getPoolDetails = async (targetId: string, market = 'MATCH_OUTCOME') => {
-  const match = await Match.findById(targetId);
-  const predictionMarket = !match ? await Market.findById(targetId) : null;
+  const { match, predictionMarket } = await resolveTargetMatchOrMarket(targetId);
 
-  if (!match && !predictionMarket) throw new Error('Match or Market not found');
+  if (!match && !predictionMarket) {
+    return {
+      targetId,
+      market,
+      totalPot: 0,
+      contractCount: 0,
+      contracts: []
+    };
+  }
 
   const query: any = {
     market: market as any,
@@ -280,7 +290,7 @@ export const getPoolDetails = async (targetId: string, market = 'MATCH_OUTCOME')
 
     if (match.pool?.optionPots) {
       if (match.pool.optionPots instanceof Map) {
-        match.pool.optionPots.forEach((val, k) => {
+        match.pool.optionPots.forEach((val: any, k: any) => {
           if (!outcomePots[k]) outcomePots[k] = { pot: val || 0, entries: 0, projectedMultiplier: 1.0 };
         });
       } else {

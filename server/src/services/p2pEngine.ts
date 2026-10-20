@@ -5,6 +5,7 @@ import Market from '../models/Market';
 import User from '../models/User';
 import Transaction from '../models/Transaction';
 import { createNotification } from './notificationService';
+import { resolveTargetMatchOrMarket } from '../utils/fixtureResolver';
 
 export const SHARE_UNIT_PRICE = 1000; // ₦1,000 = 1 Share
 
@@ -83,7 +84,10 @@ export const placeP2POrder = async ({
   const targetId = matchId || marketId;
   if (!targetId) throw new Error('Match ID or Market ID is required');
 
-  match = await Match.findById(targetId);
+  const resolved = await resolveTargetMatchOrMarket(targetId);
+  match = resolved.match;
+  predictionMarket = resolved.predictionMarket;
+
   if (match) {
     const selNorm = String(selection).trim().toUpperCase();
 
@@ -318,10 +322,17 @@ export const placeP2POrder = async ({
 };
 
 export const getOrderBook = async (targetId: string, market = 'MATCH_OUTCOME') => {
-  const match = await Match.findById(targetId);
-  const predictionMarket = !match ? await Market.findById(targetId) : null;
+  const { match, predictionMarket } = await resolveTargetMatchOrMarket(targetId);
 
-  if (!match && !predictionMarket) throw new Error('Match or Market not found');
+  if (!match && !predictionMarket) {
+    return {
+      targetId,
+      market,
+      orderBook: {},
+      totalLiquidity: 0,
+      totalMatchedShares: 0
+    };
+  }
 
   const query: any = {
     market: market as any,
