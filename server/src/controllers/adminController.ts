@@ -11,33 +11,125 @@ import VaultBalance from '../models/VaultBalance';
 import AirdropLog from '../models/AirdropLog';
 import P2POrder from '../models/P2POrder';
 import PoolContract from '../models/PoolContract';
+import Notification from '../models/Notification';
 import bcrypt from 'bcryptjs';
 import { createNotification } from '../services/notificationService';
 import { getIO } from '../services/socketService';
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
+    const { range } = req.query;
+
+    let dateFilter: any = {};
+    const now = new Date();
+    if (range === 'Today') {
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      dateFilter = { createdAt: { $gte: startOfDay } };
+    } else if (range === '7D') {
+      const past7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      dateFilter = { createdAt: { $gte: past7 } };
+    } else if (range === '30D') {
+      const past30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      dateFilter = { createdAt: { $gte: past30 } };
+    }
+
     const totalUsers = await User.countDocuments({ role: 'user' });
-    const activeTradeCount = await Trade.countDocuments({ status: 'PENDING' });
+
+    // Active trade count aggregated across P2P orders, pool contracts, and direct trades
+    const pendingDirectTrades = await Trade.countDocuments({ status: 'PENDING' });
+    const activeP2POrders = await P2POrder.countDocuments({ status: { $in: ['OPEN', 'PARTIALLY_MATCHED', 'MATCHED'] } });
+    const pendingPoolContracts = await PoolContract.countDocuments({ status: 'PENDING' });
+    const activeTradeCount = pendingDirectTrades + activeP2POrders + pendingPoolContracts;
     
     // Sum of all user balances (Total Liquidity in platform)
     const users = await User.find({ role: 'user' });
     const userFunds = users.reduce((acc, user) => acc + (user.balance || 0), 0);
     
-    // Volume: Sum of all completed transactions
-    const transactions = await Transaction.find({ status: 'completed' });
-    const totalVolume = transactions.reduce((acc, txn) => acc + (txn.amount || 0), 0);
+    // Volume: Sum of completed transactions + matched/settled p2p orders + pool stakes
+    const completedTxns = await Transaction.find({ status: 'completed' });
+    const txnVolume = completedTxns.reduce((acc, txn) => acc + (txn.amount || 0), 0);
 
-    // Revenue: Assuming a 2% fee on transactions
-    const totalRevenue = totalVolume * 0.02;
+    const completedP2P = await P2POrder.find({ status: { $in: ['MATCHED', 'SETTLED'] } });
+    const p2pVolume = completedP2P.reduce((acc, order) => acc + (order.totalAmount || (order.totalShares * (order.sharePrice || 1000))), 0);
 
-    // In Escrow: Sum of all pending trades amounts
+    const allPools = await PoolContract.find();
+    const poolVolume = allPools.reduce((acc, p) => acc + (p.stake || 0), 0);
+
+    const totalVolume = txnVolume + p2pVolume + poolVolume;
+
+    // Revenue: fees from P2P + pool fees + transaction fees
+    const settings = await SystemSetting.findOne();
+    const platformFeeRate = (settings?.platformFee ?? 1.5) / 100;
+
+    const p2pFees = completedP2P.reduce((acc, o) => acc + (o.feePaid || 0), 0);
+    const poolFees = allPools.reduce((acc, p) => acc + (p.feeDeducted || 0), 0);
+    const calculatedTxnFees = txnVolume * platformFeeRate;
+    const totalRevenue = Math.round(p2pFees + poolFees + calculatedTxnFees);
+
+    // In Escrow: Sum of all pending trades, active P2P orders, and pending pool contracts
     const pendingTrades = await Trade.find({ status: 'PENDING' });
-    const inEscrow = pendingTrades.reduce((acc, trade) => acc + (trade.amount || 0), 0);
+    const directEscrow = pendingTrades.reduce((acc, trade) => acc + (trade.amount || 0), 0);
+
+    const openP2P = await P2POrder.find({ status: { $in: ['OPEN', 'PARTIALLY_MATCHED', 'MATCHED'] } });
+    const p2pEscrow = openP2P.reduce((acc, o) => acc + ((o.unmatchedShares || o.totalShares || 0) * (o.sharePrice || 1000)), 0);
+
+    const pendingPools = await PoolContract.find({ status: 'PENDING' });
+    const poolEscrow = pendingPools.reduce((acc, p) => acc + (p.stake || 0), 0);
+
+    const inEscrow = directEscrow + p2pEscrow + poolEscrow;
 
     // Fetch live vault balances
     const vault = await VaultBalance.findOne();
     const coldWalletBalance = vault ? vault.coldReserve : 0;
+    const custodyPool = vault ? vault.custodyPool : 0;
+    const promoReserve = vault ? vault.promoReserve : 0;
+    const payoutBank = vault ? vault.payoutBank : 0;
+    const totalLiquidity = userFunds + coldWalletBalance + custodyPool + promoReserve + payoutBank;
+
+    // Compute dynamic 24-hour hourly trade frequency buckets (10 intervals) from real database timestamps
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [recentTxns, recentOrders, recentContracts, recentTrades] = await Promise.all([
+      Transaction.find({ createdAt: { $gte: twentyFourHoursAgo } }).select('createdAt'),
+      P2POrder.find({ createdAt: { $gte: twentyFourHoursAgo } }).select('createdAt'),
+      PoolContract.find({ createdAt: { $gte: twentyFourHoursAgo } }).select('createdAt'),
+      Trade.find({ createdAt: { $gte: twentyFourHoursAgo } }).select('createdAt')
+    ]);
+
+    const allActivityTimestamps = [
+      ...recentTxns.map(t => new Date(t.createdAt).getTime()),
+      ...recentOrders.map(o => new Date(o.createdAt).getTime()),
+      ...recentContracts.map(c => new Date(c.createdAt).getTime()),
+      ...recentTrades.map(t => new Date(t.createdAt).getTime())
+    ];
+
+    const tradeFrequencyData = [];
+    const intervalMs = 2.4 * 60 * 60 * 1000; // ~2.4h per bin for 10 bins
+    let maxCount = 0;
+
+    for (let i = 9; i >= 0; i--) {
+      const binStart = Date.now() - (i + 1) * intervalMs;
+      const binEnd = Date.now() - i * intervalMs;
+      const count = allActivityTimestamps.filter(t => t >= binStart && t < binEnd).length;
+      if (count > maxCount) maxCount = count;
+
+      const dateObj = new Date(binEnd);
+      const hourStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      tradeFrequencyData.push({
+        hour: hourStr,
+        count: count,
+        highlighted: false
+      });
+    }
+
+    if (maxCount > 0) {
+      for (const item of tradeFrequencyData) {
+        if (item.count === maxCount) {
+          item.highlighted = true;
+          break;
+        }
+      }
+    }
 
     res.json({
       users: totalUsers,
@@ -46,7 +138,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       revenue: totalRevenue,
       inEscrow: inEscrow,
       coldWalletBalance: coldWalletBalance,
-      liquidity: userFunds + coldWalletBalance
+      liquidity: totalLiquidity,
+      userFunds: userFunds,
+      platformFee: settings?.platformFee ?? 1.5,
+      tradeFrequencyData
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -65,9 +160,29 @@ export const getAllUsers = async (req: Request, res: Response) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+
+    // Compute live trading positions and active shares per user
+    const usersWithStats = await Promise.all(
+      users.map(async (u) => {
+        const activeOrders = await P2POrder.find({
+          user: u._id,
+          status: { $in: ['OPEN', 'PARTIALLY_MATCHED', 'MATCHED'] }
+        });
+        const activeShares = activeOrders.reduce((sum, o) => sum + (o.unmatchedShares || o.totalShares || 0), 0);
+        const activePools = await PoolContract.countDocuments({ user: u._id, status: 'PENDING' });
+        
+        return {
+          ...u.toObject(),
+          stock: activeShares,
+          activeShares,
+          activeOrdersCount: activeOrders.length,
+          activePoolsCount: activePools
+        };
+      })
+    );
       
     res.json({
-      users,
+      users: usersWithStats,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       totalItems: total
@@ -1037,11 +1152,123 @@ export const createSecurityLog = async (req: Request, res: Response) => {
 export const updateTradeStatus = async (req: Request, res: Response) => {
   try {
     const { tradeId, status } = req.body;
-    const trade = await Trade.findById(tradeId);
-    if (!trade) return res.status(404).json({ message: 'Trade not found' });
-    trade.status = status;
-    await trade.save();
-    res.json(trade);
+    let trade: any = await Trade.findById(tradeId);
+    if (trade) {
+      trade.status = status;
+      await trade.save();
+      return res.json(trade);
+    }
+
+    let order = await P2POrder.findById(tradeId);
+    if (order) {
+      order.status = (status === 'SETTLED' ? 'SETTLED' : status === 'CANCELED' ? 'CANCELLED' : status) as any;
+      await order.save();
+      return res.json(order);
+    }
+
+    let pool = await PoolContract.findById(tradeId);
+    if (pool) {
+      pool.status = (status === 'SETTLED' ? 'WON' : status === 'CANCELED' ? 'REFUNDED' : status) as any;
+      await pool.save();
+      return res.json(pool);
+    }
+
+    return res.status(404).json({ message: 'Trade not found' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const createAdminTrade = async (req: Request, res: Response) => {
+  try {
+    const { partyA, partyB, amount, status = 'SETTLED' } = req.body;
+    const numAmount = Number(amount);
+    if (!partyA || !numAmount || numAmount <= 0) {
+      return res.status(400).json({ message: 'Valid initiator name and trade amount are required.' });
+    }
+
+    let userA = await User.findOne({
+      $or: [
+        { email: partyA.toLowerCase() },
+        { firstName: { $regex: new RegExp(`^${partyA.trim()}$`, 'i') } }
+      ]
+    });
+    if (!userA) {
+      userA = await User.findOne({ role: 'user' }) || (req as any).user;
+    }
+
+    if (!userA) {
+      return res.status(400).json({ message: 'No registered user found to assign as party A.' });
+    }
+
+    let userB = null;
+    if (partyB) {
+      userB = await User.findOne({
+        $or: [
+          { email: partyB.toLowerCase() },
+          { firstName: { $regex: new RegExp(`^${partyB.trim()}$`, 'i') } }
+        ]
+      });
+      if (!userB) {
+        userB = await User.findOne({ _id: { $ne: userA._id }, role: 'user' });
+      }
+    }
+
+    const trade = await Trade.create({
+      initiator: userA._id,
+      responder: userB ? userB._id : undefined,
+      amount: numAmount,
+      status: status
+    });
+
+    const populatedTrade = await Trade.findById((trade as any)._id)
+      .populate('initiator', 'firstName lastName email')
+      .populate('responder', 'firstName lastName email');
+
+    // Create a real transaction record for this trade
+    await Transaction.create({
+      user: userA._id,
+      type: 'trade_escrow',
+      amount: numAmount,
+      status: status === 'SETTLED' ? 'completed' : 'pending',
+      reference: `TRD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`
+    });
+
+    await SecurityLog.create({
+      type: 'success',
+      text: `Escrow trade created for ₦${numAmount.toLocaleString()} (${partyA}${partyB ? ' vs ' + partyB : ''})`,
+      meta: `Operator: ${(req as any).user?.firstName || 'Admin'}`,
+      icon: 'shield'
+    });
+
+    res.status(201).json(populatedTrade);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteTrade = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    let deleted = await Trade.findByIdAndDelete(id);
+    if (!deleted) {
+      deleted = await P2POrder.findByIdAndDelete(id);
+    }
+    if (!deleted) {
+      deleted = await PoolContract.findByIdAndDelete(id);
+    }
+    if (!deleted) {
+      return res.status(404).json({ message: 'Trade not found' });
+    }
+
+    await SecurityLog.create({
+      type: 'warning',
+      text: `Trade record ${id} removed by admin`,
+      meta: `Operator: ${(req as any).user?.firstName || 'Admin'}`,
+      icon: 'trash'
+    });
+
+    res.json({ message: 'Trade record deleted successfully' });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -1049,11 +1276,177 @@ export const updateTradeStatus = async (req: Request, res: Response) => {
 
 export const getAllTrades = async (req: Request, res: Response) => {
   try {
+    // 1. Direct peer-to-peer escrow trades
     const trades = await Trade.find()
-      .populate('initiator', 'firstName lastName')
-      .populate('responder', 'firstName lastName')
-      .sort({ createdAt: -1 });
-    res.json(trades);
+      .populate('initiator', 'firstName lastName email')
+      .populate('responder', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 2. Live P2P Orders from orderbook
+    const p2pOrders = await P2POrder.find()
+      .populate('user', 'firstName lastName email')
+      .populate('matchedFills.counterpartyUserId', 'firstName lastName email')
+      .populate('match', 'homeTeam awayTeam title')
+      .populate('predictionMarket', 'title pair')
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    // 3. Live Pool Contracts
+    const poolContracts = await PoolContract.find()
+      .populate('user', 'firstName lastName email')
+      .populate('match', 'homeTeam awayTeam title')
+      .populate('predictionMarket', 'title pair')
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    // Standardize P2P Orders
+    const mappedP2P = p2pOrders.map((o: any) => {
+      const counterparty = o.matchedFills && o.matchedFills.length > 0
+        ? o.matchedFills[0].counterpartyUserId
+        : null;
+
+      const title = o.match ? `${o.match.homeTeam || ''} vs ${o.match.awayTeam || ''}`.trim() : (o.predictionMarket?.title || o.market || 'Contract');
+
+      return {
+        _id: o._id,
+        id: o._id,
+        initiator: o.user || { firstName: 'Anonymous', lastName: 'User' },
+        responder: counterparty || { firstName: 'Peer', lastName: 'Network' },
+        amount: o.totalAmount || (o.totalShares * (o.sharePrice || 1000)),
+        status: o.status === 'MATCHED' || o.status === 'SETTLED' ? 'SETTLED' : o.status === 'CANCELLED' ? 'CANCELED' : 'PENDING',
+        tradeType: 'P2P_ORDER',
+        asset: 'NGN',
+        contractInfo: `${title} (${o.selection})`,
+        createdAt: o.createdAt
+      };
+    });
+
+    // Standardize Pool Contracts
+    const mappedPool = poolContracts.map((p: any) => {
+      const title = p.match ? `${p.match.homeTeam || ''} vs ${p.match.awayTeam || ''}`.trim() : (p.predictionMarket?.title || p.market || 'Pool Contract');
+
+      return {
+        _id: p._id,
+        id: p._id,
+        initiator: p.user || { firstName: 'Pool', lastName: 'Participant' },
+        responder: { firstName: 'Peer', lastName: 'Pool Reserve' },
+        amount: p.stake || 0,
+        status: p.status === 'WON' || p.status === 'LOST' ? 'SETTLED' : p.status === 'REFUNDED' ? 'CANCELED' : 'PENDING',
+        tradeType: 'POOL_CONTRACT',
+        asset: 'NGN',
+        contractInfo: `${title} (${p.selection})`,
+        createdAt: p.createdAt
+      };
+    });
+
+    const mappedTrades = trades.map((t: any) => ({
+      ...t,
+      id: t._id,
+      tradeType: 'DIRECT_ESCROW',
+      asset: 'NGN'
+    }));
+
+    // Combine all real trades and sort chronologically
+    const all = [...mappedTrades, ...mappedP2P, ...mappedPool].sort((a, b) => {
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+
+    res.json(all);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getAdminNotifications = async (req: Request, res: Response) => {
+  try {
+    const notifs = await Notification.find()
+      .populate('user', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    const formatted = notifs.map(n => ({
+      _id: n._id,
+      id: n._id,
+      title: n.title,
+      message: n.message,
+      text: n.message,
+      desc: n.message,
+      type: n.type || 'system',
+      category: (n.type || 'system').toUpperCase(),
+      read: n.isRead,
+      isRead: n.isRead,
+      createdAt: n.createdAt,
+      user: n.user
+    }));
+
+    res.json(formatted);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const markAdminNotificationsRead = async (req: Request, res: Response) => {
+  try {
+    await Notification.updateMany({ isRead: false }, { isRead: true });
+    res.json({ message: 'All notifications marked as read' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const markSingleAdminNotificationRead = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await Notification.findByIdAndUpdate(id, { isRead: true });
+    res.json({ message: 'Notification marked as read' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteAdminNotification = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await Notification.findByIdAndDelete(id);
+    res.json({ message: 'Notification deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const broadcastAdminNotification = async (req: Request, res: Response) => {
+  try {
+    const { title, message, type = 'system' } = req.body;
+    if (!title || !message) {
+      return res.status(400).json({ message: 'Title and message are required' });
+    }
+
+    const users = await User.find({ role: 'user' });
+    const docs = users.map(u => ({
+      user: u._id,
+      title,
+      message,
+      type: type as any,
+      isRead: false
+    }));
+
+    if (docs.length > 0) {
+      await Notification.insertMany(docs);
+    }
+
+    try {
+      const io = getIO();
+      if (io) {
+        io.emit('broadcast_alert', { title, message, type });
+      }
+    } catch (sockErr) {
+      console.warn('Socket broadcast warning:', sockErr);
+    }
+
+    res.json({ message: `Broadcast successfully sent to ${users.length} users` });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

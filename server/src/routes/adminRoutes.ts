@@ -21,6 +21,13 @@ import {
   createSecurityLog,
   updateTradeStatus,
   getAllTrades,
+  createAdminTrade,
+  deleteTrade,
+  getAdminNotifications,
+  markAdminNotificationsRead,
+  markSingleAdminNotificationRead,
+  deleteAdminNotification,
+  broadcastAdminNotification,
   changeAdminPassword,
   resetUserPassword,
   updateAdminProfile,
@@ -83,7 +90,15 @@ router.get('/security-logs', getSecurityLogs);
 router.post('/security-logs', createSecurityLog);
 
 router.get('/trades', getAllTrades);
+router.post('/trades', createAdminTrade);
+router.delete('/trades/:id', deleteTrade);
 router.post('/trades/status', updateTradeStatus);
+
+router.get('/notifications', getAdminNotifications);
+router.post('/notifications/mark-read', markAdminNotificationsRead);
+router.post('/notifications/:id/read', markSingleAdminNotificationRead);
+router.delete('/notifications/:id', deleteAdminNotification);
+router.post('/notifications/broadcast', broadcastAdminNotification);
 
 router.get('/vaults', getVaultBalances);
 router.post('/vaults', updateVaultBalances);

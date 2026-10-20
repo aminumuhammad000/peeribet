@@ -1,8 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ITrade extends Document {
-  initiator: mongoose.Schema.Types.ObjectId;
-  responder: mongoose.Schema.Types.ObjectId;
+  initiator: mongoose.Types.ObjectId;
+  responder?: mongoose.Types.ObjectId;
   amount: number;
   status: 'PENDING' | 'SETTLED' | 'BLOCKED' | 'CANCELED';
   createdAt: Date;

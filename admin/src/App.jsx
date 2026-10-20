@@ -324,30 +324,30 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Chart data
-  const tradeFrequencyData = [
-    { hour: '08:00 AM', count: 18, highlighted: false },
-    { hour: '10:00 AM', count: 24, highlighted: false },
-    { hour: '12:00 PM', count: 32, highlighted: false },
-    { hour: '02:00 PM', count: 48, highlighted: false },
-    { hour: '04:00 PM', count: 56, highlighted: true },
-    { hour: '06:00 PM', count: 38, highlighted: false },
-    { hour: '08:00 PM', count: 35, highlighted: false },
-    { hour: '10:00 PM', count: 29, highlighted: false },
-    { hour: '12:00 AM', count: 20, highlighted: false },
-    { hour: '02:00 AM', count: 12, highlighted: false }
-  ];
+  // Real 24h hourly trade frequency chart data computed directly from database
+  const tradeFrequencyData = useMemo(() => {
+    return Array.isArray(dbStats.tradeFrequencyData) && dbStats.tradeFrequencyData.length > 0
+      ? dbStats.tradeFrequencyData
+      : [];
+  }, [dbStats.tradeFrequencyData]);
 
-  // Dynamically calculate dashboard overview metrics based on state
+  // Dynamically calculate dashboard overview metrics based on real database state
   const metrics = useMemo(() => {
+    const formatCur = (val) => {
+      const num = Number(val) || 0;
+      if (num >= 1000000000) return '₦' + (num / 1000000000).toFixed(2) + 'B';
+      if (num >= 1000000) return '₦' + (num / 1000000).toFixed(2) + 'M';
+      return '₦' + num.toLocaleString();
+    };
+
     return {
-      users: dbStats.users.toLocaleString(),
-      activeTrades: dbStats.activeTrades.toLocaleString(),
-      volume: '₦' + dbStats.volume.toLocaleString(),
-      revenue: '₦' + dbStats.revenue.toLocaleString(),
-      inEscrow: '₦' + dbStats.inEscrow.toLocaleString(),
-      coldWalletBalance: '₦' + (dbStats.coldWalletBalance / 1000000000).toFixed(2) + 'B',
-      liquidity: '₦' + (dbStats.liquidity / 1000000000).toFixed(2) + 'B'
+      users: (dbStats.users || 0).toLocaleString(),
+      activeTrades: (dbStats.activeTrades || 0).toLocaleString(),
+      volume: '₦' + (dbStats.volume || 0).toLocaleString(),
+      revenue: '₦' + (dbStats.revenue || 0).toLocaleString(),
+      inEscrow: '₦' + (dbStats.inEscrow || 0).toLocaleString(),
+      coldWalletBalance: formatCur(dbStats.coldWalletBalance),
+      liquidity: formatCur(dbStats.liquidity)
     };
   }, [dbStats]);
 
@@ -363,7 +363,7 @@ export default function App() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      fetchDashboardStats();
+      fetchDashboardStats(dateRange);
       fetchUsers();
       fetchTransactions();
       fetchTrades();
@@ -374,15 +374,23 @@ export default function App() {
       fetchVaults();
       fetchReferralStats();
       fetchAirdropHistory();
+      fetchNotifications();
     }
   }, [isLoggedIn]);
 
-  const fetchDashboardStats = async () => {
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchDashboardStats(dateRange);
+    }
+  }, [dateRange]);
+
+  const fetchDashboardStats = async (range = dateRange) => {
     try {
-      const { data } = await api.get('/admin/stats');
+      const { data } = await api.get('/admin/stats', { params: { range } });
       setDbStats(data);
-      // Update platform fee etc from actual settings if exists
-      setPlatformFee(1.5); // Placeholder or fetch from settings
+      if (data && data.platformFee !== undefined) {
+        setPlatformFee(data.platformFee);
+      }
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
@@ -399,7 +407,8 @@ export default function App() {
         email: u.email || 'N/A',
         phone: u.phone || 'N/A',
         balance: u.balance || 0,
-        status: u.isVerified ? 'Healthy' : 'Unverified'
+        stock: u.stock || u.activeShares || 0,
+        status: (u.balance || 0) > 5000 ? 'Healthy' : (u.balance || 0) > 0 ? 'Low Balance' : 'Zero Balance'
       }));
       setUserBalances(mappedUsers);
 
@@ -448,20 +457,46 @@ export default function App() {
     try {
       const { data } = await api.get('/admin/trades');
       const list = Array.isArray(data) ? data : (data?.trades || []);
-      const mappedTrades = list.map(t => ({
-        id: t._id || t.id,
-        partyA: t.initiator ? `${t.initiator.firstName || ''} ${t.initiator.lastName || ''}`.trim() : 'System',
-        partyB: t.responder ? `${t.responder.firstName || ''} ${t.responder.lastName || ''}`.trim() : 'Unpaired',
-        avatarA: avatarList[Math.floor(Math.random() * avatarList.length)],
-        avatarB: avatarList[Math.floor(Math.random() * avatarList.length)],
-        asset: 'NGN',
-        amount: t.amount || 0,
-        time: new Date(t.createdAt || Date.now()).toLocaleTimeString(),
-        status: t.status || 'PENDING'
-      }));
+      const mappedTrades = list.map(t => {
+        const nameA = t.initiator ? `${t.initiator.firstName || ''} ${t.initiator.lastName || ''}`.trim() : 'System';
+        const nameB = t.responder ? `${t.responder.firstName || ''} ${t.responder.lastName || ''}`.trim() : (t.tradeType === 'POOL_CONTRACT' ? 'Peer Pool Reserve' : 'Orderbook Escrow');
+        return {
+          id: t._id || t.id,
+          partyA: nameA || 'Trader A',
+          partyB: nameB || 'Trader B',
+          avatarA: `https://ui-avatars.com/api/?name=${encodeURIComponent(nameA || 'User')}&background=0f172a&color=00D285`,
+          avatarB: `https://ui-avatars.com/api/?name=${encodeURIComponent(nameB || 'Escrow')}&background=1e293b&color=3B82F6`,
+          asset: t.asset || 'NGN',
+          amount: t.amount || 0,
+          contractInfo: t.contractInfo || '',
+          tradeType: t.tradeType || 'DIRECT_ESCROW',
+          time: new Date(t.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          status: t.status || 'PENDING'
+        };
+      });
       setTrades(mappedTrades);
     } catch (error) {
       console.error('Error fetching trades:', error);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await api.get('/admin/notifications');
+      const list = Array.isArray(data) ? data : (data?.notifications || []);
+      setNotifications(list.map(n => ({
+        id: n._id || n.id,
+        _id: n._id || n.id,
+        title: n.title || 'System Alert',
+        desc: n.message || n.text || n.title,
+        text: n.message || n.text || n.title,
+        type: n.type || 'system',
+        category: (n.type || 'system').toUpperCase(),
+        time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent',
+        read: !!n.isRead || !!n.read
+      })));
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
     }
   };
 
@@ -728,49 +763,35 @@ export default function App() {
   };
 
   // Handle New Trade Creation
-  const handleCreateTrade = (e) => {
+  const handleCreateTrade = async (e) => {
     e.preventDefault();
-    if (!newPartyA || !newPartyB || !newAmount) return;
+    if (!newPartyA || !newAmount) return;
 
-    const amountNum = parseFloat(newAmount) || 0;
-    const randomId = `#TRD-${Math.floor(1000 + Math.random() * 9000)}`;
+    try {
+      const amountNum = parseFloat(newAmount) || 0;
+      await api.post('/admin/trades', {
+        partyA: newPartyA,
+        partyB: newPartyB,
+        amount: amountNum,
+        status: newStatus
+      });
 
-    const newRecord = {
-      id: randomId,
-      partyA: newPartyA,
-      partyB: newPartyB,
-      avatarA: avatarList[Math.floor(Math.random() * avatarList.length)],
-      avatarB: avatarList[Math.floor(Math.random() * avatarList.length)],
-      asset: 'NGN',
-      amount: amountNum,
-      time: 'Just now',
-      status: newStatus
-    };
+      showToast('Escrow trade created and persisted successfully.', 'success');
+      setIsModalOpen(false);
+      setNewPartyA('');
+      setNewPartyB('');
+      setNewAmount('');
+      setNewStatus('SETTLED');
+      setCurrentPage(1);
 
-    setTrades([newRecord, ...trades]);
-    setIsModalOpen(false);
-    setNewPartyA('');
-    setNewPartyB('');
-    setNewAmount('');
-    setNewStatus('SETTLED');
-    setCurrentPage(1);
-
-    // Write audit log
-    logSecurityEvent('success', `New simulated escrow trade locked successfully: ${randomId} for ₦${amountNum.toLocaleString()}`, `Initiator: HASHIM . Just now`, 'success');
-
-    // Prepend a Transaction record too
-    const newTx = {
-      hash: '0x' + Math.random().toString(16).substring(2, 18),
-      type: 'ESCROW_LOCK',
-      amount: amountNum,
-      fromTo: `${newPartyA} -> Escrow Pool`,
-      userName: newPartyA,
-      userEmail: `${newPartyA.toLowerCase().replace(/\s+/g, '')}@gmail.com`,
-      userPhone: '090' + Math.floor(10000000 + Math.random() * 90000000),
-      time: 'Just now',
-      status: 'SUCCESS'
-    };
-    setTransactions(prev => [newTx, ...prev]);
+      await Promise.all([
+        fetchTrades(),
+        fetchDashboardStats(),
+        fetchTransactions()
+      ]);
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Failed to create trade.', 'error');
+    }
   };
 
   // Handle Changing Trade Status
@@ -779,6 +800,7 @@ export default function App() {
       await api.post('/admin/trades/status', { tradeId: id, status: nextStatus });
       showToast(`Trade status updated to ${nextStatus}`, 'success');
       fetchTrades();
+      fetchDashboardStats();
       setActiveMenuId(null);
 
       logSecurityEvent(
@@ -793,12 +815,16 @@ export default function App() {
   };
 
   // Handle Deleting Trade
-  const handleDeleteTrade = (id) => {
-    setTrades(trades.filter((trade) => trade.id !== id));
-    setActiveMenuId(null);
-
-    // Write audit log
-    logSecurityEvent('warning', `Simulated trade record ${id} was purged from compliance tables`, `Operator: HASHIM . Just now`, 'shield');
+  const handleDeleteTrade = async (id) => {
+    try {
+      await api.delete(`/admin/trades/${id}`);
+      showToast('Trade record removed from registry.', 'success');
+      setActiveMenuId(null);
+      await Promise.all([fetchTrades(), fetchDashboardStats()]);
+      logSecurityEvent('warning', `Trade record ${id} was purged from compliance tables`, `Operator: ${adminName}`, 'shield');
+    } catch (error) {
+      showToast(error.response?.data?.message || 'Failed to delete trade.', 'error');
+    }
   };
 
   // Handle Change Password Form
@@ -1366,14 +1392,34 @@ export default function App() {
   };
 
   // Handle notification actions
-  const handleMarkAllRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
-    showToast('All notifications marked as read.');
-    logSecurityEvent('success', `All system notifications marked as READ`, 'Operator Authorization', 'login');
+  const handleMarkAllRead = async () => {
+    try {
+      await api.post('/admin/notifications/mark-read');
+      setNotifications(notifications.map(n => ({ ...n, read: true })));
+      showToast('All notifications marked as read.');
+      logSecurityEvent('success', `All system notifications marked as READ`, 'Operator Authorization', 'login');
+    } catch (error) {
+      showToast('Failed to mark notifications read.', 'error');
+    }
   };
 
-  const handleDismissNotification = (id) => {
-    setNotifications(notifications.filter(n => n.id !== id));
+  const handleDismissNotification = async (id) => {
+    try {
+      await api.delete(`/admin/notifications/${id}`);
+      setNotifications(notifications.filter(n => (n._id || n.id) !== id));
+      showToast('Notification dismissed.');
+    } catch (error) {
+      setNotifications(notifications.filter(n => (n._id || n.id) !== id));
+    }
+  };
+
+  const handleMarkSingleRead = async (id) => {
+    try {
+      await api.post(`/admin/notifications/${id}/read`);
+      setNotifications(notifications.map(n => (n._id || n.id) === id ? { ...n, read: true } : n));
+    } catch (error) {
+      setNotifications(notifications.map(n => (n._id || n.id) === id ? { ...n, read: true } : n));
+    }
   };
 
   // Handle approving or rejecting KYC users registration
@@ -1875,9 +1921,10 @@ export default function App() {
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value)}
                 >
-                  <option value="Aug 12 - Aug 19">Aug 12 - Aug 19</option>
-                  <option value="Aug 20 - Aug 27">Aug 20 - Aug 27</option>
-                  <option value="All Time">All Time</option>
+                  <option value="Today">Today (Live)</option>
+                  <option value="7D">Past 7 Days</option>
+                  <option value="30D">Past 30 Days</option>
+                  <option value="ALL">All Time</option>
                 </select>
 
                 <button
@@ -2029,25 +2076,43 @@ export default function App() {
                   style={{ cursor: 'pointer' }}
                   title="Click to view Transactions"
                 >
-                  {tradeFrequencyData.map((data, index) => (
-                    <div
-                      key={index}
-                      className={`bar-wrapper ${data.highlighted ? 'highlighted' : ''}`}
-                    >
-                      <div className="bar-tooltip">{data.count} Trades</div>
-                      <div
-                        className="bar-column"
-                        style={{ height: `${(data.count / 60) * 100}%` }}
-                      />
+                  {tradeFrequencyData.length === 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', color: 'var(--text-muted)', fontSize: 12 }}>
+                      No trade transactions recorded in this period
                     </div>
-                  ))}
+                  ) : (
+                    tradeFrequencyData.map((data, index) => {
+                      const maxBinCount = Math.max(...tradeFrequencyData.map(d => d.count || 0), 1);
+                      const barPercent = data.count > 0 ? Math.max(12, Math.round((data.count / maxBinCount) * 100)) : 6;
+                      return (
+                        <div
+                          key={index}
+                          className={`bar-wrapper ${data.highlighted ? 'highlighted' : ''}`}
+                        >
+                          <div className="bar-tooltip">{data.count} Trades ({data.hour})</div>
+                          <div
+                            className="bar-column"
+                            style={{ height: `${barPercent}%` }}
+                          />
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
                 <div className="chart-x-labels">
-                  <span className="x-label-text">08:00 AM</span>
-                  <span className="x-label-text">12:00 PM</span>
-                  <span className="x-label-text">04:00 PM</span>
-                  <span className="x-label-text">08:00 PM</span>
-                  <span className="x-label-text">02:00 AM</span>
+                  {tradeFrequencyData.length > 0 ? (
+                    tradeFrequencyData.filter((_, idx) => idx % 2 === 0).map((d, i) => (
+                      <span key={i} className="x-label-text">{d.hour}</span>
+                    ))
+                  ) : (
+                    <>
+                      <span className="x-label-text">12:00 AM</span>
+                      <span className="x-label-text">06:00 AM</span>
+                      <span className="x-label-text">12:00 PM</span>
+                      <span className="x-label-text">06:00 PM</span>
+                      <span className="x-label-text">Now</span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -2111,7 +2176,7 @@ export default function App() {
                         <span className="oversight-value">{metrics.coldWalletBalance}</span>
                       </div>
                     </div>
-                    <span className="oversight-badge change-pos">+3.4%</span>
+                    <span className="oversight-badge change-pos">Multi-Sig</span>
                   </div>
 
                   {/* Progress segment */}
@@ -2130,20 +2195,30 @@ export default function App() {
                     <div className="liquidity-progress-header">
                       <span>LIQUIDITY DISTRIBUTION</span>
                     </div>
-                    <div className="liquidity-progress-bar-container">
-                      <div className="progress-section-bank" style={{ width: '65%' }} />
-                      <div className="progress-section-cards" style={{ width: '35%' }} />
-                    </div>
-                    <div className="liquidity-labels-row">
-                      <div className="liquidity-dot-label">
-                        <span className="liquidity-dot bank" />
-                        <span>Bank (65%)</span>
-                      </div>
-                      <div className="liquidity-dot-label">
-                        <span className="liquidity-dot cards" />
-                        <span>Cards (35%)</span>
-                      </div>
-                    </div>
+                    {(() => {
+                      const totalLiq = Number(dbStats.liquidity) || (Number(dbStats.userFunds || 0) + Number(dbStats.coldWalletBalance || 0)) || 1;
+                      const userFunds = Number(dbStats.userFunds || 0);
+                      const userPct = Math.min(100, Math.max(0, Math.round((userFunds / totalLiq) * 100))) || 50;
+                      const vaultPct = 100 - userPct;
+                      return (
+                        <>
+                          <div className="liquidity-progress-bar-container">
+                            <div className="progress-section-bank" style={{ width: `${userPct}%` }} />
+                            <div className="progress-section-cards" style={{ width: `${vaultPct}%` }} />
+                          </div>
+                          <div className="liquidity-labels-row">
+                            <div className="liquidity-dot-label">
+                              <span className="liquidity-dot bank" />
+                              <span>Trader Wallets ({userPct}%)</span>
+                            </div>
+                            <div className="liquidity-dot-label">
+                              <span className="liquidity-dot cards" />
+                              <span>Vault Reserves ({vaultPct}%)</span>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -2398,7 +2473,7 @@ export default function App() {
               <div className="header-action-row">
                 <button
                   className="export-btn"
-                  onClick={() => alert('Exporting full transaction registry CSV...')}
+                  onClick={handleExportReport}
                 >
                   <Download size={14} />
                   <span>Export CSV</span>
@@ -2891,19 +2966,37 @@ export default function App() {
                       </div>
                     </div>
 
-                    <button
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#64748b',
-                        cursor: 'pointer',
-                        fontSize: 11,
-                        padding: '4px 8px'
-                      }}
-                      onClick={() => handleDismissNotification(notif.id)}
-                    >
-                      Dismiss
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {!notif.read && (
+                        <button
+                          style={{
+                            background: 'rgba(0, 210, 133, 0.1)',
+                            border: '1px solid rgba(0, 210, 133, 0.3)',
+                            color: '#00D285',
+                            cursor: 'pointer',
+                            fontSize: 11,
+                            padding: '4px 8px',
+                            borderRadius: 4
+                          }}
+                          onClick={() => handleMarkSingleRead(notif.id)}
+                        >
+                          Mark Read
+                        </button>
+                      )}
+                      <button
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#64748b',
+                          cursor: 'pointer',
+                          fontSize: 11,
+                          padding: '4px 8px'
+                        }}
+                        onClick={() => handleDismissNotification(notif.id)}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
                   </div>
                 ))}
 
@@ -4823,69 +4916,6 @@ export default function App() {
               </div>
             </section>
           </main>
-        ) : activeTab === 'notifications' ? (
-          <main className="dashboard-container">
-            {/* Header section */}
-            <div className="section-header">
-              <div>
-                <h2 className="overview-title">System Alert Center</h2>
-                <p className="overview-sub">Monitor security triggers, market signals, and network events.</p>
-              </div>
-              <button className="export-btn" onClick={handleMarkAllRead}>
-                <CheckCircle size={14} />
-                <span>Mark Protocol Read</span>
-              </button>
-            </div>
-
-            <div className="notifications-list-card">
-              {notifications.length === 0 ? (
-                <div className="empty-notifications">
-                  <Bell size={48} strokeWidth={1} />
-                  <h3>No Active Alerts</h3>
-                  <p>System is currently operating within normal parameters.</p>
-                </div>
-              ) : (
-                notifications.map((notif) => (
-                  <div key={notif.id} className={`notification-item ${notif.read ? 'read' : 'unread'}`}>
-                    <div className="notification-main">
-                      <div className={`notification-icon-box ${notif.type}`}>
-                        {notif.type === 'market' ? <Activity size={20} /> :
-                          notif.type === 'security' ? <Shield size={20} /> :
-                            notif.type === 'system' ? <Cpu size={20} /> :
-                              <BarChart3 size={20} />}
-                      </div>
-                      <div className="notification-content">
-                        <span className="notification-text">{notif.text}</span>
-                        <div className="notification-meta">
-                          <span style={{ textTransform: 'uppercase', fontWeight: 'bold' }}>{notif.type}</span>
-                          <span>•</span>
-                          <span>{notif.time}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="notification-actions">
-                      {!notif.read && (
-                        <button
-                          className="notif-action-btn"
-                          title="Mark as read"
-                          onClick={() => setNotifications(notifications.map(n => n.id === notif.id ? { ...n, read: true } : n))}
-                        >
-                          <CheckCircle size={16} />
-                        </button>
-                      )}
-                      <button
-                        className="notif-action-btn"
-                        title="Dismiss"
-                        onClick={() => handleDismissNotification(notif.id)}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </main>
         ) : activeTab === 'referrals' ? (
           <main className="dashboard-container">
             {/* Referral Management Header */}
@@ -5176,7 +5206,7 @@ export default function App() {
             <div className="placeholder-view">
               <h2>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Dashboard</h2>
               <p>
-                Administrative access options for Peeritrade escrow systems, clearing registries, risk managers, and network nodes. Live details are simulated automatically in your primary database layout.
+                Administrative access options for Peeritrade escrow systems, clearing registries, risk managers, and network nodes. All live records and telemetry are synchronized directly with your MongoDB database.
               </p>
               <button
                 className="btn-primary"
@@ -5195,7 +5225,7 @@ export default function App() {
         <div className="modal-overlay">
           <div className="modal-content-card">
             <div className="modal-title-row">
-              <h2>Initiate Simulated Trade</h2>
+              <h2>Initiate Escrow Trade</h2>
               <button
                 className="modal-close-btn"
                 onClick={() => setIsModalOpen(false)}
