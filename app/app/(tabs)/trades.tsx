@@ -29,6 +29,10 @@ import {
   Sparkles,
   ShieldCheck,
   Award,
+  Send,
+  Globe,
+  Link2,
+  MessageSquare,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { p2pService, poolService, betService, referralService, showToast } from '../../services/apiService';
@@ -265,6 +269,15 @@ export default function TradesScreen() {
       } else if (targetPlatform === 'telegram') {
         const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareMessage)}`;
         await Linking.openURL(tgUrl);
+      } else if (targetPlatform === 'facebook') {
+        const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareMessage)}`;
+        await Linking.openURL(fbUrl);
+      } else if (targetPlatform === 'copy_link') {
+        Clipboard.setString(shareUrl);
+        showToast('Referral link copied! Share to social media to get friends to join.', 'success');
+      } else if (targetPlatform === 'copy_slip') {
+        Clipboard.setString(shareMessage);
+        showToast('Full victory slip copied! Paste on social media or status to share.', 'success');
       } else {
         await Share.share({
           title: 'Peeritrade Outcome Trade Win Receipt',
@@ -536,181 +549,270 @@ export default function TradesScreen() {
         >
           <View style={styles.receiptModalOverlay}>
             <View style={styles.receiptModalCard}>
-              {/* Header: Verified Seal & Close */}
-              <View style={styles.receiptHeaderRow}>
-                <View style={styles.verifiedBadgeRow}>
-                  <ShieldCheck size={14} color="#00D285" />
-                  <Text style={styles.verifiedBadgeText}>VERIFIED WIN RECEIPT</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setWinReceiptModalVisible(false)}
-                  style={styles.receiptCloseBtn}
-                  activeOpacity={0.7}
-                >
-                  <X size={18} color="#94A3B8" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Glowing Win Hero Card */}
-              <LinearGradient
-                colors={['rgba(0, 210, 133, 0.22)', 'rgba(0, 210, 133, 0.04)']}
-                style={styles.receiptHeroBanner}
-              >
-                <Award size={34} color="#00D285" style={{ marginBottom: 4 }} />
-                <Text style={styles.receiptHeroSubtitle}>PEERITRADE SETTLEMENT</Text>
-                <Text style={styles.receiptHeroProfit}>
-                  +₦{(selectedWinTrade?.rawProfit || 5000).toLocaleString()}
-                </Text>
-                <Text style={styles.receiptHeroProfitLabel}>Net Outcome Profit Won</Text>
-              </LinearGradient>
-
-              {/* Trade Breakdown Box */}
-              <View style={styles.receiptDetailsBox}>
-                <View style={styles.receiptDetailRow}>
-                  <Text style={styles.receiptDetailLabel}>Market / Event</Text>
-                  <Text style={styles.receiptDetailValue} numberOfLines={1}>
-                    {selectedWinTrade?.matchTitle}
-                  </Text>
-                </View>
-                <View style={styles.receiptDetailRow}>
-                  <Text style={styles.receiptDetailLabel}>Winning Position</Text>
-                  <Text style={styles.receiptDetailValueHighlight}>
-                    {selectedWinTrade?.position}
-                  </Text>
-                </View>
-                <View style={styles.receiptDetailRow}>
-                  <Text style={styles.receiptDetailLabel}>Contract Amount</Text>
-                  <Text style={styles.receiptDetailValue}>
-                    ₦{(selectedWinTrade?.amount || 5000).toLocaleString()}
-                  </Text>
-                </View>
-                <View style={[styles.receiptDetailRow, { borderBottomWidth: 0 }]}>
-                  <Text style={styles.receiptDetailLabel}>Status</Text>
-                  <Text style={[styles.receiptDetailValueHighlight, { color: '#00D285' }]}>
-                    WON & CREDITED
-                  </Text>
-                </View>
-              </View>
-
-              {/* Referral Dual ₦1,000 Bonus Banner */}
-              <View style={styles.referralCalloutCard}>
-                <View style={styles.referralCalloutHeader}>
-                  <Gift size={16} color="#F59E0B" />
-                  <Text style={styles.referralCalloutTitle}>Dual ₦1,000 Referral Perk</Text>
-                </View>
-                <Text style={styles.referralCalloutDesc}>
-                  Share this win slip. When a friend signs up using your code, <Text style={{ color: '#00D285', fontWeight: '700' }}>they get ₦1,000</Text> and <Text style={{ color: '#00D285', fontWeight: '700' }}>you get ₦1,000</Text> credited instantly!
-                </Text>
-
-                {/* Referral Code Bar */}
-                <View style={styles.codeCopyBar}>
-                  <View>
-                    <Text style={styles.codeCopyLabel}>YOUR REFERRAL CODE</Text>
-                    <Text style={styles.codeCopyValue}>{userReferralCode}</Text>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 6 }}>
+                {/* Header: Verified Seal & Close */}
+                <View style={styles.receiptHeaderRow}>
+                  <View style={styles.verifiedBadgeRow}>
+                    <ShieldCheck size={14} color="#00D285" />
+                    <Text style={styles.verifiedBadgeText}>VERIFIED WIN RECEIPT</Text>
                   </View>
                   <TouchableOpacity
-                    onPress={handleCopyReferralCode}
-                    style={styles.codeCopyBtn}
+                    onPress={() => setWinReceiptModalVisible(false)}
+                    style={styles.receiptCloseBtn}
                     activeOpacity={0.7}
                   >
-                    {copiedCode ? (
-                      <CheckCircle size={15} color="#00D285" />
-                    ) : (
-                      <Copy size={15} color="#00D285" />
-                    )}
-                    <Text style={styles.codeCopyBtnText}>{copiedCode ? 'Copied!' : 'Copy'}</Text>
+                    <X size={18} color="#94A3B8" />
                   </TouchableOpacity>
                 </View>
-              </View>
 
-              {/* Social Channels Quick Share */}
-              <View style={styles.socialShareRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.socialChannelBtn,
-                    { backgroundColor: 'rgba(37, 211, 102, 0.12)', borderColor: 'rgba(37, 211, 102, 0.3)' },
-                    (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
-                  ]}
-                  activeOpacity={0.8}
-                  disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
-                  onPress={() => handleShareWinReceipt('whatsapp')}
-                >
-                  <Text style={[styles.socialChannelText, { color: '#25D366' }]}>WhatsApp</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.socialChannelBtn,
-                    { backgroundColor: 'rgba(29, 161, 242, 0.12)', borderColor: 'rgba(29, 161, 242, 0.3)' },
-                    (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
-                  ]}
-                  activeOpacity={0.8}
-                  disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
-                  onPress={() => handleShareWinReceipt('twitter')}
-                >
-                  <Text style={[styles.socialChannelText, { color: '#1DA1F2' }]}>X (Twitter)</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.socialChannelBtn,
-                    { backgroundColor: 'rgba(0, 136, 204, 0.12)', borderColor: 'rgba(0, 136, 204, 0.3)' },
-                    (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
-                  ]}
-                  activeOpacity={0.8}
-                  disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
-                  onPress={() => handleShareWinReceipt('telegram')}
-                >
-                  <Text style={[styles.socialChannelText, { color: '#38BDF8' }]}>Telegram</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Share CTA Button with Anti-Abuse Status */}
-              <TouchableOpacity
-                style={[
-                  styles.receiptShareCTA,
-                  (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.7 }
-                ]}
-                activeOpacity={0.85}
-                disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
-                onPress={() => handleShareWinReceipt('social_share')}
-              >
+                {/* Glowing Win Hero Card */}
                 <LinearGradient
-                  colors={
-                    selectedWinTrade && claimedTradeIds[selectedWinTrade.id]
-                      ? ['#1E293B', '#0F172A']
-                      : ['#00D285', '#00A86B']
-                  }
-                  style={styles.receiptShareGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  colors={['rgba(0, 210, 133, 0.22)', 'rgba(0, 210, 133, 0.04)']}
+                  style={styles.receiptHeroBanner}
                 >
-                  {selectedWinTrade && claimedTradeIds[selectedWinTrade.id] ? (
-                    <CheckCircle size={18} color="#00D285" />
-                  ) : (
-                    <Share2 size={18} color="#050811" />
-                  )}
-                  <Text
-                    style={[
-                      styles.receiptShareBtnText,
-                      selectedWinTrade && claimedTradeIds[selectedWinTrade.id] && { color: '#00D285' }
-                    ]}
-                  >
-                    {isClaimingShare
-                      ? 'Crediting Bonus...'
-                      : selectedWinTrade && claimedTradeIds[selectedWinTrade.id]
-                      ? 'Receipt Already Rewarded ✓'
-                      : sharesRemainingThisWeek <= 0
-                      ? 'Weekly Limit Reached (3/3 Used)'
-                      : `Share Win Slip & Earn ₦1,000 (${sharesRemainingThisWeek}/3 Left)`}
+                  <Award size={34} color="#00D285" style={{ marginBottom: 4 }} />
+                  <Text style={styles.receiptHeroSubtitle}>PEERITRADE SETTLEMENT</Text>
+                  <Text style={styles.receiptHeroProfit}>
+                    +₦{(selectedWinTrade?.rawProfit || 5000).toLocaleString()}
                   </Text>
+                  <Text style={styles.receiptHeroProfitLabel}>Net Outcome Profit Won</Text>
                 </LinearGradient>
-              </TouchableOpacity>
 
-              {/* Anti-abuse & Policy Footer Note */}
-              <Text style={styles.receiptRuleFooterNote}>
-                Rules: 1 slip = 1 reward • Max 3 shares/wk • Friends receive ₦1,000 on signup
-              </Text>
+                {/* Trade Breakdown Box */}
+                <View style={styles.receiptDetailsBox}>
+                  <View style={styles.receiptDetailRow}>
+                    <Text style={styles.receiptDetailLabel}>Market / Event</Text>
+                    <Text style={styles.receiptDetailValue} numberOfLines={1}>
+                      {selectedWinTrade?.matchTitle}
+                    </Text>
+                  </View>
+                  <View style={styles.receiptDetailRow}>
+                    <Text style={styles.receiptDetailLabel}>Winning Position</Text>
+                    <Text style={styles.receiptDetailValueHighlight}>
+                      {selectedWinTrade?.position}
+                    </Text>
+                  </View>
+                  <View style={styles.receiptDetailRow}>
+                    <Text style={styles.receiptDetailLabel}>Contract Amount</Text>
+                    <Text style={styles.receiptDetailValue}>
+                      ₦{(selectedWinTrade?.amount || 5000).toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={[styles.receiptDetailRow, { borderBottomWidth: 0 }]}>
+                    <Text style={styles.receiptDetailLabel}>Status</Text>
+                    <Text style={[styles.receiptDetailValueHighlight, { color: '#00D285' }]}>
+                      WON & CREDITED
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Referral Dual ₦1,000 Bonus Banner */}
+                <View style={styles.referralCalloutCard}>
+                  <View style={styles.referralCalloutHeader}>
+                    <Gift size={16} color="#F59E0B" />
+                    <Text style={styles.referralCalloutTitle}>Dual ₦1,000 Referral Perk</Text>
+                  </View>
+                  <Text style={styles.referralCalloutDesc}>
+                    Share this win slip. When a friend signs up using your code, <Text style={{ color: '#00D285', fontWeight: '700' }}>they get ₦1,000</Text> and <Text style={{ color: '#00D285', fontWeight: '700' }}>you get ₦1,000</Text> credited instantly!
+                  </Text>
+
+                  {/* Referral Code Bar */}
+                  <View style={styles.codeCopyBar}>
+                    <View>
+                      <Text style={styles.codeCopyLabel}>YOUR REFERRAL CODE</Text>
+                      <Text style={styles.codeCopyValue}>{userReferralCode}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={handleCopyReferralCode}
+                      style={styles.codeCopyBtn}
+                      activeOpacity={0.7}
+                    >
+                      {copiedCode ? (
+                        <CheckCircle size={15} color="#00D285" />
+                      ) : (
+                        <Copy size={15} color="#00D285" />
+                      )}
+                      <Text style={styles.codeCopyBtnText}>{copiedCode ? 'Copied!' : 'Copy'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Options for Sharing Win Trade Header */}
+                <View style={styles.shareOptionsHeader}>
+                  <Sparkles size={14} color="#00D285" />
+                  <Text style={styles.shareOptionsTitle}>OPTIONS FOR SHARING WIN TRADE</Text>
+                </View>
+
+                {/* Options Grid */}
+                <View style={styles.shareOptionsGrid}>
+                  {/* Option 1: WhatsApp */}
+                  <TouchableOpacity
+                    style={[
+                      styles.shareOptionCard,
+                      { backgroundColor: 'rgba(37, 211, 102, 0.1)', borderColor: 'rgba(37, 211, 102, 0.3)' },
+                      (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
+                    ]}
+                    activeOpacity={0.75}
+                    disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                    onPress={() => handleShareWinReceipt('whatsapp')}
+                  >
+                    <View style={[styles.shareOptionIconWrap, { backgroundColor: 'rgba(37, 211, 102, 0.2)' }]}>
+                      <MessageSquare size={16} color="#25D366" />
+                    </View>
+                    <View style={styles.shareOptionTextWrap}>
+                      <Text style={[styles.shareOptionName, { color: '#25D366' }]}>WhatsApp</Text>
+                      <Text style={styles.shareOptionSub}>Chat & Status</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Option 2: X (Twitter) */}
+                  <TouchableOpacity
+                    style={[
+                      styles.shareOptionCard,
+                      { backgroundColor: 'rgba(29, 161, 242, 0.1)', borderColor: 'rgba(29, 161, 242, 0.3)' },
+                      (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
+                    ]}
+                    activeOpacity={0.75}
+                    disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                    onPress={() => handleShareWinReceipt('twitter')}
+                  >
+                    <View style={[styles.shareOptionIconWrap, { backgroundColor: 'rgba(29, 161, 242, 0.2)' }]}>
+                      <Send size={16} color="#1DA1F2" />
+                    </View>
+                    <View style={styles.shareOptionTextWrap}>
+                      <Text style={[styles.shareOptionName, { color: '#1DA1F2' }]}>X (Twitter)</Text>
+                      <Text style={styles.shareOptionSub}>Tweet Win</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Option 3: Telegram */}
+                  <TouchableOpacity
+                    style={[
+                      styles.shareOptionCard,
+                      { backgroundColor: 'rgba(0, 136, 204, 0.1)', borderColor: 'rgba(0, 136, 204, 0.3)' },
+                      (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
+                    ]}
+                    activeOpacity={0.75}
+                    disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                    onPress={() => handleShareWinReceipt('telegram')}
+                  >
+                    <View style={[styles.shareOptionIconWrap, { backgroundColor: 'rgba(0, 136, 204, 0.2)' }]}>
+                      <Send size={16} color="#38BDF8" />
+                    </View>
+                    <View style={styles.shareOptionTextWrap}>
+                      <Text style={[styles.shareOptionName, { color: '#38BDF8' }]}>Telegram</Text>
+                      <Text style={styles.shareOptionSub}>Channel & DM</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Option 4: Facebook */}
+                  <TouchableOpacity
+                    style={[
+                      styles.shareOptionCard,
+                      { backgroundColor: 'rgba(24, 119, 242, 0.1)', borderColor: 'rgba(24, 119, 242, 0.3)' },
+                      (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
+                    ]}
+                    activeOpacity={0.75}
+                    disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                    onPress={() => handleShareWinReceipt('facebook')}
+                  >
+                    <View style={[styles.shareOptionIconWrap, { backgroundColor: 'rgba(24, 119, 242, 0.2)' }]}>
+                      <Globe size={16} color="#60A5FA" />
+                    </View>
+                    <View style={styles.shareOptionTextWrap}>
+                      <Text style={[styles.shareOptionName, { color: '#60A5FA' }]}>Facebook</Text>
+                      <Text style={styles.shareOptionSub}>Feed & Groups</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Option 5: Copy Win Link */}
+                  <TouchableOpacity
+                    style={[
+                      styles.shareOptionCard,
+                      { backgroundColor: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.3)' },
+                      (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
+                    ]}
+                    activeOpacity={0.75}
+                    disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                    onPress={() => handleShareWinReceipt('copy_link')}
+                  >
+                    <View style={[styles.shareOptionIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
+                      <Link2 size={16} color="#F59E0B" />
+                    </View>
+                    <View style={styles.shareOptionTextWrap}>
+                      <Text style={[styles.shareOptionName, { color: '#F59E0B' }]}>Copy Win Link</Text>
+                      <Text style={styles.shareOptionSub}>IG / TikTok / Bio</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Option 6: Copy Slip Text */}
+                  <TouchableOpacity
+                    style={[
+                      styles.shareOptionCard,
+                      { backgroundColor: 'rgba(6, 182, 212, 0.1)', borderColor: 'rgba(6, 182, 212, 0.3)' },
+                      (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
+                    ]}
+                    activeOpacity={0.75}
+                    disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                    onPress={() => handleShareWinReceipt('copy_slip')}
+                  >
+                    <View style={[styles.shareOptionIconWrap, { backgroundColor: 'rgba(6, 182, 212, 0.2)' }]}>
+                      <Copy size={16} color="#06B6D4" />
+                    </View>
+                    <View style={styles.shareOptionTextWrap}>
+                      <Text style={[styles.shareOptionName, { color: '#06B6D4' }]}>Copy Slip Text</Text>
+                      <Text style={styles.shareOptionSub}>Paste Full Slip</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Option 7: Native Share Sheet (More Apps) */}
+                <TouchableOpacity
+                  style={[
+                    styles.receiptShareCTA,
+                    (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.7 }
+                  ]}
+                  activeOpacity={0.85}
+                  disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                  onPress={() => handleShareWinReceipt('social_share')}
+                >
+                  <LinearGradient
+                    colors={
+                      selectedWinTrade && claimedTradeIds[selectedWinTrade.id]
+                        ? ['#1E293B', '#0F172A']
+                        : ['#00D285', '#00A86B']
+                    }
+                    style={styles.receiptShareGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    {selectedWinTrade && claimedTradeIds[selectedWinTrade.id] ? (
+                      <CheckCircle size={18} color="#00D285" />
+                    ) : (
+                      <Share2 size={18} color="#050811" />
+                    )}
+                    <Text
+                      style={[
+                        styles.receiptShareBtnText,
+                        selectedWinTrade && claimedTradeIds[selectedWinTrade.id] && { color: '#00D285' }
+                      ]}
+                    >
+                      {isClaimingShare
+                        ? 'Crediting Bonus...'
+                        : selectedWinTrade && claimedTradeIds[selectedWinTrade.id]
+                        ? 'Receipt Already Rewarded ✓'
+                        : sharesRemainingThisWeek <= 0
+                        ? 'Weekly Limit Reached (3/3 Used)'
+                        : `More Share Options • Earn ₦1,000 (${sharesRemainingThisWeek}/3 Left)`}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                {/* Anti-abuse & Policy Footer Note */}
+                <Text style={styles.receiptRuleFooterNote}>
+                  Rules: 1 slip = 1 reward • Max 3 shares/wk • Friends receive ₦1,000 on signup
+                </Text>
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -1040,6 +1142,7 @@ const styles = StyleSheet.create({
   },
   receiptModalCard: {
     width: '100%',
+    maxHeight: '90%',
     backgroundColor: '#0F182E',
     borderRadius: 24,
     padding: 20,
@@ -1231,29 +1334,64 @@ const styles = StyleSheet.create({
     color: '#050811',
     fontFamily: 'Inter',
   },
-  socialShareRow: {
+  /* Options for Sharing Win Trade Styles */
+  shareOptionsHeader: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 10,
+    marginTop: 4,
   },
-  socialChannelBtn: {
-    flex: 1,
-    paddingVertical: 9,
-    borderRadius: 10,
+  shareOptionsTitle: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#8FA2C7',
+    letterSpacing: 1,
+    fontFamily: 'Inter',
+  },
+  shareOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 14,
+  },
+  shareOptionCard: {
+    width: '48.5%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  shareOptionIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
-  socialChannelText: {
+  shareOptionTextWrap: {
+    flex: 1,
+  },
+  shareOptionName: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     fontFamily: 'Inter',
+  },
+  shareOptionSub: {
+    fontSize: 9.5,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+    marginTop: 1,
   },
   receiptRuleFooterNote: {
     fontSize: 10,
     color: '#64748B',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 10,
     fontFamily: 'Inter',
   },
 });
