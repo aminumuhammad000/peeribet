@@ -218,6 +218,8 @@ export default function App() {
   const [kycSearchQuery, setKycSearchQuery] = useState('');
   const [kycStatusFilter, setKycStatusFilter] = useState('ALL');
   const [selectedKycUser, setSelectedKycUser] = useState(null);
+  const [userPage, setUserPage] = useState(1);
+  const [userPerPage, setUserPerPage] = useState(25);
 
   // Credit User Popup Modal State
   const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
@@ -398,7 +400,7 @@ export default function App() {
 
   const fetchUsers = async () => {
     try {
-      const { data } = await api.get('/admin/users');
+      const { data } = await api.get('/admin/users?limit=all');
       // Map server users to userBalances structure
       const list = Array.isArray(data) ? data : (data?.users || []);
       const mappedUsers = list.map(u => ({
@@ -1573,13 +1575,24 @@ export default function App() {
   const filteredKycUsers = useMemo(() => {
     return kycUsers.filter(user => {
       const matchesSearch =
-        user.name.toLowerCase().includes(kycSearchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(kycSearchQuery.toLowerCase()) ||
-        user.phone.includes(kycSearchQuery);
+        (user.name || '').toLowerCase().includes(kycSearchQuery.toLowerCase()) ||
+        (user.email || '').toLowerCase().includes(kycSearchQuery.toLowerCase()) ||
+        (user.phone || '').includes(kycSearchQuery);
       const matchesFilter = kycStatusFilter === 'ALL' || user.status === kycStatusFilter;
       return matchesSearch && matchesFilter;
     });
   }, [kycUsers, kycSearchQuery, kycStatusFilter]);
+
+  const userTotalPages = Math.max(1, Math.ceil(filteredKycUsers.length / userPerPage));
+
+  const paginatedKycUsers = useMemo(() => {
+    const startIndex = (userPage - 1) * userPerPage;
+    return filteredKycUsers.slice(startIndex, startIndex + userPerPage);
+  }, [filteredKycUsers, userPage, userPerPage]);
+
+  useEffect(() => {
+    setUserPage(1);
+  }, [kycSearchQuery, kycStatusFilter]);
 
   // Paginated records
   const paginatedTrades = useMemo(() => {
@@ -4664,7 +4677,20 @@ export default function App() {
             <section className="recent-trades-card">
               <div className="table-filter-row">
                 <div>
-                  <h3 className="card-heading">User Balances &amp; Escrow Ledger</h3>
+                  <h3 className="card-heading" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    User Balances &amp; Escrow Ledger
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: 12,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      backgroundColor: 'rgba(0, 210, 133, 0.12)',
+                      color: '#00D285',
+                      border: '1px solid rgba(0, 210, 133, 0.25)'
+                    }}>
+                      {userBalances.length} Accounts
+                    </span>
+                  </h3>
                   <p className="card-subheading">Live naira deposits, escrow locks, and risk status per user</p>
                 </div>
               </div>
@@ -4680,32 +4706,40 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {userBalances.map((user) => (
-                      <tr key={user.id}>
-                        <td>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: 'bold', color: 'var(--text-white)' }}>{user.name}</span>
-                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{user.email} • {user.phone}</span>
-                          </div>
-                        </td>
-                        <td style={{ color: '#00D285', fontWeight: '600' }}>₦{user.balance.toLocaleString()}</td>
-                        <td style={{ color: 'var(--text-white)', fontWeight: 'bold' }}>{user.stock} Units</td>
-                        <td>
-                          <span className="status-badge-td" style={{
-                            backgroundColor: user.status === 'Healthy' ? 'rgba(0,210,133,0.08)' : user.status === 'Low Balance' ? 'rgba(245,158,11,0.08)' : user.status === 'Low Stock' ? 'rgba(59,130,246,0.08)' : 'rgba(239,68,68,0.08)',
-                            border: user.status === 'Healthy' ? '1px solid rgba(0,210,133,0.2)' : user.status === 'Low Balance' ? '1px solid rgba(245,158,11,0.2)' : user.status === 'Low Stock' ? '1px solid rgba(59,130,246,0.2)' : '1px solid rgba(239,68,68,0.2)',
-                            color: user.status === 'Healthy' ? '#00D285' : user.status === 'Low Balance' ? '#F59E0B' : user.status === 'Low Stock' ? '#3B82F6' : '#EF4444'
-                          }}>
-                            {user.status}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button className="notif-action-btn" onClick={() => handleOpenCreditModal(user)}>
-                            Credit Wallet
-                          </button>
+                    {userBalances.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', color: '#64748b', padding: '32px 0' }}>
+                          No user records found.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      userBalances.map((user) => (
+                        <tr key={user.id}>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: 'bold', color: 'var(--text-white)' }}>{user.name}</span>
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{user.email} • {user.phone}</span>
+                            </div>
+                          </td>
+                          <td style={{ color: '#00D285', fontWeight: '600' }}>₦{user.balance.toLocaleString()}</td>
+                          <td style={{ color: 'var(--text-white)', fontWeight: 'bold' }}>{user.stock} Units</td>
+                          <td>
+                            <span className="status-badge-td" style={{
+                              backgroundColor: user.status === 'Healthy' ? 'rgba(0,210,133,0.08)' : user.status === 'Low Balance' ? 'rgba(245,158,11,0.08)' : user.status === 'Low Stock' ? 'rgba(59,130,246,0.08)' : 'rgba(239,68,68,0.08)',
+                              border: user.status === 'Healthy' ? '1px solid rgba(0,210,133,0.2)' : user.status === 'Low Balance' ? '1px solid rgba(245,158,11,0.2)' : user.status === 'Low Stock' ? '1px solid rgba(59,130,246,0.2)' : '1px solid rgba(239,68,68,0.2)',
+                              color: user.status === 'Healthy' ? '#00D285' : user.status === 'Low Balance' ? '#F59E0B' : user.status === 'Low Stock' ? '#3B82F6' : '#EF4444'
+                            }}>
+                              {user.status}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button className="notif-action-btn" onClick={() => handleOpenCreditModal(user)}>
+                              Credit Wallet
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -4765,9 +4799,24 @@ export default function App() {
             {/* Users Registry Card */}
             <section className="recent-trades-card">
               <div className="table-filter-row">
-                <div>
-                  <h3 className="card-heading">Registered Platform Users</h3>
-                  <p className="card-subheading">Comprehensive list of user accounts, balances, and actions</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div>
+                    <h3 className="card-heading" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      Registered Platform Users
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: 12,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        backgroundColor: 'rgba(0, 210, 133, 0.12)',
+                        color: '#00D285',
+                        border: '1px solid rgba(0, 210, 133, 0.25)'
+                      }}>
+                        {filteredKycUsers.length} Users Total
+                      </span>
+                    </h3>
+                    <p className="card-subheading">Comprehensive list of user accounts, balances, and actions</p>
+                  </div>
                 </div>
               </div>
 
@@ -4792,7 +4841,7 @@ export default function App() {
                         </td>
                       </tr>
                     ) : (
-                      filteredKycUsers.map((user) => (
+                      paginatedKycUsers.map((user) => (
                         <tr key={user.id}>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -4913,6 +4962,53 @@ export default function App() {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Users pagination controller */}
+              <div className="table-pagination-row">
+                <span className="pagination-info">
+                  Showing {filteredKycUsers.length === 0 ? 0 : (userPage - 1) * userPerPage + 1}-
+                  {Math.min(userPage * userPerPage, filteredKycUsers.length)} of{' '}
+                  {filteredKycUsers.length} users
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Per page:</span>
+                    <select
+                      className="dropdown-select"
+                      style={{ height: 28, padding: '0 8px', fontSize: 12 }}
+                      value={userPerPage}
+                      onChange={(e) => {
+                        setUserPerPage(Number(e.target.value));
+                        setUserPage(1);
+                      }}
+                    >
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value={500}>All</option>
+                    </select>
+                  </div>
+                  <div className="pagination-controls">
+                    <button
+                      className="pag-btn"
+                      onClick={() => setUserPage(Math.max(userPage - 1, 1))}
+                      disabled={userPage === 1}
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', padding: '0 6px' }}>
+                      Page {userPage} of {userTotalPages}
+                    </span>
+                    <button
+                      className="pag-btn"
+                      onClick={() => setUserPage(Math.min(userPage + 1, userTotalPages))}
+                      disabled={userPage >= userTotalPages}
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
               </div>
             </section>
           </main>

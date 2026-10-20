@@ -33,7 +33,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       dateFilter = { createdAt: { $gte: past30 } };
     }
 
-    const totalUsers = await User.countDocuments({ role: 'user' });
+    const totalUsers = await User.countDocuments({ role: { $in: ['user', 'admin'] } });
 
     // Active trade count aggregated across P2P orders, pool contracts, and direct trades
     const pendingDirectTrades = await Trade.countDocuments({ status: 'PENDING' });
@@ -42,7 +42,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const activeTradeCount = pendingDirectTrades + activeP2POrders + pendingPoolContracts;
     
     // Sum of all user balances (Total Liquidity in platform)
-    const users = await User.find({ role: 'user' });
+    const users = await User.find({ role: { $in: ['user', 'admin'] } });
     const userFunds = users.reduce((acc, user) => acc + (user.balance || 0), 0);
     
     // Volume: Sum of completed transactions + matched/settled p2p orders + pool stakes
@@ -151,40 +151,71 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const skip = (page - 1) * limit;
-    
-    const total = await User.countDocuments({ role: 'user' });
-    const users = await User.find({ role: 'user' })
-      .select('-password -pin')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const limitParam = req.query.limit as string;
+    const isAll = limitParam === 'all' || limitParam === '0';
+    const limit = isAll ? 0 : (parseInt(limitParam) || 1000);
+    const skip = isAll ? 0 : (page - 1) * limit;
 
-    // Compute live trading positions and active shares per user
-    const usersWithStats = await Promise.all(
-      users.map(async (u) => {
-        const activeOrders = await P2POrder.find({
-          user: u._id,
-          status: { $in: ['OPEN', 'PARTIALLY_MATCHED', 'MATCHED'] }
-        });
-        const activeShares = activeOrders.reduce((sum, o) => sum + (o.unmatchedShares || o.totalShares || 0), 0);
-        const activePools = await PoolContract.countDocuments({ user: u._id, status: 'PENDING' });
-        
-        return {
-          ...u.toObject(),
-          stock: activeShares,
-          activeShares,
-          activeOrdersCount: activeOrders.length,
-          activePoolsCount: activePools
-        };
-      })
-    );
-      
+    const roleParam = req.query.role as string;
+    let roleFilter: any = {};
+    if (roleParam && roleParam !== 'ALL') {
+      roleFilter.role = roleParam;
+    } else {
+      roleFilter = { role: { $in: ['user', 'admin'] } };
+    }
+
+    const total = await User.countDocuments(roleFilter);
+    let query = User.find(roleFilter)
+      .select('-password -pin')
+      .sort({ createdAt: -1 });
+
+    if (!isAll && limit > 0) {
+      query = query.skip(skip).limit(limit);
+    }
+
+    const users = await query;
+
+    // Efficient bulk aggregation for live trading positions and active shares per user
+    const userIds = users.map(u => u._id);
+    const [orderAgg, poolAgg] = await Promise.all([
+      P2POrder.aggregate([
+        { $match: { user: { $in: userIds }, status: { $in: ['OPEN', 'PARTIALLY_MATCHED', 'MATCHED'] } } },
+        { $group: { _id: '$user', activeShares: { $sum: { $ifNull: ['$unmatchedShares', '$totalShares', 0] } }, count: { $sum: 1 } } }
+      ]),
+      PoolContract.aggregate([
+        { $match: { user: { $in: userIds }, status: 'PENDING' } },
+        { $group: { _id: '$user', count: { $sum: 1 } } }
+      ])
+    ]);
+
+    const orderMap = new Map<string, { activeShares: number; count: number }>();
+    orderAgg.forEach((item: any) => {
+      orderMap.set(item._id.toString(), { activeShares: item.activeShares || 0, count: item.count || 0 });
+    });
+
+    const poolMap = new Map<string, number>();
+    poolAgg.forEach((item: any) => {
+      poolMap.set(item._id.toString(), item.count || 0);
+    });
+
+    const usersWithStats = users.map((u) => {
+      const uIdStr = u._id.toString();
+      const orderInfo = orderMap.get(uIdStr) || { activeShares: 0, count: 0 };
+      const poolCount = poolMap.get(uIdStr) || 0;
+
+      return {
+        ...u.toObject(),
+        stock: orderInfo.activeShares,
+        activeShares: orderInfo.activeShares,
+        activeOrdersCount: orderInfo.count,
+        activePoolsCount: poolCount
+      };
+    });
+
     res.json({
       users: usersWithStats,
       currentPage: page,
-      totalPages: Math.ceil(total / limit),
+      totalPages: limit > 0 ? Math.ceil(total / limit) : 1,
       totalItems: total
     });
   } catch (error: any) {
