@@ -5,7 +5,7 @@ node_modules/
 
 # Expo
 .expo/
-app/dist/
+!app/dist/
 server/dist/
 !admin/dist/
 web-build/

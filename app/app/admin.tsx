@@ -357,12 +357,13 @@ export default function AdminMarketControlScreen() {
                   );
                 })
               )
-            ) : filteredMarkets.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyText}>No prediction markets found matching your query.</Text>
-              </View>
-            ) : (
-              filteredMarkets.map((m) => {
+            ) : activeTab === 'MARKETS' ? (
+              filteredMarkets.length === 0 ? (
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyText}>No prediction markets found matching your query.</Text>
+                </View>
+              ) : (
+                filteredMarkets.map((m) => {
                 const isLocked = Boolean(m.isLocked || m.isOverpowered || m.status === 'SUSPENDED');
                 const totalPot = m.pool?.totalPot || m.poolAmount || 0;
                 const optA = m.options?.[0]?.totalStaked || 0;
@@ -427,8 +428,9 @@ export default function AdminMarketControlScreen() {
                   </View>
                 );
               })
-            ) : (
-              /* REFERRALS TAB CONTENT */
+            )
+          ) : (
+            /* REFERRALS TAB CONTENT */
               <View style={styles.referralsTabContainer}>
                 {/* 4 Metric Summary Cards */}
                 <View style={styles.adminMetricsGrid}>
