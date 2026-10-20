@@ -168,6 +168,29 @@ export default function ReferralsScreen() {
             </View>
           </View>
 
+          {/* Win Receipt Share Program Highlight */}
+          <View style={[styles.card, { borderColor: 'rgba(0, 210, 133, 0.3)', backgroundColor: 'rgba(0, 210, 133, 0.05)' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Gift size={20} color={Colors.dark.primary} />
+              <Text style={[styles.cardLabel, { color: Colors.dark.primary, marginBottom: 0 }]}>Win Receipt Share Bonus</Text>
+            </View>
+            <Text style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 19, marginBottom: 12 }}>
+              Share your winning trade receipts to social media (WhatsApp, X, Telegram). You get <Text style={{ color: Colors.dark.primary, fontWeight: '700' }}>₦1,000 bonus</Text> credited instantly, and your referred friend gets <Text style={{ color: Colors.dark.primary, fontWeight: '700' }}>₦1,000 bonus</Text> on sign up!
+            </Text>
+            <View style={{ gap: 6, marginBottom: 14 }}>
+              <Text style={{ fontSize: 12, color: '#94a3b8' }}>• <Text style={{ color: '#fff', fontWeight: '600' }}>Wins Only:</Text> Share verified winning outcome slips.</Text>
+              <Text style={{ fontSize: 12, color: '#94a3b8' }}>• <Text style={{ color: '#fff', fontWeight: '600' }}>Weekly Limit:</Text> Up to 3 win shares rewarded per week.</Text>
+              <Text style={{ fontSize: 12, color: '#94a3b8' }}>• <Text style={{ color: '#fff', fontWeight: '600' }}>Anti-Abuse:</Text> Each unique win slip rewarded once.</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/trades')}
+              style={[styles.shareBtn, { backgroundColor: 'rgba(0, 210, 133, 0.15)', borderWidth: 1, borderColor: Colors.dark.primary }]}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.shareBtnText, { color: Colors.dark.primary }]}>View & Share Winning Trades</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* How It Works */}
           <View style={styles.card}>
             <Text style={styles.cardLabel}>How It Works</Text>

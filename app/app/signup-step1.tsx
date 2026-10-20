@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,9 @@ import { Colors } from '../constants/Colors';
 
 export default function SignUpStep1Screen() {
   const router = useRouter();
+  const searchParams = useLocalSearchParams();
+  const referralParam = (searchParams.ref || searchParams.referralCode || '') as string;
+
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [firstNameError, setFirstNameError] = useState('');
@@ -57,7 +60,11 @@ export default function SignUpStep1Screen() {
     if (!isFormValid) return;
     router.push({
       pathname: '/signup-step2',
-      params: { firstName, lastName },
+      params: { 
+        firstName, 
+        lastName, 
+        ...(referralParam ? { ref: referralParam } : {}) 
+      },
     });
   };
 

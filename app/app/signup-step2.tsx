@@ -190,9 +190,16 @@ export default function SignUpStep2Screen() {
 
   const handleNext = () => {
     if (!isFormValid) return;
+    const referralParam = (params.ref || params.referralCode || '') as string;
     router.push({
       pathname: '/signup-step3',
-      params: { firstName, lastName, email: email.trim(), phone: phone.trim() },
+      params: { 
+        firstName, 
+        lastName, 
+        email: email.trim(), 
+        phone: phone.trim(),
+        ...(referralParam ? { ref: referralParam } : {})
+      },
     });
   };
 

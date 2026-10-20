@@ -10,6 +10,7 @@ import {
   Share,
   Modal,
   Clipboard,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -228,7 +229,7 @@ export default function TradesScreen() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  const handleShareWinReceipt = async () => {
+  const handleShareWinReceipt = async (targetPlatform: string = 'social_share') => {
     if (!selectedWinTrade) return;
     const tradeId = selectedWinTrade.id;
 
@@ -247,18 +248,35 @@ export default function TradesScreen() {
       const profitFormatted = selectedWinTrade.rawProfit ? `+₦${selectedWinTrade.rawProfit.toLocaleString()}` : '+₦5,000';
       const code = userReferralCode || 'TRADE1K';
       const shareUrl = `https://peeritrade.com/join?ref=${code}`;
-      
-      // 1. Trigger native social share sheet (Rule 2)
-      await Share.share({
-        title: 'Peeritrade Outcome Trade Win Receipt',
-        message: `🔥 Boom! I just won ${profitFormatted} on "${selectedWinTrade.matchTitle}" (${selectedWinTrade.position}) trading on Peeritrade!\n\nJoin with my referral code ${code} and we BOTH get ₦1,000 free bonus instantly to trade:\n${shareUrl}`,
-      });
+      const shareMessage = `🔥 Boom! I just won ${profitFormatted} on "${selectedWinTrade.matchTitle}" (${selectedWinTrade.position}) trading on Peeritrade!\n\nJoin with my referral code ${code} and we BOTH get ₦1,000 free cash bonus instantly to trade:\n${shareUrl}`;
 
-      // 2. Claim the ₦1,000 reward on backend (Rule 3, 4, 5)
+      // 1. Trigger social media platform or native social share sheet (Rule 2)
+      if (targetPlatform === 'whatsapp') {
+        const waUrl = `whatsapp://send?text=${encodeURIComponent(shareMessage)}`;
+        const canOpen = await Linking.canOpenURL(waUrl).catch(() => false);
+        if (canOpen) {
+          await Linking.openURL(waUrl);
+        } else {
+          await Linking.openURL(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage)}`);
+        }
+      } else if (targetPlatform === 'twitter') {
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}`;
+        await Linking.openURL(twitterUrl);
+      } else if (targetPlatform === 'telegram') {
+        const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareMessage)}`;
+        await Linking.openURL(tgUrl);
+      } else {
+        await Share.share({
+          title: 'Peeritrade Outcome Trade Win Receipt',
+          message: shareMessage,
+        });
+      }
+
+      // 2. Claim the ₦1,000 reward on backend (Rule 1, 3, 4, 5)
       const res = await referralService.claimWinShareBonus({
         tradeId,
         profitAmount: selectedWinTrade.rawProfit || 0,
-        platform: 'social_share',
+        platform: targetPlatform,
       });
 
       setClaimedTradeIds((prev) => ({ ...prev, [tradeId]: true }));
@@ -274,6 +292,8 @@ export default function TradesScreen() {
       } else if (error.response?.data?.code === 'WEEKLY_LIMIT_REACHED') {
         setSharesRemainingThisWeek(0);
         showToast(msg, 'warning');
+      } else if (error.response?.data?.code === 'NOT_A_WIN') {
+        showToast('Only verified winning trades can earn bonuses.', 'warning');
       } else {
         showToast(msg, 'info');
       }
@@ -603,6 +623,48 @@ export default function TradesScreen() {
                 </View>
               </View>
 
+              {/* Social Channels Quick Share */}
+              <View style={styles.socialShareRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.socialChannelBtn,
+                    { backgroundColor: 'rgba(37, 211, 102, 0.12)', borderColor: 'rgba(37, 211, 102, 0.3)' },
+                    (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
+                  ]}
+                  activeOpacity={0.8}
+                  disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                  onPress={() => handleShareWinReceipt('whatsapp')}
+                >
+                  <Text style={[styles.socialChannelText, { color: '#25D366' }]}>WhatsApp</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.socialChannelBtn,
+                    { backgroundColor: 'rgba(29, 161, 242, 0.12)', borderColor: 'rgba(29, 161, 242, 0.3)' },
+                    (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
+                  ]}
+                  activeOpacity={0.8}
+                  disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                  onPress={() => handleShareWinReceipt('twitter')}
+                >
+                  <Text style={[styles.socialChannelText, { color: '#1DA1F2' }]}>X (Twitter)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.socialChannelBtn,
+                    { backgroundColor: 'rgba(0, 136, 204, 0.12)', borderColor: 'rgba(0, 136, 204, 0.3)' },
+                    (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.5 }
+                  ]}
+                  activeOpacity={0.8}
+                  disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                  onPress={() => handleShareWinReceipt('telegram')}
+                >
+                  <Text style={[styles.socialChannelText, { color: '#38BDF8' }]}>Telegram</Text>
+                </TouchableOpacity>
+              </View>
+
               {/* Share CTA Button with Anti-Abuse Status */}
               <TouchableOpacity
                 style={[
@@ -610,8 +672,8 @@ export default function TradesScreen() {
                   (selectedWinTrade && (claimedTradeIds[selectedWinTrade.id] || sharesRemainingThisWeek <= 0)) && { opacity: 0.7 }
                 ]}
                 activeOpacity={0.85}
-                disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id])}
-                onPress={handleShareWinReceipt}
+                disabled={isClaimingShare || (selectedWinTrade && claimedTradeIds[selectedWinTrade.id]) || sharesRemainingThisWeek <= 0}
+                onPress={() => handleShareWinReceipt('social_share')}
               >
                 <LinearGradient
                   colors={
@@ -640,10 +702,15 @@ export default function TradesScreen() {
                       ? 'Receipt Already Rewarded ✓'
                       : sharesRemainingThisWeek <= 0
                       ? 'Weekly Limit Reached (3/3 Used)'
-                      : `Share Win & Earn ₦1,000 (${sharesRemainingThisWeek}/3 Left This Week)`}
+                      : `Share Win Slip & Earn ₦1,000 (${sharesRemainingThisWeek}/3 Left)`}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
+
+              {/* Anti-abuse & Policy Footer Note */}
+              <Text style={styles.receiptRuleFooterNote}>
+                Rules: 1 slip = 1 reward • Max 3 shares/wk • Friends receive ₦1,000 on signup
+              </Text>
             </View>
           </View>
         </Modal>
@@ -1162,6 +1229,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#050811',
+    fontFamily: 'Inter',
+  },
+  socialShareRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  socialChannelBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  socialChannelText: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  receiptRuleFooterNote: {
+    fontSize: 10,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 8,
     fontFamily: 'Inter',
   },
 });

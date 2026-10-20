@@ -92,12 +92,19 @@ export default function SignUpStep3Screen() {
     }
   };
 
-  // Clean up debounce on unmount
+  // Clean up debounce on unmount and check initial referral code from params
   useEffect(() => {
+    const initialCode = (params.ref || params.referralCode || '') as string;
+    if (initialCode && typeof initialCode === 'string' && initialCode.trim()) {
+      const formatted = initialCode.trim().toUpperCase();
+      setReferralCode(formatted);
+      checkReferral(formatted);
+    }
+
     return () => {
       if (referralDebounceRef.current) clearTimeout(referralDebounceRef.current);
     };
-  }, []);
+  }, [params.ref, params.referralCode]);
 
   // ── Real-time validators ──────────────────────────────────────────
   const validatePassword = (value: string) => {
