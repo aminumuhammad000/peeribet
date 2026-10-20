@@ -1213,17 +1213,29 @@ export default function MarketScreen() {
                 const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
                 const noOdds = market.noOdds || noOption?.odds || 1.95;
 
-                const isMarketAdminLocked = Boolean(market.isLocked || market.isOverpowered || market.status === 'SUSPENDED');
-                const isOverpowered = (yesOdds && yesOdds <= 1.43) || (noOdds && noOdds <= 1.43) || isMarketAdminLocked;
+                const isWholeMarketLocked = Boolean(
+                  (market.isLocked || market.status === 'SUSPENDED') &&
+                  (!market.lockedContracts || market.lockedContracts.length === 0)
+                );
+                const isYesLocked = isWholeMarketLocked || (yesOdds && yesOdds <= 1.43) || Boolean(
+                  market.lockedContracts?.some((c: string) => c.toUpperCase() === 'YES' || (yesOption.id && c.toUpperCase() === String(yesOption.id).toUpperCase())) ||
+                  yesOption.isLocked
+                );
+                const isNoLocked = isWholeMarketLocked || (noOdds && noOdds <= 1.43) || Boolean(
+                  market.lockedContracts?.some((c: string) => c.toUpperCase() === 'NO' || (noOption.id && c.toUpperCase() === String(noOption.id).toUpperCase())) ||
+                  noOption.isLocked
+                );
+                const isAllLocked = isYesLocked && isNoLocked;
+                const isMarketAdminLocked = isAllLocked || Boolean(market.lockedContracts?.length > 0);
 
                 return (
                   <View key={market._id} style={styles.richMarketCard}>
                     {/* Admin Lock / Unlock Control Strip */}
                     {user?.role === 'admin' && (
                       <View style={styles.adminControlStrip}>
-                        <ShieldAlert size={14} color={isMarketAdminLocked ? '#EF4444' : '#00D285'} />
+                        <ShieldAlert size={14} color={isAllLocked ? '#EF4444' : '#00D285'} />
                         <Text style={styles.adminControlText}>
-                          Admin: {isMarketAdminLocked ? 'Locked (Overpowered)' : 'Active Market'}
+                          Admin: {isAllLocked ? 'All Contracts Locked' : market.lockedContracts?.length > 0 ? `Locked: ${market.lockedContracts.join(', ')}` : 'Active Market'}
                         </Text>
                         <TouchableOpacity
                           onPress={() => handleToggleAdminMarketLock(market._id, isMarketAdminLocked)}
@@ -1231,7 +1243,7 @@ export default function MarketScreen() {
                           activeOpacity={0.8}
                         >
                           <Text style={styles.adminLockBtnText}>
-                            {isMarketAdminLocked ? 'Unlock Market' : 'Lock (Overpowered)'}
+                            {isMarketAdminLocked ? 'Unlock All' : 'Lock All'}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -1252,7 +1264,7 @@ export default function MarketScreen() {
                           <Info size={13} color="#00D285" />
                         </TouchableOpacity>
                       </View>
-                      {isOverpowered ? (
+                      {isAllLocked ? (
                         <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
                           <Lock size={11} color="#EF4444" />
                           <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
@@ -1278,23 +1290,23 @@ export default function MarketScreen() {
                     {/* Outcomes & Trade Buttons (Clean YES / NO layout matching Home Page) */}
                     <View style={styles.binaryChoiceRow}>
                       <TouchableOpacity
-                        style={[styles.binaryOptionBtn, styles.binaryOptionYes, isOverpowered && { opacity: 0.5 }]}
+                        style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
                         activeOpacity={0.8}
-                        disabled={isOverpowered}
+                        disabled={isYesLocked}
                         onPress={() => handleOpenTrade(market, yesOption)}
                       >
                         <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                        <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                        <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={[styles.binaryOptionBtn, styles.binaryOptionNo, isOverpowered && { opacity: 0.5 }]}
+                        style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
                         activeOpacity={0.8}
-                        disabled={isOverpowered}
+                        disabled={isNoLocked}
                         onPress={() => handleOpenTrade(market, noOption)}
                       >
                         <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                        <Text style={styles.binaryOptionOdds}>{isOverpowered ? 'Locked' : '₦1,000 / Share'}</Text>
+                        <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
                       </TouchableOpacity>
                     </View>
 
@@ -1308,11 +1320,11 @@ export default function MarketScreen() {
                       </View>
                       <TouchableOpacity
                         onPress={() => handleOpenTrade(market, yesOption)}
-                        style={[styles.quickTradePill, isOverpowered && { opacity: 0.5 }]}
+                        style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
                         activeOpacity={0.8}
-                        disabled={isOverpowered}
+                        disabled={isAllLocked}
                       >
-                        <Text style={styles.quickTradePillText}>{isOverpowered ? 'Locked' : 'Trade Outcome'}</Text>
+                        <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade Outcome'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>

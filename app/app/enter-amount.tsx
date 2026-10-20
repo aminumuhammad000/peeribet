@@ -251,17 +251,35 @@ export default function EnterAmountScreen() {
   const projectedPoolMultiplier = outcomeTotalStake > 0 ? (netPoolPot / outcomeTotalStake).toFixed(2) : (odds > 1 ? odds.toFixed(2) : '2.00');
   const estimatedPoolPayout = Math.round(parsedPoolStake * parseFloat(projectedPoolMultiplier));
 
-  // 70% Crowd Overpower Rule & Admin Lock Safeguard
+  // 70% Crowd Overpower Rule & Admin Lock Safeguard (Specific Contract Level)
   const crowdRatio = basePot > 50000 && outcomePool > 0 ? outcomePool / basePot : 0;
   const isCrowdOverpowered = crowdRatio >= 0.70;
   const isOddsOverpowered = odds <= 1.43; // Implied probability >= 70%
-  const isAdminLocked = Boolean(
-    poolDetails?.isLocked ||
-    poolDetails?.isOverpowered ||
-    poolDetails?.status === 'SUSPENDED' ||
-    params.isLocked === 'true' ||
-    params.isOverpowered === 'true'
+
+  const currentSelNorm = String(currentSelection || params.selection || '').trim().toUpperCase();
+  const isContractLocked = Boolean(
+    (poolDetails?.lockedContracts && poolDetails.lockedContracts.some((c: string) => {
+      const cNorm = String(c).trim().toUpperCase();
+      return (
+        cNorm === currentSelNorm ||
+        (cNorm === 'HOME' && (currentSelNorm === '1' || currentSelNorm === 'HOME')) ||
+        (cNorm === 'AWAY' && (currentSelNorm === '2' || currentSelNorm === 'AWAY')) ||
+        (cNorm === 'DRAW' && (currentSelNorm === 'X' || currentSelNorm === 'DRAW')) ||
+        (cNorm === 'YES' && currentSelNorm === 'YES') ||
+        (cNorm === 'NO' && currentSelNorm === 'NO')
+      );
+    })) ||
+    (poolDetails?.options && poolDetails.options.some((opt: any) => 
+      (String(opt.id).toUpperCase() === currentSelNorm || String(opt.label).toUpperCase() === currentSelNorm) && opt.isLocked
+    ))
   );
+
+  const isWholeMarketLocked = Boolean(
+    (poolDetails?.isLocked || poolDetails?.status === 'SUSPENDED') &&
+    (!poolDetails?.lockedContracts || poolDetails.lockedContracts.length === 0)
+  );
+
+  const isAdminLocked = isContractLocked || isWholeMarketLocked;
   const isOverpowered = isOddsOverpowered || isCrowdOverpowered || isAdminLocked;
 
   // Handle Submission
@@ -270,7 +288,7 @@ export default function EnterAmountScreen() {
     if (isOverpowered) {
       setError(
         isAdminLocked
-          ? 'Trading on this market has been locked by administration.'
+          ? `The contract "${currentSelection || 'Option'}" is locked by administration safeguards. Other contracts remain open for trading.`
           : 'Trading on this outcome is locked due to extreme crowd concentration (70%+ overpowered).'
       );
       return;

@@ -60,6 +60,7 @@ export interface IMatch extends Document {
   isLocked?: boolean;
   isOverpowered?: boolean;
   lockedReason?: string;
+  lockedContracts?: string[];
   fixtureId?: number; // External API fixture ID
 }
 
@@ -81,6 +82,7 @@ const matchSchema = new Schema(
     isLocked: { type: Boolean, default: false },
     isOverpowered: { type: Boolean, default: false },
     lockedReason: { type: String, default: '' },
+    lockedContracts: { type: [String], default: [] },
     isPromoted: { type: Boolean, default: false },
     scoreHome: { type: Number, default: 0 },
     scoreAway: { type: Number, default: 0 },

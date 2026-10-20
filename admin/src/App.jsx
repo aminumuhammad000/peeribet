@@ -1155,18 +1155,19 @@ export default function App() {
     }
   };
 
-  // Handle Toggle Admin Market Overpower Lock
-  const handleToggleMarketLock = async (marketId, currentLocked) => {
+  // Handle Toggle Admin Market Overpower Lock (Specific Contract or All)
+  const handleToggleMarketLock = async (marketId, currentLocked, contract = null) => {
     try {
       const res = await api.post(`/admin/markets/${marketId}/lock`, {
+        contract: contract || undefined,
         isLocked: !currentLocked,
-        reason: !currentLocked ? 'Locked by admin: overpowered crowd probability (>70%)' : '',
+        reason: !currentLocked ? `Locked by admin: contract ${contract || 'all'} overpowered` : '',
       });
-      showToast(res.data?.message || (!currentLocked ? 'Market locked (overpowered).' : 'Market unlocked.'), 'success');
+      showToast(res.data?.message || (!currentLocked ? `Contract ${contract || 'market'} locked.` : `Contract ${contract || 'market'} unlocked.`), 'success');
       fetchMarkets();
       logSecurityEvent(
         'warning',
-        `Market ID ${marketId} ${!currentLocked ? 'LOCKED (Overpowered)' : 'UNLOCKED'}`,
+        `Market ID ${marketId} Contract ${contract || 'ALL'} ${!currentLocked ? 'LOCKED' : 'UNLOCKED'}`,
         `Authorized: ${adminName}`,
         'shield'
       );
@@ -1176,18 +1177,19 @@ export default function App() {
     }
   };
 
-  // Handle Toggle Admin Match Overpower Lock
-  const handleToggleMatchLock = async (matchId, currentLocked) => {
+  // Handle Toggle Admin Match Overpower Lock (Specific Contract or All)
+  const handleToggleMatchLock = async (matchId, currentLocked, contract = null) => {
     try {
       const res = await api.post(`/admin/matches/${matchId}/lock`, {
+        contract: contract || undefined,
         isLocked: !currentLocked,
-        reason: !currentLocked ? 'Locked by admin: overpowered match odds/crowd safeguard' : '',
+        reason: !currentLocked ? `Locked by admin: contract ${contract || 'all'} overpowered` : '',
       });
-      showToast(res.data?.message || (!currentLocked ? 'Match locked (overpowered).' : 'Match unlocked.'), 'success');
+      showToast(res.data?.message || (!currentLocked ? `Contract ${contract || 'match'} locked.` : `Contract ${contract || 'match'} unlocked.`), 'success');
       fetchMatches();
       logSecurityEvent(
         'warning',
-        `Match ID ${matchId} ${!currentLocked ? 'LOCKED (Overpowered)' : 'UNLOCKED'}`,
+        `Match ID ${matchId} Contract ${contract || 'ALL'} ${!currentLocked ? 'LOCKED' : 'UNLOCKED'}`,
         `Authorized: ${adminName}`,
         'shield'
       );
@@ -3806,26 +3808,38 @@ export default function App() {
                                   ))}
                                 </div>
                               ) : (
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 220 }}>
-                                  {mkt.options?.slice(0, 3).map((opt) => (
-                                    <span
-                                      key={opt.id}
-                                      style={{
-                                        fontSize: 10,
-                                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                                        padding: '2px 6px',
-                                        borderRadius: 4,
-                                        color: '#cbd5e1',
-                                      }}
-                                    >
-                                      {opt.label} ({opt.odds?.toFixed(2)})
-                                    </span>
-                                  ))}
-                                  {mkt.options?.length > 3 && (
-                                    <span style={{ fontSize: 10, color: '#94a3b8' }}>
-                                      +{mkt.options.length - 3} more
-                                    </span>
-                                  )}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 280 }}>
+                                  {mkt.options?.map((opt) => {
+                                    const isOptLocked = Boolean(
+                                      opt.isLocked ||
+                                      (mkt.lockedContracts && mkt.lockedContracts.some((c) => c.toUpperCase() === String(opt.label).toUpperCase() || c.toUpperCase() === String(opt.id).toUpperCase()))
+                                    );
+                                    return (
+                                      <button
+                                        key={opt.id}
+                                        type="button"
+                                        onClick={() => handleToggleMarketLock(mkt.id || mkt._id, isOptLocked, opt.id || opt.label)}
+                                        title={isOptLocked ? `Unlock contract ${opt.label}` : `Lock specific contract ${opt.label}`}
+                                        style={{
+                                          fontSize: 10,
+                                          fontWeight: '700',
+                                          backgroundColor: isOptLocked ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                                          border: isOptLocked ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(255, 255, 255, 0.12)',
+                                          padding: '2px 7px',
+                                          borderRadius: 4,
+                                          color: isOptLocked ? '#EF4444' : '#cbd5e1',
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 3,
+                                        }}
+                                      >
+                                        {isOptLocked ? <Lock size={9} color="#EF4444" /> : <Unlock size={9} color="#64748B" />}
+                                        <span>{opt.label} ({opt.odds?.toFixed(2)})</span>
+                                        {isOptLocked && <span style={{ fontSize: 8.5, color: '#f87171' }}>• LOCKED</span>}
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               )}
                             </td>
@@ -4079,6 +4093,42 @@ export default function App() {
                             <td>
                               <div style={{ fontWeight: '700', color: '#ffffff', fontSize: 13.5 }}>
                                 {match.homeTeam} vs {match.awayTeam}
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                                {[
+                                  { key: 'HOME', label: `1 (${match.odds?.home || 1.85})` },
+                                  { key: 'DRAW', label: `X (${match.odds?.draw || 3.10})` },
+                                  { key: 'AWAY', label: `2 (${match.odds?.away || 2.40})` },
+                                  { key: 'OVER_25', label: `O2.5 (${match.odds?.over25 || 1.95})` },
+                                  { key: 'UNDER_25', label: `U2.5 (${match.odds?.under25 || 1.85})` },
+                                ].map((item) => {
+                                  const isContractLocked = Boolean(match.lockedContracts && match.lockedContracts.some((c) => c.toUpperCase() === item.key));
+                                  return (
+                                    <button
+                                      key={item.key}
+                                      type="button"
+                                      onClick={() => handleToggleMatchLock(match._id || match.id, isContractLocked, item.key)}
+                                      title={isContractLocked ? `Unlock contract ${item.key}` : `Lock specific contract ${item.key}`}
+                                      style={{
+                                        fontSize: 9.5,
+                                        fontWeight: '700',
+                                        backgroundColor: isContractLocked ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                                        border: isContractLocked ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(255, 255, 255, 0.12)',
+                                        padding: '2px 6px',
+                                        borderRadius: 4,
+                                        color: isContractLocked ? '#EF4444' : '#cbd5e1',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 3,
+                                      }}
+                                    >
+                                      {isContractLocked ? <Lock size={8} color="#EF4444" /> : <Unlock size={8} color="#64748B" />}
+                                      <span>{item.label}</span>
+                                      {isContractLocked && <span style={{ fontSize: 8, color: '#f87171' }}>• LOCKED</span>}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </td>
                             <td>

@@ -120,19 +120,28 @@ export default function AdminMarketControlScreen() {
     loadData();
   };
 
-  const handleToggleMatchLock = async (matchId: string, currentLocked: boolean) => {
-    setActionLoadingId(matchId);
+  const handleToggleMatchLock = async (matchId: string, currentLocked: boolean, contract?: string) => {
+    setActionLoadingId(`${matchId}_${contract || 'all'}`);
     try {
-      await adminService.toggleMatchLock(matchId, !currentLocked, !currentLocked ? 'Locked by Admin (Overpowered)' : undefined);
-      showToast(`Fixture ${!currentLocked ? 'LOCKED' : 'UNLOCKED'} successfully`, 'success');
+      const res = await adminService.toggleMatchLock(
+        matchId, 
+        !currentLocked, 
+        !currentLocked ? `Locked by Admin (${contract || 'Overpowered'})` : undefined,
+        contract
+      );
+      showToast(res.message || `Fixture contract ${contract || ''} ${!currentLocked ? 'LOCKED' : 'UNLOCKED'} successfully`, 'success');
       setMatches((prev) =>
         prev.map((m) =>
           m._id === matchId
             ? {
                 ...m,
-                isLocked: !currentLocked,
-                isOverpowered: !currentLocked,
-                status: !currentLocked ? 'SUSPENDED' : 'ACTIVE',
+                lockedContracts: res.match?.lockedContracts || (
+                  contract
+                    ? (!currentLocked ? [...(m.lockedContracts || []), contract.toUpperCase()] : (m.lockedContracts || []).filter((c: string) => c.toUpperCase() !== contract.toUpperCase()))
+                    : m.lockedContracts
+                ),
+                isLocked: res.match?.isLocked ?? (!currentLocked),
+                status: res.match?.status || m.status,
               }
             : m
         )
@@ -144,19 +153,29 @@ export default function AdminMarketControlScreen() {
     }
   };
 
-  const handleToggleMarketLock = async (marketId: string, currentLocked: boolean) => {
-    setActionLoadingId(marketId);
+  const handleToggleMarketLock = async (marketId: string, currentLocked: boolean, contract?: string) => {
+    setActionLoadingId(`${marketId}_${contract || 'all'}`);
     try {
-      await adminService.toggleMarketLock(marketId, !currentLocked, !currentLocked ? 'Locked by Admin (Overpowered)' : undefined);
-      showToast(`Market ${!currentLocked ? 'LOCKED' : 'UNLOCKED'} successfully`, 'success');
+      const res = await adminService.toggleMarketLock(
+        marketId, 
+        !currentLocked, 
+        !currentLocked ? `Locked by Admin (${contract || 'Overpowered'})` : undefined,
+        contract
+      );
+      showToast(res.message || `Market contract ${contract || ''} ${!currentLocked ? 'LOCKED' : 'UNLOCKED'} successfully`, 'success');
       setMarkets((prev) =>
         prev.map((m) =>
           m._id === marketId
             ? {
                 ...m,
-                isLocked: !currentLocked,
-                isOverpowered: !currentLocked,
-                status: !currentLocked ? 'SUSPENDED' : 'ACTIVE',
+                lockedContracts: res.market?.lockedContracts || (
+                  contract
+                    ? (!currentLocked ? [...(m.lockedContracts || []), contract.toUpperCase()] : (m.lockedContracts || []).filter((c: string) => c.toUpperCase() !== contract.toUpperCase()))
+                    : m.lockedContracts
+                ),
+                options: res.market?.options || m.options,
+                isLocked: res.market?.isLocked ?? (!currentLocked),
+                status: res.market?.status || m.status,
               }
             : m
         )
@@ -332,6 +351,41 @@ export default function AdminMarketControlScreen() {
                         )}
                       </View>
 
+                      {/* Individual Contract Safeguard Locks */}
+                      <Text style={styles.contractSectionLabel}>SPECIFIC CONTRACT LOCKS:</Text>
+                      <View style={styles.contractChipsRow}>
+                        {[
+                          { key: 'HOME', label: `1 (${m.odds?.home || 1.85})` },
+                          { key: 'DRAW', label: `X (${m.odds?.draw || 3.10})` },
+                          { key: 'AWAY', label: `2 (${m.odds?.away || 2.40})` },
+                          { key: 'OVER_25', label: `O2.5 (${m.odds?.over25 || 1.95})` },
+                          { key: 'UNDER_25', label: `U2.5 (${m.odds?.under25 || 1.85})` },
+                        ].map((c) => {
+                          const isContractLocked = Boolean(m.lockedContracts?.some((lc: string) => lc.toUpperCase() === c.key));
+                          const isBtnLoading = actionLoadingId === `${m._id}_${c.key}`;
+                          return (
+                            <TouchableOpacity
+                              key={c.key}
+                              style={[styles.contractChip, isContractLocked ? styles.contractChipLocked : styles.contractChipActive]}
+                              onPress={() => handleToggleMatchLock(m._id, isContractLocked, c.key)}
+                              disabled={isBtnLoading}
+                              activeOpacity={0.7}
+                            >
+                              {isBtnLoading ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                              ) : isContractLocked ? (
+                                <Lock size={10} color="#EF4444" />
+                              ) : (
+                                <Unlock size={10} color="#94A3B8" />
+                              )}
+                              <Text style={[styles.contractChipText, { color: isContractLocked ? '#EF4444' : '#CBD5E1' }]}>
+                                {c.label} {isContractLocked ? '• Locked' : ''}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
                       {/* Action Button */}
                       <TouchableOpacity
                         onPress={() => handleToggleMatchLock(m._id, isLocked)}
@@ -402,6 +456,41 @@ export default function AdminMarketControlScreen() {
                           <Text style={styles.overpowerWarningText}>70%+ Crowd Stake Concentration</Text>
                         </View>
                       )}
+                    </View>
+
+                    {/* Individual Contract / Option Safeguard Locks */}
+                    <Text style={styles.contractSectionLabel}>SPECIFIC CONTRACT LOCKS:</Text>
+                    <View style={styles.contractChipsRow}>
+                      {(m.options || [
+                        { id: 'yes', label: 'Yes', odds: 1.85 },
+                        { id: 'no', label: 'No', odds: 1.95 },
+                      ]).map((opt: any) => {
+                        const isContractLocked = Boolean(
+                          opt.isLocked ||
+                          m.lockedContracts?.some((lc: string) => lc.toUpperCase() === String(opt.label).toUpperCase() || lc.toUpperCase() === String(opt.id).toUpperCase())
+                        );
+                        const isBtnLoading = actionLoadingId === `${m._id}_${opt.id || opt.label}`;
+                        return (
+                          <TouchableOpacity
+                            key={opt.id || opt.label}
+                            style={[styles.contractChip, isContractLocked ? styles.contractChipLocked : styles.contractChipActive]}
+                            onPress={() => handleToggleMarketLock(m._id, isContractLocked, opt.id || opt.label)}
+                            disabled={isBtnLoading}
+                            activeOpacity={0.7}
+                          >
+                            {isBtnLoading ? (
+                              <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : isContractLocked ? (
+                              <Lock size={10} color="#EF4444" />
+                            ) : (
+                              <Unlock size={10} color="#94A3B8" />
+                            )}
+                            <Text style={[styles.contractChipText, { color: isContractLocked ? '#EF4444' : '#CBD5E1' }]}>
+                              {opt.label} ({opt.odds?.toFixed(2) || '1.90'}) {isContractLocked ? '• Locked' : ''}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
 
                     {/* Action Button */}
@@ -931,6 +1020,43 @@ const styles = StyleSheet.create({
   actionBtnText: {
     fontSize: 12,
     fontWeight: '800',
+    fontFamily: 'Inter',
+  },
+  contractSectionLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#8FA2C7',
+    marginTop: 6,
+    marginBottom: 6,
+    letterSpacing: 0.5,
+    fontFamily: 'Inter',
+  },
+  contractChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  contractChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 5,
+  },
+  contractChipActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  contractChipLocked: {
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+  },
+  contractChipText: {
+    fontSize: 10,
+    fontWeight: '700',
     fontFamily: 'Inter',
   },
   referralsTabContainer: {

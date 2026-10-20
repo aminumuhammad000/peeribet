@@ -41,7 +41,28 @@ export const enterPool = async ({
 
   match = await Match.findById(targetId);
   if (match) {
-    if (match.isLocked || match.isOverpowered || match.status === 'SUSPENDED') {
+    const selNorm = String(selection).trim().toUpperCase();
+
+    // Specific Contract Lock Safeguard: Only the locked contract is blocked, not the entire market
+    const isContractLocked = match.lockedContracts && match.lockedContracts.some((c: string) => {
+      const cNorm = String(c).trim().toUpperCase();
+      return (
+        cNorm === selNorm ||
+        (cNorm === 'HOME' && (selNorm === '1' || selNorm === 'HOME')) ||
+        (cNorm === 'AWAY' && (selNorm === '2' || selNorm === 'AWAY')) ||
+        (cNorm === 'DRAW' && (selNorm === 'X' || selNorm === 'DRAW')) ||
+        (cNorm === 'OVER_25' && selNorm === 'OVER_25') ||
+        (cNorm === 'UNDER_25' && selNorm === 'UNDER_25') ||
+        (cNorm === 'BTTS_YES' && selNorm === 'BTTS_YES') ||
+        (cNorm === 'BTTS_NO' && selNorm === 'BTTS_NO')
+      );
+    });
+
+    if (isContractLocked) {
+      throw new Error(`The contract "${selection}" is currently locked by administrator safeguards. Other contracts remain open for trading.`);
+    }
+
+    if (match.isLocked && (!match.lockedContracts || match.lockedContracts.length === 0)) {
       throw new Error('This match pool is locked by administrator overpowered safeguards.');
     }
     if (match.status !== 'UPCOMING' && match.status !== 'LIVE') {
@@ -49,7 +70,6 @@ export const enterPool = async ({
     }
 
     // 70% Crowd Overpower check using background odds / pool concentration
-    const selNorm = String(selection).trim().toUpperCase();
     let selOdds = 2.0;
     if (selNorm === 'HOME' || selNorm === '1') selOdds = match.odds?.home || 1.85;
     else if (selNorm === 'AWAY' || selNorm === '2') selOdds = match.odds?.away || 2.40;
@@ -75,14 +95,7 @@ export const enterPool = async ({
   } else {
     predictionMarket = await Market.findById(targetId);
     if (!predictionMarket) throw new Error('Match or Market not found');
-    if (predictionMarket.isLocked || predictionMarket.isOverpowered || predictionMarket.status === 'SUSPENDED') {
-      throw new Error('This prediction market pool is locked by administrator overpowered safeguards.');
-    }
-    if (predictionMarket.status !== 'ACTIVE') {
-      throw new Error('Pool for this market is currently closed');
-    }
 
-    // 70% Crowd Overpower check for prediction market options
     const normSel = String(selection).trim().toUpperCase();
     const opt = (predictionMarket.options || []).find((o: any) =>
       String(o.id).toUpperCase() === normSel ||
@@ -90,6 +103,32 @@ export const enterPool = async ({
       (normSel === 'YES' && o.label?.toUpperCase() === 'YES') ||
       (normSel === 'NO' && o.label?.toUpperCase() === 'NO')
     );
+
+    // Specific Contract Lock Safeguard: Only the locked contract is blocked, not the entire market
+    const isOptionLocked = Boolean(
+      opt?.isLocked ||
+      (predictionMarket.lockedContracts && predictionMarket.lockedContracts.some((c: string) => {
+        const cNorm = String(c).trim().toUpperCase();
+        return (
+          cNorm === normSel ||
+          (opt && cNorm === String(opt.id).toUpperCase()) ||
+          (opt && cNorm === String(opt.label).toUpperCase())
+        );
+      }))
+    );
+
+    if (isOptionLocked) {
+      throw new Error(`The contract "${opt?.label || selection}" is currently locked by administrator safeguards. Other contracts on this market remain open for trading.`);
+    }
+
+    if (predictionMarket.isLocked && (!predictionMarket.lockedContracts || predictionMarket.lockedContracts.length === 0)) {
+      throw new Error('This prediction market pool is locked by administrator overpowered safeguards.');
+    }
+    if (predictionMarket.status !== 'ACTIVE') {
+      throw new Error('Pool for this market is currently closed');
+    }
+
+    // 70% Crowd Overpower check for prediction market options
     if (opt) {
       const optOdds = opt.odds || 1.9;
       const optProb = optOdds > 0 ? 1 / optOdds : 0;

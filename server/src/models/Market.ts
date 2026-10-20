@@ -5,6 +5,7 @@ export interface IMarketOption {
   label: string;
   odds: number;
   totalStaked?: number;
+  isLocked?: boolean;
 }
 
 export interface IMarket extends Document {
@@ -32,7 +33,7 @@ export interface IMarket extends Document {
     openShares: number;
   };
   volume: string;
-  status: 'DRAFT' | 'ACTIVE' | 'CLOSED' | 'RESOLVED' | 'VOIDED' | 'MAINTENANCE';
+  status: 'DRAFT' | 'ACTIVE' | 'CLOSED' | 'RESOLVED' | 'VOIDED' | 'MAINTENANCE' | 'SUSPENDED';
   winningOption?: string;
   resolutionSource?: string;
   closingDate?: Date;
@@ -42,6 +43,7 @@ export interface IMarket extends Document {
   isLocked?: boolean;
   isOverpowered?: boolean;
   lockedReason?: string;
+  lockedContracts?: string[];
   creator?: Types.ObjectId;
   image?: string;
   // Legacy fields for backward compatibility
@@ -58,6 +60,7 @@ const marketOptionSchema = new Schema<IMarketOption>(
     label: { type: String, required: true },
     odds: { type: Number, required: true, default: 1.9 },
     totalStaked: { type: Number, default: 0 },
+    isLocked: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -107,7 +110,7 @@ const marketSchema = new Schema<IMarket>(
     volume: { type: String, default: '₦0' },
     status: {
       type: String,
-      enum: ['DRAFT', 'ACTIVE', 'CLOSED', 'RESOLVED', 'VOIDED', 'MAINTENANCE'],
+      enum: ['DRAFT', 'ACTIVE', 'CLOSED', 'RESOLVED', 'VOIDED', 'MAINTENANCE', 'SUSPENDED'],
       default: 'ACTIVE',
       index: true,
     },
@@ -119,6 +122,7 @@ const marketSchema = new Schema<IMarket>(
     isLocked: { type: Boolean, default: false },
     isOverpowered: { type: Boolean, default: false },
     lockedReason: { type: String, default: '' },
+    lockedContracts: { type: [String], default: [] },
     creator: { type: Schema.Types.ObjectId, ref: 'User' },
     image: { type: String, default: '' },
     // Backwards compatibility

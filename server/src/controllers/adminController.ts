@@ -427,10 +427,87 @@ export const updateMarketStatus = async (req: Request, res: Response) => {
 export const toggleMarketLock = async (req: Request, res: Response) => {
   try {
     const marketId = req.params.id || req.body.marketId || req.body.id;
-    const { isLocked, reason } = req.body;
+    const { contract, optionId, isLocked, reason } = req.body;
     const market = await Market.findById(marketId);
     if (!market) return res.status(404).json({ message: 'Market not found' });
 
+    if (!market.lockedContracts) market.lockedContracts = [];
+
+    // Specific Contract Lock / Unlock
+    const targetContract = contract || optionId;
+    if (targetContract) {
+      const normTarget = String(targetContract).trim().toUpperCase();
+      let optFound = false;
+
+      // Update in market.options
+      market.options = (market.options || []).map((opt: any) => {
+        const optNormId = String(opt.id).trim().toUpperCase();
+        const optNormLabel = String(opt.label).trim().toUpperCase();
+        if (optNormId === normTarget || optNormLabel === normTarget) {
+          optFound = true;
+          const newLockState = typeof isLocked === 'boolean' ? isLocked : !opt.isLocked;
+          opt.isLocked = newLockState;
+          if (newLockState) {
+            if (!market.lockedContracts!.includes(opt.id)) market.lockedContracts!.push(opt.id);
+            if (!market.lockedContracts!.includes(opt.label.toUpperCase())) market.lockedContracts!.push(opt.label.toUpperCase());
+          } else {
+            market.lockedContracts = market.lockedContracts!.filter(
+              (c: string) => c.toUpperCase() !== optNormId && c.toUpperCase() !== optNormLabel
+            );
+          }
+        }
+        return opt;
+      });
+
+      if (!optFound) {
+        // Direct string contract (e.g. YES, NO)
+        const currentlyLocked = market.lockedContracts.some((c: string) => c.toUpperCase() === normTarget);
+        const newLockState = typeof isLocked === 'boolean' ? isLocked : !currentlyLocked;
+        if (newLockState) {
+          if (!market.lockedContracts.includes(normTarget)) market.lockedContracts.push(normTarget);
+        } else {
+          market.lockedContracts = market.lockedContracts.filter((c: string) => c.toUpperCase() !== normTarget);
+        }
+      }
+
+      // Check if all options are locked, but market stays ACTIVE unless all options are locked
+      const allLocked = market.options.length > 0 && market.options.every((opt: any) => opt.isLocked);
+      market.isLocked = allLocked;
+      market.isOverpowered = allLocked;
+      if (allLocked) {
+        market.status = 'SUSPENDED' as any;
+        market.lockedReason = reason || 'All contracts locked by admin';
+      } else {
+        if (market.status === 'SUSPENDED') market.status = 'ACTIVE' as any;
+        market.lockedReason = market.lockedContracts.length > 0 ? `Locked contracts: ${market.lockedContracts.join(', ')}` : '';
+      }
+
+      await market.save();
+
+      try {
+        await SecurityLog.create({
+          type: 'warning',
+          text: `Admin updated contract "${targetContract}" lock state on market "${market.title}"`,
+          meta: reason || `Contract ${targetContract} lock toggled`,
+          icon: 'shield-alert',
+        });
+        const io = getIO();
+        if (io) io.emit('market_updated', { 
+          marketId: market._id, 
+          isLocked: market.isLocked, 
+          lockedContracts: market.lockedContracts,
+          options: market.options,
+          status: market.status 
+        });
+      } catch (e) {}
+
+      return res.json({ 
+        message: `Contract "${targetContract}" lock state updated successfully`, 
+        market 
+      });
+    }
+
+    // Whole market toggle fallback
     market.isLocked = typeof isLocked === 'boolean' ? isLocked : !market.isLocked;
     market.isOverpowered = market.isLocked;
     if (reason) market.lockedReason = reason;
@@ -439,8 +516,12 @@ export const toggleMarketLock = async (req: Request, res: Response) => {
 
     if (market.isLocked) {
       market.status = 'SUSPENDED' as any;
+      market.options.forEach((opt: any) => { opt.isLocked = true; });
+      market.lockedContracts = market.options.map((opt: any) => opt.label.toUpperCase());
     } else {
       market.status = 'ACTIVE' as any;
+      market.options.forEach((opt: any) => { opt.isLocked = false; });
+      market.lockedContracts = [];
     }
     await market.save();
 
@@ -452,7 +533,7 @@ export const toggleMarketLock = async (req: Request, res: Response) => {
         icon: 'shield-alert',
       });
       const io = getIO();
-      if (io) io.emit('market_updated', { marketId: market._id, isLocked: market.isLocked, status: market.status });
+      if (io) io.emit('market_updated', { marketId: market._id, isLocked: market.isLocked, lockedContracts: market.lockedContracts, options: market.options, status: market.status });
     } catch (e) {}
 
     res.json({ message: `Market ${market.isLocked ? 'locked' : 'unlocked'} successfully`, market });
@@ -464,10 +545,51 @@ export const toggleMarketLock = async (req: Request, res: Response) => {
 export const toggleMatchLock = async (req: Request, res: Response) => {
   try {
     const matchId = req.params.id || req.body.matchId || req.body.id;
-    const { isLocked, reason } = req.body;
+    const { contract, isLocked, reason } = req.body;
     const match = await Match.findById(matchId);
     if (!match) return res.status(404).json({ message: 'Match not found' });
 
+    if (!match.lockedContracts) match.lockedContracts = [];
+
+    // Specific contract lock / unlock (e.g. 'HOME', 'DRAW', 'AWAY', 'OVER_25', 'UNDER_25', 'BTTS_YES', 'BTTS_NO')
+    if (contract) {
+      const normContract = String(contract).trim().toUpperCase();
+      const currentlyLocked = match.lockedContracts.some((c: string) => c.toUpperCase() === normContract);
+      const newLockState = typeof isLocked === 'boolean' ? isLocked : !currentlyLocked;
+
+      if (newLockState) {
+        if (!match.lockedContracts.some((c: string) => c.toUpperCase() === normContract)) {
+          match.lockedContracts.push(normContract);
+        }
+      } else {
+        match.lockedContracts = match.lockedContracts.filter((c: string) => c.toUpperCase() !== normContract);
+      }
+
+      await match.save();
+
+      try {
+        await SecurityLog.create({
+          type: newLockState ? 'warning' : 'success',
+          text: `Admin ${newLockState ? 'LOCKED' : 'UNLOCKED'} contract "${normContract}" on match "${match.homeTeam} vs ${match.awayTeam}"`,
+          meta: reason || `Contract ${normContract} lock toggled`,
+          icon: 'shield-alert',
+        });
+        const io = getIO();
+        if (io) io.emit('match_updated', { 
+          matchId: match._id, 
+          isLocked: match.isLocked, 
+          lockedContracts: match.lockedContracts,
+          status: match.status 
+        });
+      } catch (e) {}
+
+      return res.json({ 
+        message: `Contract "${normContract}" ${newLockState ? 'locked' : 'unlocked'} successfully`, 
+        match 
+      });
+    }
+
+    // Whole match toggle fallback
     match.isLocked = typeof isLocked === 'boolean' ? isLocked : !match.isLocked;
     match.isOverpowered = match.isLocked;
     if (reason) match.lockedReason = reason;
@@ -489,7 +611,7 @@ export const toggleMatchLock = async (req: Request, res: Response) => {
         icon: 'shield-alert',
       });
       const io = getIO();
-      if (io) io.emit('match_updated', { matchId: match._id, isLocked: match.isLocked, status: match.status });
+      if (io) io.emit('match_updated', { matchId: match._id, isLocked: match.isLocked, lockedContracts: match.lockedContracts, status: match.status });
     } catch (e) {}
 
     res.json({ message: `Match ${match.isLocked ? 'locked' : 'unlocked'} successfully`, match });
