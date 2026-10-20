@@ -227,11 +227,13 @@ export default function App() {
   const [isSubmittingCredit, setIsSubmittingCredit] = useState(false);
 
   // Referral System State
-  const [referralStats, setReferralStats] = useState({ totalReferrals: 0, totalBonusPaid: 0, activeReferrers: 0, pendingReferrals: 0, recentReferrals: [], topReferrers: [] });
-  const [referralSettings, setReferralSettings] = useState({ referralEnabled: true, referrerBonus: 1000, refereeBonus: 1000, referralDescription: '' });
+  const [referralStats, setReferralStats] = useState({ totalReferrals: 0, totalBonusPaid: 0, activeReferrers: 0, pendingReferrals: 0, recentReferrals: [], topReferrers: [], recentWinShares: [] });
+  const [referralSettings, setReferralSettings] = useState({ referralEnabled: true, referrerBonus: 1000, refereeBonus: 1000, winReceiptShareBonus: 1000, winReceiptWeeklyLimit: 3, referralDescription: '' });
   const [editReferralEnabled, setEditReferralEnabled] = useState(true);
   const [editReferrerBonus, setEditReferrerBonus] = useState('1000');
   const [editRefereeBonus, setEditRefereeBonus] = useState('1000');
+  const [editWinShareBonus, setEditWinShareBonus] = useState('1000');
+  const [editWinWeeklyLimit, setEditWinWeeklyLimit] = useState('3');
   const [editReferralDescription, setEditReferralDescription] = useState('');
   const [isSavingReferral, setIsSavingReferral] = useState(false);
 
@@ -549,6 +551,8 @@ export default function App() {
       setEditReferralEnabled(settingsRes.data.referralEnabled ?? true);
       setEditReferrerBonus(String(settingsRes.data.referrerBonus ?? 1000));
       setEditRefereeBonus(String(settingsRes.data.refereeBonus ?? 1000));
+      setEditWinShareBonus(String(settingsRes.data.winReceiptShareBonus ?? 1000));
+      setEditWinWeeklyLimit(String(settingsRes.data.winReceiptWeeklyLimit ?? 3));
       setEditReferralDescription(settingsRes.data.referralDescription || '');
     } catch (error) {
       console.error('Error fetching referral data:', error);
@@ -562,6 +566,8 @@ export default function App() {
         referralEnabled: editReferralEnabled,
         referrerBonus: Number(editReferrerBonus),
         refereeBonus: Number(editRefereeBonus),
+        winReceiptShareBonus: Number(editWinShareBonus),
+        winReceiptWeeklyLimit: Number(editWinWeeklyLimit),
         referralDescription: editReferralDescription
       });
       await fetchReferralStats();
@@ -4941,6 +4947,32 @@ export default function App() {
                   <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Amount credited to the newly joined user who used a referral code</p>
                 </div>
 
+                {/* Win Receipt Share Bonus */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Win Receipt Share Bonus (₦)</label>
+                  <input
+                    type="number"
+                    value={editWinShareBonus}
+                    onChange={(e) => setEditWinShareBonus(e.target.value)}
+                    placeholder="1000"
+                    style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '10px 14px', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Amount credited when user shares verified winning trade slip to social media</p>
+                </div>
+
+                {/* Weekly Limit */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Max Win Shares Per Week Limit</label>
+                  <input
+                    type="number"
+                    value={editWinWeeklyLimit}
+                    onChange={(e) => setEditWinWeeklyLimit(e.target.value)}
+                    placeholder="3"
+                    style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '10px 14px', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Anti-abuse limit: Maximum win receipt shares rewarded per trader per week</p>
+                </div>
+
                 {/* Description */}
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Program Description</label>
@@ -5032,6 +5064,55 @@ export default function App() {
                           <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, backgroundColor: ref.status === 'completed' ? 'rgba(0,210,133,0.15)' : 'rgba(245,158,11,0.15)', color: ref.status === 'completed' ? '#00D285' : '#F59E0B', textTransform: 'uppercase' }}>{ref.status || 'pending'}</span>
                         </td>
                         <td style={{ padding: '10px 12px', color: '#64748b', textAlign: 'right', fontSize: 12 }}>{ref.createdAt ? new Date(ref.createdAt).toLocaleDateString() : 'N/A'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Recent Win Receipt Shares Table */}
+            <div className="table-card" style={{ padding: 24, marginTop: 24 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Share2 size={16} color="#A855F7" />
+                Recent Win Receipt Shares ({(referralStats.recentWinShares || []).length})
+              </h3>
+
+              {(referralStats.recentWinShares || []).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                  <Share2 size={40} strokeWidth={1} style={{ marginBottom: 12, opacity: 0.5 }} />
+                  <p style={{ fontSize: 14 }}>No win receipt shares recorded yet.</p>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                      <th style={{ textAlign: 'left', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Trader</th>
+                      <th style={{ textAlign: 'left', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Platform</th>
+                      <th style={{ textAlign: 'center', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Slip Type</th>
+                      <th style={{ textAlign: 'center', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Bonus Rewarded</th>
+                      <th style={{ textAlign: 'right', padding: '8px 12px', color: '#64748b', fontWeight: 700, fontSize: 11, textTransform: 'uppercase' }}>Shared Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(referralStats.recentWinShares || []).map((ws, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid rgba(30,41,59,0.5)' }}>
+                        <td style={{ padding: '10px 12px', color: '#e2e8f0' }}>
+                          {ws.user ? `${ws.user.firstName || ''} ${ws.user.lastName || ''}`.trim() : 'Trader'}
+                          {ws.user?.email && <span style={{ display: 'block', fontSize: 11, color: '#64748b' }}>{ws.user.email}</span>}
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#38BDF8', fontWeight: 600, textTransform: 'capitalize' }}>
+                          {ws.platform || 'Social Share'}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center', color: '#94a3b8', textTransform: 'uppercase', fontSize: 11 }}>
+                          {ws.tradeType || 'Trade'}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <span style={{ color: '#00D285', fontWeight: 700 }}>+₦{(ws.bonusAmount || 1000).toLocaleString()}</span>
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#64748b', textAlign: 'right', fontSize: 12 }}>
+                          {ws.sharedAt ? new Date(ws.sharedAt).toLocaleDateString() : 'N/A'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

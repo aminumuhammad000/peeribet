@@ -535,6 +535,25 @@ export const adminService = {
     const response = await apiRequest(api.get('/admin/matches'));
     return response.data;
   },
+  getAdminReferralStats: async () => {
+    const response = await apiRequest(api.get('/admin/referrals/stats'));
+    return response.data;
+  },
+  getAdminReferralSettings: async () => {
+    const response = await apiRequest(api.get('/admin/referrals/settings'));
+    return response.data;
+  },
+  updateAdminReferralSettings: async (data: {
+    referralEnabled?: boolean;
+    referrerBonus?: number;
+    refereeBonus?: number;
+    winReceiptShareBonus?: number;
+    winReceiptWeeklyLimit?: number;
+    referralDescription?: string;
+  }) => {
+    const response = await apiRequest(api.post('/admin/referrals/settings', data));
+    return response.data;
+  },
 };
 
 export default api;

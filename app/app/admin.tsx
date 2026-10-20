@@ -23,6 +23,14 @@ import {
   CheckCircle,
   AlertTriangle,
   Zap,
+  Gift,
+  Users,
+  Share2,
+  Settings,
+  DollarSign,
+  Award,
+  Clock,
+  Sparkles,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
@@ -31,7 +39,7 @@ import { adminService, authService, showToast } from '../services/apiService';
 export default function AdminMarketControlScreen() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'MATCHES' | 'MARKETS'>('MATCHES');
+  const [activeTab, setActiveTab] = useState<'MATCHES' | 'MARKETS' | 'REFERRALS'>('MATCHES');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,17 +47,40 @@ export default function AdminMarketControlScreen() {
   const [markets, setMarkets] = useState<any[]>([]);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
+  // Referral Administration State
+  const [referralStats, setReferralStats] = useState<any>(null);
+  const [editReferralEnabled, setEditReferralEnabled] = useState(true);
+  const [editReferrerBonus, setEditReferrerBonus] = useState('1000');
+  const [editRefereeBonus, setEditRefereeBonus] = useState('1000');
+  const [editWinShareBonus, setEditWinShareBonus] = useState('1000');
+  const [editWinWeeklyLimit, setEditWinWeeklyLimit] = useState('3');
+  const [editReferralDescription, setEditReferralDescription] = useState('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
   const loadData = useCallback(async () => {
     try {
-      const [userData, matchesRes, marketsRes] = await Promise.all([
+      const [userData, matchesRes, marketsRes, refData] = await Promise.all([
         authService.getMe().catch(() => null),
         adminService.getAdminMatches().catch(() => ({ matches: [] })),
         adminService.getAdminMarkets().catch(() => ({ markets: [] })),
+        adminService.getAdminReferralStats().catch(() => null),
       ]);
 
       if (userData) setUser(userData);
       setMatches(matchesRes?.matches || []);
       setMarkets(marketsRes?.markets || []);
+
+      if (refData) {
+        setReferralStats(refData);
+        if (refData.settings) {
+          setEditReferralEnabled(refData.settings.referralEnabled ?? true);
+          setEditReferrerBonus(String(refData.settings.referrerBonus ?? 1000));
+          setEditRefereeBonus(String(refData.settings.refereeBonus ?? 1000));
+          setEditWinShareBonus(String(refData.settings.winReceiptShareBonus ?? 1000));
+          setEditWinWeeklyLimit(String(refData.settings.winReceiptWeeklyLimit ?? 3));
+          setEditReferralDescription(refData.settings.referralDescription || '');
+        }
+      }
     } catch (err: any) {
       console.error('Error loading admin data:', err);
       showToast('Failed to load admin market list', 'error');
@@ -58,6 +89,27 @@ export default function AdminMarketControlScreen() {
       setRefreshing(false);
     }
   }, []);
+
+  const handleSaveReferralSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      await adminService.updateAdminReferralSettings({
+        referralEnabled: editReferralEnabled,
+        referrerBonus: Number(editReferrerBonus) || 1000,
+        refereeBonus: Number(editRefereeBonus) || 1000,
+        winReceiptShareBonus: Number(editWinShareBonus) || 1000,
+        winReceiptWeeklyLimit: Number(editWinWeeklyLimit) || 3,
+        referralDescription: editReferralDescription,
+      });
+      showToast('Referral bonuses updated successfully! 🎁', 'success');
+      const refreshedStats = await adminService.getAdminReferralStats().catch(() => null);
+      if (refreshedStats) setReferralStats(refreshedStats);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update referral settings', 'error');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -137,6 +189,14 @@ export default function AdminMarketControlScreen() {
     );
   });
 
+  const filteredReferrals = (referralStats?.recentReferrals || []).filter((r: any) => {
+    if (!q) return true;
+    const refCode = (r.referralCode || '').toLowerCase();
+    const referrer = `${r.referrer?.firstName || ''} ${r.referrer?.lastName || ''} ${r.referrer?.email || ''}`.toLowerCase();
+    const referee = `${r.referee?.firstName || ''} ${r.referee?.lastName || ''} ${r.referee?.email || ''}`.toLowerCase();
+    return refCode.includes(q) || referrer.includes(q) || referee.includes(q);
+  });
+
   return (
     <LinearGradient colors={['#0A1124', '#050811']} style={styles.background}>
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -168,7 +228,13 @@ export default function AdminMarketControlScreen() {
           <Search size={16} color="#64748B" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder={activeTab === 'MATCHES' ? 'Search sports fixture by club or league...' : 'Search prediction market title...'}
+            placeholder={
+              activeTab === 'MATCHES'
+                ? 'Search sports fixture by club or league...'
+                : activeTab === 'MARKETS'
+                ? 'Search prediction market title...'
+                : 'Search referrals by user, code, or referee...'
+            }
             placeholderTextColor="#64748B"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -183,7 +249,7 @@ export default function AdminMarketControlScreen() {
             activeOpacity={0.8}
           >
             <Text style={[styles.tabBtnText, activeTab === 'MATCHES' && styles.tabBtnTextActive]}>
-              Sports Fixtures ({matches.length})
+              Fixtures ({matches.length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -192,7 +258,16 @@ export default function AdminMarketControlScreen() {
             activeOpacity={0.8}
           >
             <Text style={[styles.tabBtnText, activeTab === 'MARKETS' && styles.tabBtnTextActive]}>
-              Prediction Markets ({markets.length})
+              Markets ({markets.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === 'REFERRALS' && styles.tabBtnActive]}
+            onPress={() => setActiveTab('REFERRALS')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.tabBtnText, activeTab === 'REFERRALS' && styles.tabBtnTextActive]}>
+              Referrals ({referralStats?.totalReferrals || 0})
             </Text>
           </TouchableOpacity>
         </View>
@@ -352,6 +427,252 @@ export default function AdminMarketControlScreen() {
                   </View>
                 );
               })
+            ) : (
+              /* REFERRALS TAB CONTENT */
+              <View style={styles.referralsTabContainer}>
+                {/* 4 Metric Summary Cards */}
+                <View style={styles.adminMetricsGrid}>
+                  <View style={styles.adminMetricCard}>
+                    <View style={styles.adminMetricIconRow}>
+                      <Users size={16} color="#00D285" />
+                      <Text style={styles.adminMetricTag}>All Time</Text>
+                    </View>
+                    <Text style={styles.adminMetricVal}>{(referralStats?.totalReferrals || 0).toLocaleString()}</Text>
+                    <Text style={styles.adminMetricLabel}>Total Referrals</Text>
+                  </View>
+
+                  <View style={styles.adminMetricCard}>
+                    <View style={styles.adminMetricIconRow}>
+                      <DollarSign size={16} color="#3B82F6" />
+                      <Text style={[styles.adminMetricTag, { color: '#3B82F6' }]}>Paid Out</Text>
+                    </View>
+                    <Text style={[styles.adminMetricVal, { color: '#3B82F6' }]}>
+                      ₦{(referralStats?.totalBonusPaid || 0).toLocaleString()}
+                    </Text>
+                    <Text style={styles.adminMetricLabel}>Total Bonuses Paid</Text>
+                  </View>
+
+                  <View style={styles.adminMetricCard}>
+                    <View style={styles.adminMetricIconRow}>
+                      <Award size={16} color="#F59E0B" />
+                      <Text style={[styles.adminMetricTag, { color: '#F59E0B' }]}>Active</Text>
+                    </View>
+                    <Text style={[styles.adminMetricVal, { color: '#F59E0B' }]}>
+                      {(referralStats?.activeReferrersCount || 0).toLocaleString()}
+                    </Text>
+                    <Text style={styles.adminMetricLabel}>Active Referrers</Text>
+                  </View>
+
+                  <View style={styles.adminMetricCard}>
+                    <View style={styles.adminMetricIconRow}>
+                      <Share2 size={16} color="#A855F7" />
+                      <Text style={[styles.adminMetricTag, { color: '#A855F7' }]}>Win Slips</Text>
+                    </View>
+                    <Text style={[styles.adminMetricVal, { color: '#A855F7' }]}>
+                      {(referralStats?.totalWinShares || 0).toLocaleString()}
+                    </Text>
+                    <Text style={styles.adminMetricLabel}>Win Receipts Rewarded</Text>
+                  </View>
+                </View>
+
+                {/* Edit Referral Bonuses & Settings Card */}
+                <View style={styles.adminSettingsCard}>
+                  <View style={styles.adminSettingsHeader}>
+                    <Settings size={18} color="#00D285" />
+                    <Text style={styles.adminSettingsTitle}>Referral Bonus Configuration</Text>
+                  </View>
+
+                  {/* Program Status Toggle */}
+                  <View style={styles.toggleRowWrap}>
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <Text style={styles.toggleTitle}>Referral Program Status</Text>
+                      <Text style={styles.toggleSub}>Enable or pause user referral bonuses and win sharing</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.statusToggleBtn, editReferralEnabled ? styles.statusToggleBtnActive : styles.statusToggleBtnInactive]}
+                      onPress={() => setEditReferralEnabled(!editReferralEnabled)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.statusToggleBtnText, editReferralEnabled ? { color: '#00D285' } : { color: '#EF4444' }]}>
+                        {editReferralEnabled ? 'ENABLED ✓' : 'PAUSED ✕'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Referrer Bonus Input */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>REFERRER BONUS (₦)</Text>
+                    <TextInput
+                      style={styles.numberInput}
+                      keyboardType="numeric"
+                      value={editReferrerBonus}
+                      onChangeText={setEditReferrerBonus}
+                      placeholder="1000"
+                      placeholderTextColor="#64748B"
+                    />
+                    <Text style={styles.inputHint}>Bonus credited to the user who invites a friend</Text>
+                  </View>
+
+                  {/* Referee / New Member Bonus Input */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>NEW MEMBER WELCOME BONUS (₦)</Text>
+                    <TextInput
+                      style={styles.numberInput}
+                      keyboardType="numeric"
+                      value={editRefereeBonus}
+                      onChangeText={setEditRefereeBonus}
+                      placeholder="1000"
+                      placeholderTextColor="#64748B"
+                    />
+                    <Text style={styles.inputHint}>Bonus credited to the new user when joining with a referral code</Text>
+                  </View>
+
+                  {/* Win Receipt Share Bonus Input */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>WIN RECEIPT SHARE BONUS (₦)</Text>
+                    <TextInput
+                      style={styles.numberInput}
+                      keyboardType="numeric"
+                      value={editWinShareBonus}
+                      onChangeText={setEditWinShareBonus}
+                      placeholder="1000"
+                      placeholderTextColor="#64748B"
+                    />
+                    <Text style={styles.inputHint}>Bonus credited to trader for sharing their verified winning receipt</Text>
+                  </View>
+
+                  {/* Weekly Limit Input */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>MAX WIN SHARES PER WEEK (LIMIT)</Text>
+                    <TextInput
+                      style={styles.numberInput}
+                      keyboardType="numeric"
+                      value={editWinWeeklyLimit}
+                      onChangeText={setEditWinWeeklyLimit}
+                      placeholder="3"
+                      placeholderTextColor="#64748B"
+                    />
+                    <Text style={styles.inputHint}>Anti-abuse limit: maximum winning receipts rewarded per user each week</Text>
+                  </View>
+
+                  {/* Description Input */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>PROGRAM PROMO DESCRIPTION</Text>
+                    <TextInput
+                      style={[styles.numberInput, { minHeight: 60, textAlignVertical: 'top' }]}
+                      multiline
+                      value={editReferralDescription}
+                      onChangeText={setEditReferralDescription}
+                      placeholder="Invite friends and both receive ₦1,000 bonus!"
+                      placeholderTextColor="#64748B"
+                    />
+                  </View>
+
+                  {/* Save Button */}
+                  <TouchableOpacity
+                    style={styles.saveSettingsBtn}
+                    onPress={handleSaveReferralSettings}
+                    disabled={isSavingSettings}
+                    activeOpacity={0.8}
+                  >
+                    {isSavingSettings ? (
+                      <ActivityIndicator size="small" color="#050811" />
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <CheckCircle size={16} color="#050811" />
+                        <Text style={styles.saveSettingsBtnText}>Update Referral Bonuses</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Top Referrers Leaderboard */}
+                {(referralStats?.topReferrers || []).length > 0 && (
+                  <View style={styles.adminSectionCard}>
+                    <View style={styles.adminSettingsHeader}>
+                      <Award size={18} color="#F59E0B" />
+                      <Text style={styles.adminSettingsTitle}>Top Referrers Leaderboard</Text>
+                    </View>
+                    {(referralStats.topReferrers || []).map((tr: any, idx: number) => (
+                      <View key={tr._id || idx} style={styles.leaderboardRow}>
+                        <View style={styles.rankBadge}>
+                          <Text style={styles.rankBadgeText}>#{idx + 1}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.leaderboardName}>{tr.firstName} {tr.lastName}</Text>
+                          <Text style={styles.leaderboardSub}>Code: {tr.referralCode} • {tr.email}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={styles.leaderboardCount}>{tr.referralCount} Referrals</Text>
+                          <Text style={styles.leaderboardEarnings}>₦{(tr.referralEarnings || 0).toLocaleString()}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Recent Referrals Activity Ledger */}
+                <View style={styles.adminSectionCard}>
+                  <View style={styles.adminSettingsHeader}>
+                    <Clock size={18} color="#3B82F6" />
+                    <Text style={styles.adminSettingsTitle}>Recent Referral Registrations ({filteredReferrals.length})</Text>
+                  </View>
+                  {filteredReferrals.length === 0 ? (
+                    <Text style={styles.emptyCardText}>No referral registrations recorded yet.</Text>
+                  ) : (
+                    filteredReferrals.map((r: any) => (
+                      <View key={r._id} style={styles.activityRow}>
+                        <View style={styles.activityAvatar}>
+                          <Text style={styles.activityAvatarText}>
+                            {(r.referee?.firstName || '?').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.activityTitle}>
+                            {r.referee?.firstName || 'New User'} {r.referee?.lastName || ''}
+                          </Text>
+                          <Text style={styles.activitySub}>
+                            Referred by {r.referrer?.firstName || 'User'} ({r.referralCode}) • {new Date(r.createdAt).toLocaleDateString()}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={styles.activityBonus}>+₦{(r.referrerBonus || 1000).toLocaleString()}</Text>
+                          <Text style={styles.activityStatus}>{r.status || 'rewarded'}</Text>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+
+                {/* Recent Win Receipt Shares Activity */}
+                {(referralStats?.recentWinShares || []).length > 0 && (
+                  <View style={styles.adminSectionCard}>
+                    <View style={styles.adminSettingsHeader}>
+                      <Share2 size={18} color="#A855F7" />
+                      <Text style={styles.adminSettingsTitle}>Recent Win Receipt Shares</Text>
+                    </View>
+                    {(referralStats.recentWinShares || []).map((ws: any) => (
+                      <View key={ws._id} style={styles.activityRow}>
+                        <View style={[styles.activityAvatar, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+                          <Sparkles size={16} color="#A855F7" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.activityTitle}>
+                            {ws.user?.firstName || 'Trader'} {ws.user?.lastName || ''}
+                          </Text>
+                          <Text style={styles.activitySub}>
+                            {(ws.platform || 'social_share').toUpperCase()} • Trade #{ws.tradeId?.slice(-6) || ''} • {new Date(ws.sharedAt).toLocaleDateString()}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={[styles.activityBonus, { color: '#00D285' }]}>+₦{(ws.bonusAmount || 1000).toLocaleString()}</Text>
+                          <Text style={[styles.activityStatus, { color: '#00D285' }]}>Rewarded</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
             )}
           </ScrollView>
         )}
@@ -609,5 +930,255 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     fontFamily: 'Inter',
+  },
+  referralsTabContainer: {
+    paddingBottom: 24,
+  },
+  adminMetricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 14,
+  },
+  adminMetricCard: {
+    width: '48%',
+    backgroundColor: '#0F1A30',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  adminMetricIconRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  adminMetricTag: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#00D285',
+    textTransform: 'uppercase',
+  },
+  adminMetricVal: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  adminMetricLabel: {
+    fontSize: 10,
+    color: '#8FA2C7',
+    fontWeight: '600',
+    marginTop: 2,
+    fontFamily: 'Inter',
+  },
+  adminSettingsCard: {
+    backgroundColor: '#0F1A30',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+  },
+  adminSettingsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  adminSettingsTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  toggleRowWrap: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  toggleTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  toggleSub: {
+    fontSize: 10,
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+    marginTop: 2,
+  },
+  statusToggleBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  statusToggleBtnActive: {
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    borderColor: '#00D285',
+  },
+  statusToggleBtnInactive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: '#EF4444',
+  },
+  statusToggleBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    fontFamily: 'Inter',
+  },
+  inputGroup: {
+    marginBottom: 12,
+  },
+  inputLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#8FA2C7',
+    marginBottom: 4,
+    fontFamily: 'Inter',
+  },
+  numberInput: {
+    backgroundColor: '#090F1E',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  inputHint: {
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 3,
+    fontFamily: 'Inter',
+  },
+  saveSettingsBtn: {
+    backgroundColor: '#00D285',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  saveSettingsBtnText: {
+    color: '#050811',
+    fontSize: 13,
+    fontWeight: '800',
+    fontFamily: 'Inter',
+  },
+  adminSectionCard: {
+    backgroundColor: '#0F1A30',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  leaderboardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  rankBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#F59E0B',
+    fontFamily: 'Inter',
+  },
+  leaderboardName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  leaderboardSub: {
+    fontSize: 10,
+    color: '#64748B',
+    fontFamily: 'Inter',
+  },
+  leaderboardCount: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  leaderboardEarnings: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#F59E0B',
+    fontFamily: 'Inter',
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  activityAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityAvatarText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#00D285',
+  },
+  activityTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  activitySub: {
+    fontSize: 10,
+    color: '#64748B',
+    fontFamily: 'Inter',
+  },
+  activityBonus: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  activityStatus: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#8FA2C7',
+    fontFamily: 'Inter',
+  },
+  emptyCardText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontFamily: 'Inter',
+    textAlign: 'center',
+    paddingVertical: 16,
   },
 });

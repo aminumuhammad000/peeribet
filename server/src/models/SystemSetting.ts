@@ -18,6 +18,8 @@ export interface ISystemSetting extends Document {
   referralEnabled: boolean;
   referrerBonus: number;
   refereeBonus: number;
+  winReceiptShareBonus: number;
+  winReceiptWeeklyLimit: number;
   referralMinTradeRequirement: number;
   referralDescription?: string;
 }
@@ -49,6 +51,8 @@ const systemSettingSchema = new Schema(
     referralEnabled: { type: Boolean, default: true },
     referrerBonus: { type: Number, default: 1000 },
     refereeBonus: { type: Number, default: 1000 },
+    winReceiptShareBonus: { type: Number, default: 1000 },
+    winReceiptWeeklyLimit: { type: Number, default: 3 },
     referralMinTradeRequirement: { type: Number, default: 0 },
     referralDescription: { 
       type: String, 

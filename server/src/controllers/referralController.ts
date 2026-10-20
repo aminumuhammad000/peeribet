@@ -129,7 +129,19 @@ export const getAdminReferralStats = async (req: Request, res: Response) => {
 
     const totalReferrerBonus = bonusAgg[0]?.totalReferrerBonus || 0;
     const totalRefereeBonus = bonusAgg[0]?.totalRefereeBonus || 0;
-    const totalBonusPaid = totalReferrerBonus + totalRefereeBonus;
+
+    // Win Receipt Shares aggregation
+    const totalWinShares = await WinReceiptShare.countDocuments();
+    const winBonusAgg = await WinReceiptShare.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalWinBonus: { $sum: '$bonusAmount' }
+        }
+      }
+    ]);
+    const totalWinBonusPaid = winBonusAgg[0]?.totalWinBonus || 0;
+    const totalBonusPaid = totalReferrerBonus + totalRefereeBonus + totalWinBonusPaid;
 
     // Top Referrers
     const topReferrers = await User.find({ referralCount: { $gt: 0 } })
@@ -144,6 +156,12 @@ export const getAdminReferralStats = async (req: Request, res: Response) => {
       .sort({ createdAt: -1 })
       .limit(100);
 
+    // Recent 50 Win Receipt Shares
+    const recentWinShares = await WinReceiptShare.find()
+      .populate('user', 'firstName lastName email referralCode')
+      .sort({ sharedAt: -1 })
+      .limit(50);
+
     const settings = await SystemSetting.findOne();
 
     res.json({
@@ -151,13 +169,18 @@ export const getAdminReferralStats = async (req: Request, res: Response) => {
       totalBonusPaid,
       totalReferrerBonus,
       totalRefereeBonus,
+      totalWinShares,
+      totalWinBonusPaid,
       activeReferrersCount: topReferrers.length,
       topReferrers,
       recentReferrals,
+      recentWinShares,
       settings: {
         referralEnabled: settings?.referralEnabled ?? true,
         referrerBonus: settings?.referrerBonus ?? 1000,
         refereeBonus: settings?.refereeBonus ?? 1000,
+        winReceiptShareBonus: settings?.winReceiptShareBonus ?? 1000,
+        winReceiptWeeklyLimit: settings?.winReceiptWeeklyLimit ?? 3,
         referralMinTradeRequirement: settings?.referralMinTradeRequirement ?? 0,
         referralDescription: settings?.referralDescription || 'Invite friends and both earn ₦1,000 bonus!',
       }
@@ -180,6 +203,8 @@ export const getAdminReferralSettings = async (req: Request, res: Response) => {
       referralEnabled: settings.referralEnabled ?? true,
       referrerBonus: settings.referrerBonus ?? 1000,
       refereeBonus: settings.refereeBonus ?? 1000,
+      winReceiptShareBonus: settings.winReceiptShareBonus ?? 1000,
+      winReceiptWeeklyLimit: settings.winReceiptWeeklyLimit ?? 3,
       referralMinTradeRequirement: settings.referralMinTradeRequirement ?? 0,
       referralDescription: settings.referralDescription || 'Invite friends to Peeritrade. Both receive ₦1,000 bonus!',
     });
@@ -195,7 +220,9 @@ export const updateAdminReferralSettings = async (req: Request, res: Response) =
     const { 
       referralEnabled, 
       referrerBonus, 
-      refereeBonus, 
+      refereeBonus,
+      winReceiptShareBonus,
+      winReceiptWeeklyLimit,
       referralMinTradeRequirement, 
       referralDescription 
     } = req.body;
@@ -208,6 +235,8 @@ export const updateAdminReferralSettings = async (req: Request, res: Response) =
     if (referralEnabled !== undefined) settings.referralEnabled = Boolean(referralEnabled);
     if (referrerBonus !== undefined) settings.referrerBonus = Number(referrerBonus);
     if (refereeBonus !== undefined) settings.refereeBonus = Number(refereeBonus);
+    if (winReceiptShareBonus !== undefined) settings.winReceiptShareBonus = Number(winReceiptShareBonus);
+    if (winReceiptWeeklyLimit !== undefined) settings.winReceiptWeeklyLimit = Number(winReceiptWeeklyLimit);
     if (referralMinTradeRequirement !== undefined) {
       settings.referralMinTradeRequirement = Number(referralMinTradeRequirement);
     }
@@ -223,6 +252,8 @@ export const updateAdminReferralSettings = async (req: Request, res: Response) =
         referralEnabled: settings.referralEnabled,
         referrerBonus: settings.referrerBonus,
         refereeBonus: settings.refereeBonus,
+        winReceiptShareBonus: settings.winReceiptShareBonus,
+        winReceiptWeeklyLimit: settings.winReceiptWeeklyLimit,
         referralMinTradeRequirement: settings.referralMinTradeRequirement,
         referralDescription: settings.referralDescription,
       }
@@ -312,6 +343,19 @@ export const claimWinReceiptBonus = async (req: any, res: Response) => {
       });
     }
 
+    // Check system settings for referral bonus and limits
+    const settings = await SystemSetting.findOne();
+    if (settings && settings.referralEnabled === false) {
+      return res.status(400).json({
+        success: false,
+        code: 'PROGRAM_DISABLED',
+        message: 'The referral and win receipt program is currently paused by admin.',
+      });
+    }
+
+    const weeklyLimit = settings?.winReceiptWeeklyLimit ?? 3;
+    const BONUS_REWARD = settings?.winReceiptShareBonus ?? 1000;
+
     // Rule 5: Make sure they won't be able to share the same receipt twice (anti-abuse)
     const existingShare = await WinReceiptShare.findOne({ tradeId: cleanTradeId });
     if (existingShare) {
@@ -322,19 +366,19 @@ export const claimWinReceiptBonus = async (req: any, res: Response) => {
       });
     }
 
-    // Rule 4: Limit the amount of times someone shares a win (3 shares per week is alright)
+    // Rule 4: Limit the amount of times someone shares a win (Admin-configurable, default 3 per week)
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const sharesThisWeek = await WinReceiptShare.countDocuments({
       user: userId,
       sharedAt: { $gte: sevenDaysAgo },
     });
 
-    if (sharesThisWeek >= 3) {
+    if (sharesThisWeek >= weeklyLimit) {
       return res.status(400).json({
         success: false,
         code: 'WEEKLY_LIMIT_REACHED',
-        message: 'Weekly limit reached. You can earn bonuses for sharing a maximum of 3 win receipts per week.',
-        weeklyLimit: 3,
+        message: `Weekly limit reached. You can earn bonuses for sharing a maximum of ${weeklyLimit} win receipts per week.`,
+        weeklyLimit,
         sharesThisWeek,
         remainingThisWeek: 0,
       });
@@ -346,9 +390,7 @@ export const claimWinReceiptBonus = async (req: any, res: Response) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const BONUS_REWARD = 1000;
-
-    // Rule 3: Sharer gets 1k bonus immediately credited to their wallet
+    // Rule 3: Sharer gets bonus immediately credited to their wallet
     user.balance = (user.balance || 0) + BONUS_REWARD;
     user.referralEarnings = (user.referralEarnings || 0) + BONUS_REWARD;
     await user.save();
@@ -360,7 +402,7 @@ export const claimWinReceiptBonus = async (req: any, res: Response) => {
       amount: BONUS_REWARD,
       status: 'completed',
       reference: `WIN_SHARE_${cleanTradeId}_${Date.now().toString(36)}`,
-      description: `Win Receipt Share Bonus (₦1,000 rewarded for sharing verified win to ${platform})`,
+      description: `Win Receipt Share Bonus (₦${BONUS_REWARD.toLocaleString()} rewarded for sharing verified win to ${platform})`,
     });
 
     // Record WinReceiptShare in database (anti-abuse record preventing duplicate claims)
@@ -375,17 +417,17 @@ export const claimWinReceiptBonus = async (req: any, res: Response) => {
     });
 
     // In-app Notification
-    const remainingShares = Math.max(0, 3 - (sharesThisWeek + 1));
+    const remainingShares = Math.max(0, weeklyLimit - (sharesThisWeek + 1));
     await createNotification(
       user._id.toString(),
-      '₦1,000 Win Share Bonus Credited! 🎁',
-      `You received ₦1,000 bonus for sharing your winning trade receipt! You have ${remainingShares} bonus shares remaining this week.`,
+      `₦${BONUS_REWARD.toLocaleString()} Win Share Bonus Credited! 🎁`,
+      `You received ₦${BONUS_REWARD.toLocaleString()} bonus for sharing your winning trade receipt! You have ${remainingShares} bonus shares remaining this week.`,
       'wallet'
     );
 
     res.json({
       success: true,
-      message: `₦1,000 bonus successfully credited to your wallet! 🎉`,
+      message: `₦${BONUS_REWARD.toLocaleString()} bonus successfully credited to your wallet! 🎉`,
       bonus: BONUS_REWARD,
       newBalance: user.balance,
       sharesThisWeek: sharesThisWeek + 1,
@@ -406,6 +448,10 @@ export const getWinReceiptShareStatus = async (req: any, res: Response) => {
     const rawTradeId = req.params.tradeId;
     const tradeId = String(rawTradeId || '').trim();
 
+    const settings = await SystemSetting.findOne();
+    const weeklyLimit = settings?.winReceiptWeeklyLimit ?? 3;
+    const bonusAmount = settings?.winReceiptShareBonus ?? 1000;
+
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const sharesThisWeek = await WinReceiptShare.countDocuments({
       user: userId,
@@ -423,10 +469,11 @@ export const getWinReceiptShareStatus = async (req: any, res: Response) => {
     }
 
     res.json({
-      weeklyLimit: 3,
+      weeklyLimit,
+      bonusAmount,
       sharesThisWeek,
-      remainingThisWeek: Math.max(0, 3 - sharesThisWeek),
-      canShareThisWeek: sharesThisWeek < 3,
+      remainingThisWeek: Math.max(0, weeklyLimit - sharesThisWeek),
+      canShareThisWeek: sharesThisWeek < weeklyLimit,
       isTradeShared: Boolean(isTradeShared),
       isEligibleWin,
     });
