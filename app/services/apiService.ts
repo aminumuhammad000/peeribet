@@ -235,8 +235,10 @@ export const authService = {
     }));
     return response.data;
   },
-  getLeaderboard: async () => {
-    const response = await apiRequest(api.get('/auth/leaderboard'));
+  getLeaderboard: async (timeframe?: string) => {
+    const response = await apiRequest(api.get('/auth/leaderboard', {
+      params: timeframe ? { timeframe: timeframe.toLowerCase() } : undefined,
+    }));
     return response.data;
   },
   logout: async () => {
