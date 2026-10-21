@@ -45,6 +45,8 @@ export const register = async (req: Request, res: Response) => {
     const referrerBonus = (referrerUser && isReferralActive) ? (settings?.referrerBonus ?? 1000) : 0;
 
     const myReferralCode = await generateUniqueReferralCode(firstName);
+    const otp = generateOtp();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     const user = await User.create({
       firstName,
@@ -52,94 +54,37 @@ export const register = async (req: Request, res: Response) => {
       email: cleanEmail,
       phone: cleanPhone,
       password,
-      isVerified: true,
+      isVerified: false,
+      otp,
+      otpExpires,
       referralCode: myReferralCode,
       referredBy: referrerUser ? referrerUser._id : undefined,
-      balance: refereeBonus, // Credit welcome bonus immediately if registered with code
+      balance: 0,
     });
 
     if (user) {
-      const token = generateToken((user._id as any).toString());
-
-      // If registered with valid referral code, credit bonus and record transactions
-      if (referrerUser && isReferralActive && refereeBonus > 0) {
-        // Record transaction for new referee
-        await Transaction.create({
-          user: user._id,
-          type: 'referral_bonus',
-          amount: refereeBonus,
-          status: 'completed',
-          reference: `REF-WELCOME-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
-          description: `Referral welcome bonus for joining with code ${cleanReferralCode}`,
-        });
-
-        // Record notification for new referee
-        createNotification(
-          (user._id as any).toString(),
-          'Welcome Bonus Credited! 🎁',
-          `You received ₦${refereeBonus.toLocaleString()} welcome bonus for signing up with referral code ${cleanReferralCode}!`,
-          'system'
-        ).catch(() => {});
-
-        // Credit referrer user
-        if (referrerBonus > 0) {
-          referrerUser.balance = (referrerUser.balance || 0) + referrerBonus;
-          referrerUser.referralEarnings = (referrerUser.referralEarnings || 0) + referrerBonus;
-          referrerUser.referralCount = (referrerUser.referralCount || 0) + 1;
-          await referrerUser.save();
-
-          await Transaction.create({
-            user: referrerUser._id,
-            type: 'referral_bonus',
-            amount: referrerBonus,
-            status: 'completed',
-            reference: `REF-BONUS-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
-            description: `Referral reward from friend ${firstName} ${lastName}`,
-          });
-
-          createNotification(
-            (referrerUser._id as any).toString(),
-            'Referral Reward Received! 🎁',
-            `Your friend ${firstName} joined Peeritrade using your referral code! ₦${referrerBonus.toLocaleString()} has been credited to your balance.`,
-            'system'
-          ).catch(() => {});
-        }
-
-        // Record Referral relationship
+      // Record pending referral relationship (reward will be credited upon email verification)
+      if (referrerUser && isReferralActive && (refereeBonus > 0 || referrerBonus > 0)) {
         await Referral.create({
           referrer: referrerUser._id,
           referee: user._id,
           referralCode: cleanReferralCode,
           referrerBonus,
           refereeBonus,
-          status: 'rewarded',
-          rewardedAt: new Date(),
+          status: 'pending',
+          rewardedAt: undefined,
         });
       }
 
-      sendWelcomeEmail(cleanEmail, firstName).catch((err) =>
-        console.error('[Email] Failed to send welcome email:', err.message)
-      );
-
-      createNotification(
-        (user._id as any).toString(),
-        'Welcome to Peeritrade! 🎉',
-        'Your account has been created. Start exploring live markets, fund your wallet, or create outcome orders.',
-        'system'
-      ).catch(() => {});
+      // Send OTP verification email
+      await sendOtpEmail(cleanEmail, firstName, otp);
 
       res.status(201).json({
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        username: user.username,
+        message: 'Account registered successfully! A 6-digit verification code has been sent to your email.',
         email: user.email,
-        phone: user.phone,
-        role: user.role,
-        balance: user.balance,
-        referralCode: user.referralCode,
-        token,
-        message: 'Account created successfully!',
+        requiresVerification: true,
+        isVerified: false,
+        ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {})
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
@@ -178,11 +123,24 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    // Enforce email verification
     if (!user.isVerified) {
-      user.isVerified = true;
-      user.otp = undefined;
-      user.otpExpires = undefined;
+      const otp = generateOtp();
+      user.otp = otp;
+      user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
       await user.save();
+
+      sendOtpEmail(user.email, user.firstName, otp).catch((err) =>
+        console.error('[Email] Failed to send OTP on unverified login:', err.message)
+      );
+
+      return res.status(403).json({
+        message: 'Please verify your email address. A 6-digit verification code has been sent to your email.',
+        requiresVerification: true,
+        isVerified: false,
+        email: user.email,
+        ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {})
+      });
     }
 
     res.json({
@@ -193,6 +151,7 @@ export const login = async (req: Request, res: Response) => {
       email: user.email,
       phone: user.phone,
       role: user.role,
+      isVerified: user.isVerified,
       token: generateToken((user._id as any).toString()),
     });
   } catch (error: any) {
@@ -209,7 +168,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
     const cleanOtp = otp ? String(otp).trim() : '';
 
     if (!cleanEmail || !cleanOtp) {
-      return res.status(400).json({ message: 'Email and OTP are required' });
+      return res.status(400).json({ message: 'Email and verification code are required' });
     }
 
     const user = await User.findOne({ email: cleanEmail });
@@ -227,6 +186,60 @@ export const verifyOtp = async (req: Request, res: Response) => {
       user.isVerified = true;
       user.otp = undefined;
       user.otpExpires = undefined;
+
+      // Activate any pending referral reward
+      const pendingReferral = await Referral.findOne({ referee: user._id, status: 'pending' });
+      if (pendingReferral) {
+        if (pendingReferral.refereeBonus > 0) {
+          user.balance = (user.balance || 0) + pendingReferral.refereeBonus;
+          await Transaction.create({
+            user: user._id,
+            type: 'referral_bonus',
+            amount: pendingReferral.refereeBonus,
+            status: 'completed',
+            reference: `REF-WELCOME-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            description: `Referral welcome bonus for joining with code ${pendingReferral.referralCode}`,
+          });
+
+          createNotification(
+            (user._id as any).toString(),
+            'Welcome Bonus Credited! 🎁',
+            `You received ₦${pendingReferral.refereeBonus.toLocaleString()} welcome bonus for signing up with referral code ${pendingReferral.referralCode}!`,
+            'system'
+          ).catch(() => {});
+        }
+
+        if (pendingReferral.referrerBonus > 0) {
+          const referrer = await User.findById(pendingReferral.referrer);
+          if (referrer) {
+            referrer.balance = (referrer.balance || 0) + pendingReferral.referrerBonus;
+            referrer.referralEarnings = (referrer.referralEarnings || 0) + pendingReferral.referrerBonus;
+            referrer.referralCount = (referrer.referralCount || 0) + 1;
+            await referrer.save();
+
+            await Transaction.create({
+              user: referrer._id,
+              type: 'referral_bonus',
+              amount: pendingReferral.referrerBonus,
+              status: 'completed',
+              reference: `REF-BONUS-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+              description: `Referral reward from friend ${user.firstName} ${user.lastName}`,
+            });
+
+            createNotification(
+              (referrer._id as any).toString(),
+              'Referral Reward Received! 🎁',
+              `Your friend ${user.firstName} verified their email on Peeritrade! ₦${pendingReferral.referrerBonus.toLocaleString()} has been credited to your balance.`,
+              'system'
+            ).catch(() => {});
+          }
+        }
+
+        pendingReferral.status = 'rewarded';
+        pendingReferral.rewardedAt = new Date();
+        await pendingReferral.save();
+      }
+
       await user.save();
 
       // Send welcome email & notification only on first verification
@@ -242,12 +255,26 @@ export const verifyOtp = async (req: Request, res: Response) => {
         ).catch(() => {});
       }
 
+      const token = generateToken((user._id as any).toString());
+
       res.status(200).json({
         message: 'Email verified successfully',
-        token: generateToken((user._id as any).toString()),
+        token,
+        user: {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          username: user.username,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          balance: user.balance,
+          referralCode: user.referralCode,
+          isVerified: user.isVerified,
+        },
       });
     } else {
-      res.status(400).json({ message: 'Invalid or expired OTP' });
+      res.status(400).json({ message: 'Invalid or expired verification code' });
     }
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -279,11 +306,12 @@ export const resendOtp = async (req: Request, res: Response) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    sendOtpEmail(cleanEmail, user.firstName, otp).catch((err) =>
-      console.error('[Email] Failed to resend OTP email:', err.message)
-    );
+    await sendOtpEmail(cleanEmail, user.firstName, otp);
 
-    res.json({ message: 'OTP resent successfully' });
+    res.json({
+      message: 'Verification code resent successfully',
+      ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {})
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -337,11 +365,12 @@ export const forgotPassword = async (req: Request, res: Response) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    sendPasswordResetEmail(cleanEmail, user.firstName, otp).catch((err) =>
-      console.error('[Email] Failed to send reset email:', err.message)
-    );
+    await sendPasswordResetEmail(cleanEmail, user.firstName, otp);
 
-    res.status(200).json({ message: 'If that email exists, a reset code has been sent.' });
+    res.status(200).json({
+      message: 'If that email exists, a reset code has been sent.',
+      ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {})
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

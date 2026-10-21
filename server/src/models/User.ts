@@ -49,7 +49,7 @@ const userSchema: Schema = new Schema(
     password: { type: String, required: true, select: false },
     pin: { type: String, select: false },
     balance: { type: Number, default: 0 },
-    isVerified: { type: Boolean, default: true },
+    isVerified: { type: Boolean, default: false },
     otp: { type: String },
     otpExpires: { type: Date },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },

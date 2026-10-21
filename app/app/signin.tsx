@@ -84,6 +84,20 @@ export default function SignInScreen() {
         router.replace('/(tabs)/home');
       } catch (err: any) {
         setLoading(false);
+        const resData = err.response?.data;
+        if (resData?.requiresVerification || resData?.isVerified === false) {
+          const targetEmail = resData.email || (cleanIdentifier.includes('@') ? cleanIdentifier : '');
+          showToast('Please verify your email address.', 'info');
+          router.push({
+            pathname: '/verify-otp',
+            params: {
+              email: targetEmail,
+              context: 'signup',
+            },
+          });
+          return;
+        }
+
         const errorMsg = getApiErrorMessage(err, 'Invalid email, username, or password');
 
         setGeneralError(errorMsg);

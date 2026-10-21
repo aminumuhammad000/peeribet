@@ -157,7 +157,7 @@ export const getApiErrorMessage = (error: any, fallback = 'Something went wrong.
 export const authService = {
   register: async (userData: any) => {
     const response = await apiRequest(api.post('/auth/register', userData));
-    if (response.data.token) {
+    if (response.data.token && response.data.isVerified !== false) {
       api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
       await AsyncStorage.multiSet([
         ['userToken', response.data.token],

@@ -97,7 +97,7 @@ export default function VerifyOtpScreen() {
 
     setLoading(true);
     try {
-      if (context === 'reset_password' || !context) {
+      if (context === 'reset_password') {
         // For password reset: first verify the code is valid
         await authService.verifyResetOtp({ email, otp: code });
         setLoading(false);
@@ -105,6 +105,7 @@ export default function VerifyOtpScreen() {
       } else {
         await authService.verifyOtp({ email, otp: code });
         setLoading(false);
+        showToast('Email verified successfully! Welcome to Peeritrade.', 'success');
         router.replace({ pathname: '/welcome-user', params: { type: 'signup' } });
       }
     } catch (err: any) {
@@ -119,7 +120,7 @@ export default function VerifyOtpScreen() {
     if (isResending || timer > 0) return;
     setIsResending(true);
     try {
-      if (context === 'reset_password' || !context) {
+      if (context === 'reset_password') {
         const res = await authService.forgotPassword(email);
         showToast(res?.message || 'Password reset OTP resent to your email.', 'success');
       } else {
@@ -162,10 +163,12 @@ export default function VerifyOtpScreen() {
             {/* Main Header typography */}
             <View style={styles.headerContainer}>
               <Text style={styles.title}>
-                {context === 'reset_password' || !context ? 'Password Reset Code' : 'OTP Verification'}
+                {context === 'reset_password' ? 'Password Reset Code' : 'Verify Email Address'}
               </Text>
               <Text style={styles.subtitle}>
-                We have sent a verification code to your email:{'\n'}
+                {context === 'reset_password'
+                  ? 'We have sent a 6-digit password reset code to:'
+                  : 'We have sent a 6-digit verification code to:'}{'\n'}
                 <Text style={styles.emailHighlight}>{email}</Text>
               </Text>
             </View>
@@ -214,7 +217,7 @@ export default function VerifyOtpScreen() {
 
             {/* Submit Action */}
             <CustomButton
-              title="Verify"
+              title={context === 'reset_password' ? 'Verify Reset Code' : 'Verify & Continue'}
               variant="primary"
               onPress={handleVerify}
               loading={loading}
@@ -224,12 +227,16 @@ export default function VerifyOtpScreen() {
             {/* Recheck link */}
             <TouchableOpacity
               onPress={() => {
-                router.replace('/forgot-password');
+                if (context === 'reset_password') {
+                  router.replace('/forgot-password');
+                } else {
+                  router.back();
+                }
               }}
               activeOpacity={0.7}
               style={styles.recheckContainer}
             >
-              <Text style={styles.recheckText}>Recheck email</Text>
+              <Text style={styles.recheckText}>Change or recheck email</Text>
             </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>

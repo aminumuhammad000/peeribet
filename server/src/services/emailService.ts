@@ -2,23 +2,29 @@ import nodemailer from 'nodemailer';
 
 // ─── Transporter ────────────────────────────────────────────────────────────
 const createTransporter = () => {
-  const user = process.env.SMTP_USER;
+  const user = process.env.SMTP_USER?.trim();
   const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
 
-  if (process.env.SMTP_HOST) {
+  if (user && pass) {
+    if (process.env.SMTP_HOST) {
+      return nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_PORT === '465',
+        auth: { user, pass },
+        connectionTimeout: 10000,
+      });
+    }
+
+    // Default to standard Gmail service
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
+      service: 'gmail',
       auth: { user, pass },
+      connectionTimeout: 10000,
     });
   }
 
-  // Default to standard Gmail service
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-  });
+  return null;
 };
 
 // ─── Sender Helpers & Sanitizers ─────────────────────────────────────────────
@@ -97,6 +103,17 @@ const emailWrapper = (content: string) => `
 export const sendOtpEmail = async (email: string, firstName: string, otp: string) => {
   try {
     const transporter = createTransporter();
+    if (!transporter) {
+      console.log(`\n══════════════════════════════════════════════════════════════`);
+      console.log(`[EmailService - No SMTP Configured in server/.env]`);
+      console.log(`  To: ${email} (${firstName})`);
+      console.log(`  Type: Email Verification OTP`);
+      console.log(`  OTP Code: ${otp}`);
+      console.log(`  (Configure SMTP_USER and SMTP_PASS in server/.env for email delivery)`);
+      console.log(`══════════════════════════════════════════════════════════════\n`);
+      return;
+    }
+
     const fromName = getFromName();
     const fromEmail = getFromEmail();
 
@@ -127,7 +144,7 @@ export const sendOtpEmail = async (email: string, firstName: string, otp: string
     console.log(`[EmailService] OTP sent successfully to ${email}`);
   } catch (error: any) {
     console.error(`[EmailService Error] Failed to send OTP to ${email}:`, error.message);
-    console.log(`[Development Fallback] Verification OTP for ${email}: ${otp}`);
+    console.log(`\n[Fallback] Verification OTP for ${email}: ${otp}\n`);
   }
 };
 
@@ -135,6 +152,8 @@ export const sendOtpEmail = async (email: string, firstName: string, otp: string
 export const sendWelcomeEmail = async (email: string, firstName: string) => {
   try {
     const transporter = createTransporter();
+    if (!transporter) return;
+
     const fromName = getFromName();
     const fromEmail = getFromEmail();
 
@@ -173,6 +192,17 @@ export const sendWelcomeEmail = async (email: string, firstName: string) => {
 export const sendPasswordResetEmail = async (email: string, firstName: string, otp: string) => {
   try {
     const transporter = createTransporter();
+    if (!transporter) {
+      console.log(`\n══════════════════════════════════════════════════════════════`);
+      console.log(`[EmailService - No SMTP Configured in server/.env]`);
+      console.log(`  To: ${email} (${firstName})`);
+      console.log(`  Type: Password Reset OTP`);
+      console.log(`  Reset Code: ${otp}`);
+      console.log(`  (Configure SMTP_USER and SMTP_PASS in server/.env for email delivery)`);
+      console.log(`══════════════════════════════════════════════════════════════\n`);
+      return;
+    }
+
     const fromName = getFromName();
     const fromEmail = getFromEmail();
 
@@ -203,6 +233,6 @@ export const sendPasswordResetEmail = async (email: string, firstName: string, o
     console.log(`[EmailService] Password reset OTP sent to ${email}`);
   } catch (error: any) {
     console.error(`[EmailService Error] Failed to send password reset OTP to ${email}:`, error.message);
-    console.log(`[Development Fallback] Password Reset OTP for ${email}: ${otp}`);
+    console.log(`\n[Fallback] Password Reset OTP for ${email}: ${otp}\n`);
   }
 };

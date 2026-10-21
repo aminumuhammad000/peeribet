@@ -179,17 +179,24 @@ export default function SignUpStep3Screen() {
     if (!isFormValid) return;
     setLoading(true);
     try {
+      const cleanEmail = String(email || '').trim().toLowerCase();
       await authService.register({
         firstName,
         lastName,
-        email,
+        email: cleanEmail,
         phone,
         password,
         referralCode: referralCode.trim() ? referralCode.trim().toUpperCase() : undefined,
       });
       setLoading(false);
-      showToast('Account created successfully!', 'success');
-      router.replace('/(tabs)/home');
+      showToast('Verification code sent to your email!', 'success');
+      router.push({
+        pathname: '/verify-otp',
+        params: {
+          email: cleanEmail,
+          context: 'signup',
+        },
+      });
     } catch (error: any) {
       setLoading(false);
       const errorMsg = getApiErrorMessage(error, 'Something went wrong. Please try again.');

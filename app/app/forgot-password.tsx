@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
-import { authService } from '../services/apiService';
+import { authService, showToast } from '../services/apiService';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -39,6 +39,7 @@ export default function ForgotPasswordScreen() {
     try {
       await authService.forgotPassword(cleanEmail);
       setLoading(false);
+      showToast('Password reset code sent to your email.', 'success');
       router.push({ pathname: '/verify-otp', params: { email: cleanEmail, context: 'reset_password' } });
     } catch (err: any) {
       setLoading(false);
