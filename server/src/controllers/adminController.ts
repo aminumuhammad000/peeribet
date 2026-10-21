@@ -152,8 +152,8 @@ export const getAllUsers = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limitParam = req.query.limit as string;
-    const isAll = limitParam === 'all' || limitParam === '0';
-    const limit = isAll ? 0 : (parseInt(limitParam) || 1000);
+    const isAll = limitParam === 'all' || limitParam === '0' || limitParam === '-1';
+    const limit = isAll ? 0 : (parseInt(limitParam) || 10000);
     const skip = isAll ? 0 : (page - 1) * limit;
 
     const roleParam = req.query.role as string;

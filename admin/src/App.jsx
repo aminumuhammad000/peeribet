@@ -386,6 +386,13 @@ export default function App() {
     }
   }, [dateRange]);
 
+  useEffect(() => {
+    if (isLoggedIn && (activeTab === 'users' || activeTab === 'dashboard')) {
+      fetchUsers();
+      fetchDashboardStats(dateRange);
+    }
+  }, [activeTab, isLoggedIn]);
+
   const fetchDashboardStats = async (range = dateRange) => {
     try {
       const { data } = await api.get('/admin/stats', { params: { range } });
@@ -400,7 +407,7 @@ export default function App() {
 
   const fetchUsers = async () => {
     try {
-      const { data } = await api.get('/admin/users?limit=all');
+      const { data } = await api.get('/admin/users?limit=10000');
       // Map server users to userBalances structure
       const list = Array.isArray(data) ? data : (data?.users || []);
       const mappedUsers = list.map(u => ({
