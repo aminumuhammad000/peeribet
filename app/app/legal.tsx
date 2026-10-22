@@ -133,7 +133,7 @@ export default function LegalScreen() {
   };
 
   const handleContactLegal = () => {
-    Linking.openURL('mailto:uuhashim0918@gmail.com?subject=Peeritrade%20Legal%20Inquiry');
+    Linking.openURL('mailto:support@peeritrade.com?subject=Peeritrade%20Legal%20Inquiry');
   };
 
   return (
@@ -240,7 +240,7 @@ export default function LegalScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.supportTitle}>Questions about our rules?</Text>
               <Text style={styles.supportDesc}>
-                Contact our compliance handler at uuhashim0918@gmail.com for clarifications.
+                Contact our compliance handler at support@peeritrade.com for clarifications.
               </Text>
             </View>
             <TouchableOpacity

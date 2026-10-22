@@ -46,7 +46,13 @@ const userSchema: Schema = new Schema(
     profileImage: { type: String },
     email: { type: String, required: true, unique: true, lowercase: true },
     phone: { type: String, required: true, unique: true },
-    password: { type: String, required: true, select: false },
+    password: {
+      type: String,
+      required: function (this: any) {
+        return this.isNew;
+      },
+      select: false,
+    },
     pin: { type: String, select: false },
     balance: { type: Number, default: 0 },
     isVerified: { type: Boolean, default: false },

@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  RefreshControl, ActivityIndicator, Alert, Platform
+  RefreshControl, ActivityIndicator, Alert, Platform, Modal
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Bell, BellOff, CheckCheck, Trash2, TrendingUp, Wallet, Shield, Zap } from 'lucide-react-native';
+import {
+  ArrowLeft, Bell, BellOff, CheckCheck, Trash2, TrendingUp,
+  Wallet, Shield, Zap, X, ChevronRight, Calendar
+} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
 import { notificationService } from '../services/apiService';
@@ -21,11 +24,11 @@ interface Notification {
   createdAt: string;
 }
 
-const typeConfig: Record<NotificationType, { icon: any; color: string; bg: string }> = {
-  bet:    { icon: TrendingUp, color: '#3B82F6', bg: 'rgba(59,130,246,0.12)' },
-  wallet: { icon: Wallet,     color: '#00D285', bg: 'rgba(0,210,133,0.12)' },
-  match:  { icon: Zap,        color: '#F59E0B', bg: 'rgba(245,158,11,0.12)' },
-  system: { icon: Shield,     color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)' },
+const typeConfig: Record<NotificationType, { icon: any; color: string; bg: string; label: string }> = {
+  bet:    { icon: TrendingUp, color: '#3B82F6', bg: 'rgba(59,130,246,0.12)',  label: 'BET OUTCOME' },
+  wallet: { icon: Wallet,     color: '#00D285', bg: 'rgba(0,210,133,0.12)', label: 'WALLET' },
+  match:  { icon: Zap,        color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', label: 'MATCH' },
+  system: { icon: Shield,     color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)', label: 'SYSTEM ALERT' },
 };
 
 function timeAgo(isoDate: string) {
@@ -36,12 +39,29 @@ function timeAgo(isoDate: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function formatFullDate(isoDate: string) {
+  try {
+    const d = new Date(isoDate);
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return isoDate;
+  }
+}
+
 export default function NotificationsScreen() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -72,9 +92,19 @@ export default function NotificationsScreen() {
         prev.map(n => n._id === id ? { ...n, isRead: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
+      if (selectedNotification && selectedNotification._id === id) {
+        setSelectedNotification(prev => prev ? { ...prev, isRead: true } : null);
+      }
     } catch (err) {
       console.error('Mark as read failed:', err);
     }
+  };
+
+  const handleNotificationPress = (notification: Notification) => {
+    if (!notification.isRead) {
+      handleMarkAsRead(notification._id);
+    }
+    setSelectedNotification(notification);
   };
 
   const handleMarkAllRead = async () => {
@@ -82,6 +112,9 @@ export default function NotificationsScreen() {
       await notificationService.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      if (selectedNotification) {
+        setSelectedNotification(prev => prev ? { ...prev, isRead: true } : null);
+      }
     } catch (err) {
       console.error('Mark all read failed:', err);
     }
@@ -92,6 +125,9 @@ export default function NotificationsScreen() {
     setNotifications(prev => prev.filter(n => n._id !== id));
     if (deleted && !deleted.isRead) {
       setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    if (selectedNotification?._id === id) {
+      setSelectedNotification(null);
     }
     try {
       await notificationService.delete(id);
@@ -127,6 +163,7 @@ export default function NotificationsScreen() {
   const executeClearAll = async () => {
     setNotifications([]);
     setUnreadCount(0);
+    setSelectedNotification(null);
     try {
       await notificationService.clearAll();
     } catch (err) {
@@ -208,7 +245,7 @@ export default function NotificationsScreen() {
                   <NotificationCard
                     key={n._id}
                     notification={n}
-                    onRead={handleMarkAsRead}
+                    onPress={handleNotificationPress}
                     onDelete={handleDelete}
                   />
                 ))}
@@ -223,7 +260,7 @@ export default function NotificationsScreen() {
                   <NotificationCard
                     key={n._id}
                     notification={n}
-                    onRead={handleMarkAsRead}
+                    onPress={handleNotificationPress}
                     onDelete={handleDelete}
                   />
                 ))}
@@ -231,6 +268,147 @@ export default function NotificationsScreen() {
             ) : null}
           </ScrollView>
         )}
+
+        {/* Notification Detail Modal */}
+        <Modal
+          visible={!!selectedNotification}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedNotification(null)}
+        >
+          <View style={styles.modalBackdrop}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setSelectedNotification(null)}
+            />
+            <View style={styles.modalCard}>
+              {selectedNotification && (() => {
+                const cfg = typeConfig[selectedNotification.type] || typeConfig.system;
+                const Icon = cfg.icon;
+
+                return (
+                  <>
+                    {/* Modal Header */}
+                    <View style={styles.modalHeader}>
+                      <View style={styles.modalHeaderLeft}>
+                        <View style={[styles.modalIconBox, { backgroundColor: cfg.bg }]}>
+                          <Icon size={22} color={cfg.color} />
+                        </View>
+                        <View>
+                          <View style={styles.modalCategoryRow}>
+                            <Text style={[styles.modalCategoryBadge, { color: cfg.color, borderColor: cfg.color }]}>
+                              {cfg.label}
+                            </Text>
+                            <Text style={styles.modalStatusText}>
+                              {selectedNotification.isRead ? 'Read' : 'New'}
+                            </Text>
+                          </View>
+                          <Text style={styles.modalTimeText}>
+                            {timeAgo(selectedNotification.createdAt)}
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => setSelectedNotification(null)}
+                        style={styles.modalCloseBtn}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <X size={18} color="#94A3B8" />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Modal Title */}
+                    <Text style={styles.modalTitle}>{selectedNotification.title}</Text>
+
+                    {/* Date metadata */}
+                    <View style={styles.modalMetaRow}>
+                      <Calendar size={13} color="#64748B" />
+                      <Text style={styles.modalMetaText}>
+                        {formatFullDate(selectedNotification.createdAt)}
+                      </Text>
+                    </View>
+
+                    {/* Scrollable Message */}
+                    <ScrollView style={styles.modalMessageScroll} showsVerticalScrollIndicator={false}>
+                      <Text style={styles.modalMessage} selectable>
+                        {selectedNotification.message}
+                      </Text>
+                    </ScrollView>
+
+                    {/* Modal Action Buttons */}
+                    <View style={styles.modalActions}>
+                      {selectedNotification.type === 'wallet' && (
+                        <TouchableOpacity
+                          style={[styles.primaryActionBtn, { backgroundColor: '#00D285' }]}
+                          activeOpacity={0.8}
+                          onPress={() => {
+                            setSelectedNotification(null);
+                            router.push('/(tabs)/wallet');
+                          }}
+                        >
+                          <Wallet size={16} color="#050811" />
+                          <Text style={styles.primaryActionBtnText}>Go to Wallet</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {selectedNotification.type === 'bet' && (
+                        <TouchableOpacity
+                          style={[styles.primaryActionBtn, { backgroundColor: '#3B82F6' }]}
+                          activeOpacity={0.8}
+                          onPress={() => {
+                            setSelectedNotification(null);
+                            router.push('/(tabs)/trades');
+                          }}
+                        >
+                          <TrendingUp size={16} color="#FFFFFF" />
+                          <Text style={[styles.primaryActionBtnText, { color: '#FFFFFF' }]}>View Trades</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {selectedNotification.type === 'match' && (
+                        <TouchableOpacity
+                          style={[styles.primaryActionBtn, { backgroundColor: '#F59E0B' }]}
+                          activeOpacity={0.8}
+                          onPress={() => {
+                            setSelectedNotification(null);
+                            router.push('/(tabs)/market');
+                          }}
+                        >
+                          <Zap size={16} color="#050811" />
+                          <Text style={styles.primaryActionBtnText}>Browse Markets</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      <View style={styles.modalBottomRow}>
+                        <TouchableOpacity
+                          style={styles.modalDeleteBtn}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            const id = selectedNotification._id;
+                            setSelectedNotification(null);
+                            handleDelete(id);
+                          }}
+                        >
+                          <Trash2 size={15} color="#EF4444" />
+                          <Text style={styles.modalDeleteText}>Delete</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.modalDismissBtn}
+                          activeOpacity={0.7}
+                          onPress={() => setSelectedNotification(null)}
+                        >
+                          <Text style={styles.modalDismissText}>Close</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </>
+                );
+              })()}
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -238,11 +416,11 @@ export default function NotificationsScreen() {
 
 function NotificationCard({
   notification,
-  onRead,
+  onPress,
   onDelete
 }: {
   notification: Notification;
-  onRead: (id: string) => void;
+  onPress: (notif: Notification) => void;
   onDelete: (id: string) => void;
 }) {
   const cfg = typeConfig[notification.type] || typeConfig.system;
@@ -250,9 +428,9 @@ function NotificationCard({
 
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
+      activeOpacity={0.75}
       style={[styles.card, !notification.isRead && styles.cardUnread]}
-      onPress={() => { if (!notification.isRead) onRead(notification._id); }}
+      onPress={() => onPress(notification)}
     >
       <View style={[styles.iconBox, { backgroundColor: cfg.bg }]}>
         <Icon size={20} color={cfg.color} />
@@ -279,8 +457,9 @@ function NotificationCard({
           style={styles.deleteBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Trash2 size={16} color="#64748B" />
+          <Trash2 size={15} color="#64748B" />
         </TouchableOpacity>
+        <ChevronRight size={16} color="#475569" />
       </View>
     </TouchableOpacity>
   );
@@ -348,7 +527,169 @@ const styles = StyleSheet.create({
   cardTitleUnread: { color: '#FFFFFF', fontWeight: '700' },
   cardTime: { fontSize: 11, color: '#475569', fontFamily: 'Inter' },
   cardMsg: { fontSize: 12, color: '#64748B', fontFamily: 'Inter', lineHeight: 18 },
-  cardActions: { alignItems: 'center', marginLeft: 8, gap: 6 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', marginLeft: 8, gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.dark.primary },
   deleteBtn: { padding: 4 },
+
+  /* Modal Styles */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 8, 17, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#111827',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    padding: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalCategoryBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  modalStatusText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+  },
+  modalTimeText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+    fontFamily: 'Inter',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+    marginBottom: 6,
+    lineHeight: 23,
+  },
+  modalMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 14,
+  },
+  modalMetaText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontFamily: 'Inter',
+  },
+  modalMessageScroll: {
+    maxHeight: 200,
+    backgroundColor: '#0A1124',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    padding: 14,
+    marginBottom: 18,
+  },
+  modalMessage: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#E2E8F0',
+    fontFamily: 'Inter',
+  },
+  modalActions: {
+    gap: 10,
+  },
+  primaryActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  primaryActionBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#050811',
+    fontFamily: 'Inter',
+  },
+  modalBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  modalDeleteText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#EF4444',
+    fontFamily: 'Inter',
+  },
+  modalDismissBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#1E293B',
+  },
+  modalDismissText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+  },
 });

@@ -8,6 +8,7 @@ import { CustomInput } from '../components/CustomInput';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
 import { authService, showToast, getApiErrorMessage, referralService } from '../services/apiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SignUpStep3Screen() {
   const router = useRouter();
@@ -180,7 +181,8 @@ export default function SignUpStep3Screen() {
     setLoading(true);
     try {
       const cleanEmail = String(email || '').trim().toLowerCase();
-      await authService.register({
+      await AsyncStorage.setItem('pendingVerificationEmail', cleanEmail);
+      const res = await authService.register({
         firstName,
         lastName,
         email: cleanEmail,
@@ -195,6 +197,7 @@ export default function SignUpStep3Screen() {
         params: {
           email: cleanEmail,
           context: 'signup',
+          ...(res?.devOtp ? { devOtp: res.devOtp } : {}),
         },
       });
     } catch (error: any) {

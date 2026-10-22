@@ -162,7 +162,7 @@ export default function HelpdeskScreen() {
 
   // Email Linking
   const openEmail = () => {
-    Linking.openURL('mailto:uuhashim0918@gmail.com?subject=Peeritrade%20Support%20Request');
+    Linking.openURL('mailto:support@peeritrade.com?subject=Peeritrade%20Support%20Request');
   };
 
   // Submit Support Ticket
@@ -374,7 +374,7 @@ export default function HelpdeskScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: 14 }}>
                 <Text style={styles.contactMethod}>Official Support Email</Text>
-                <Text style={styles.contactValue}>uuhashim0918@gmail.com</Text>
+                <Text style={styles.contactValue}>support@peeritrade.com</Text>
                 <Text style={styles.contactAvailability}>Responses within 4 hours</Text>
               </View>
               <ExternalLink size={18} color="#64748B" />

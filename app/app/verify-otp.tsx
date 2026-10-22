@@ -7,13 +7,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CustomButton } from '../components/CustomButton';
 import { Colors } from '../constants/Colors';
 import { authService, showToast } from '../services/apiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const rawEmail = Array.isArray(params.email) ? params.email[0] : params.email;
-  const email = (rawEmail ? String(rawEmail).trim().toLowerCase() : '') || 'user@example.com';
+  const initialEmail = rawEmail ? String(rawEmail).trim().toLowerCase() : '';
+  const [email, setEmail] = useState<string>(initialEmail);
   const context = params.context as string | undefined;
+  const devOtpParam = Array.isArray(params.devOtp) ? params.devOtp[0] : params.devOtp;
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(59);
@@ -22,6 +25,23 @@ export default function VerifyOtpScreen() {
   const [isResending, setIsResending] = useState(false);
 
   const inputs = useRef<Array<TextInput | null>>([]);
+
+  // Load fallback stored email from AsyncStorage if params lost during navigation
+  useEffect(() => {
+    if (!email) {
+      AsyncStorage.getItem('pendingVerificationEmail').then((stored) => {
+        if (stored) setEmail(stored.trim().toLowerCase());
+      });
+    }
+  }, [email]);
+
+  // Autofill devOtp if passed in development
+  useEffect(() => {
+    if (devOtpParam && String(devOtpParam).length === 6) {
+      const digits = String(devOtpParam).split('');
+      setOtp(digits);
+    }
+  }, [devOtpParam]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -95,15 +115,21 @@ export default function VerifyOtpScreen() {
       return;
     }
 
+    const activeEmail = email || (await AsyncStorage.getItem('pendingVerificationEmail')) || '';
+    if (!activeEmail) {
+      setError('Email address not found. Please go back and sign up again.');
+      return;
+    }
+
     setLoading(true);
     try {
       if (context === 'reset_password') {
         // For password reset: first verify the code is valid
-        await authService.verifyResetOtp({ email, otp: code });
+        await authService.verifyResetOtp({ email: activeEmail, otp: code });
         setLoading(false);
-        router.replace({ pathname: '/reset-password', params: { email, otp: code } });
+        router.replace({ pathname: '/reset-password', params: { email: activeEmail, otp: code } });
       } else {
-        await authService.verifyOtp({ email, otp: code });
+        await authService.verifyOtp({ email: activeEmail, otp: code });
         setLoading(false);
         showToast('Email verified successfully! Welcome to Peeritrade.', 'success');
         router.replace({ pathname: '/welcome-user', params: { type: 'signup' } });
@@ -118,13 +144,20 @@ export default function VerifyOtpScreen() {
 
   const handleResend = async () => {
     if (isResending || timer > 0) return;
+
+    const activeEmail = email || (await AsyncStorage.getItem('pendingVerificationEmail')) || '';
+    if (!activeEmail) {
+      setError('Email address not found. Please go back and sign up again.');
+      return;
+    }
+
     setIsResending(true);
     try {
       if (context === 'reset_password') {
-        const res = await authService.forgotPassword(email);
+        const res = await authService.forgotPassword(activeEmail);
         showToast(res?.message || 'Password reset OTP resent to your email.', 'success');
       } else {
-        const res = await authService.resendOtp(email);
+        const res = await authService.resendOtp(activeEmail);
         showToast(res?.message || 'Verification OTP resent to your email.', 'success');
       }
       setTimer(59);
@@ -169,7 +202,7 @@ export default function VerifyOtpScreen() {
                 {context === 'reset_password'
                   ? 'We have sent a 6-digit password reset code to:'
                   : 'We have sent a 6-digit verification code to:'}{'\n'}
-                <Text style={styles.emailHighlight}>{email}</Text>
+                <Text style={styles.emailHighlight}>{email || 'your email'}</Text>
               </Text>
             </View>
 

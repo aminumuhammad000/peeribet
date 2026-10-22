@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "rimraf dist && tsc"
+    "build": "rimraf dist && tsc",
+    "test:email": "ts-node --transpile-only src/scripts/testEmail.ts"
   },
   "keywords": [],
   "author": "",

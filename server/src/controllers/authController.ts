@@ -77,7 +77,9 @@ export const register = async (req: Request, res: Response) => {
       }
 
       // Send OTP verification email
-      await sendOtpEmail(cleanEmail, firstName, otp);
+      sendOtpEmail(cleanEmail, firstName, otp).catch((err) =>
+        console.error('[Email] Failed to send OTP verification email:', err.message)
+      );
 
       res.status(201).json({
         message: 'Account registered successfully! A 6-digit verification code has been sent to your email.',
@@ -171,23 +173,50 @@ export const verifyOtp = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Email and verification code are required' });
     }
 
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await User.findOne({ email: cleanEmail }).select('+password +otp +otpExpires');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const isOtpValid =
-      String(user.otp || '').trim() === cleanOtp &&
-      user.otpExpires &&
-      new Date(user.otpExpires).getTime() > Date.now();
+    if (user.isVerified) {
+      const token = generateToken((user._id as any).toString());
+      return res.status(200).json({
+        message: 'Account is already verified',
+        token,
+        user: {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          username: user.username,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          balance: user.balance,
+          referralCode: user.referralCode,
+          isVerified: user.isVerified,
+        },
+      });
+    }
 
-    if (isOtpValid) {
-      const wasAlreadyVerified = user.isVerified;
-      user.isVerified = true;
-      user.otp = undefined;
-      user.otpExpires = undefined;
+    if (!user.otp) {
+      return res.status(400).json({ message: 'No verification code found. Please request a new code.' });
+    }
 
-      // Activate any pending referral reward
+    if (user.otpExpires && new Date(user.otpExpires).getTime() <= Date.now()) {
+      return res.status(400).json({ message: 'Verification code has expired. Please request a new code.' });
+    }
+
+    if (String(user.otp).trim() !== cleanOtp) {
+      return res.status(400).json({ message: 'Invalid verification code. Please check your email and try again.' });
+    }
+
+    const wasAlreadyVerified = user.isVerified;
+    user.isVerified = true;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+
+    // Activate any pending referral reward safely
+    try {
       const pendingReferral = await Referral.findOne({ referee: user._id, status: 'pending' });
       if (pendingReferral) {
         if (pendingReferral.refereeBonus > 0) {
@@ -239,43 +268,43 @@ export const verifyOtp = async (req: Request, res: Response) => {
         pendingReferral.rewardedAt = new Date();
         await pendingReferral.save();
       }
-
-      await user.save();
-
-      // Send welcome email & notification only on first verification
-      if (!wasAlreadyVerified) {
-        sendWelcomeEmail(cleanEmail, user.firstName).catch((err) =>
-          console.error('[Email] Failed to send welcome email:', err.message)
-        );
-        createNotification(
-          (user._id as any).toString(),
-          'Welcome to Peeritrade! 🎉',
-          'Your account is verified. Start exploring live markets, fund your wallet, or create outcome orders.',
-          'system'
-        ).catch(() => {});
-      }
-
-      const token = generateToken((user._id as any).toString());
-
-      res.status(200).json({
-        message: 'Email verified successfully',
-        token,
-        user: {
-          _id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          username: user.username,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          balance: user.balance,
-          referralCode: user.referralCode,
-          isVerified: user.isVerified,
-        },
-      });
-    } else {
-      res.status(400).json({ message: 'Invalid or expired verification code' });
+    } catch (refErr: any) {
+      console.error('[VerifyOTP] Referral bonus activation notice:', refErr.message);
     }
+
+    await user.save();
+
+    // Send welcome email & notification only on first verification
+    if (!wasAlreadyVerified) {
+      sendWelcomeEmail(cleanEmail, user.firstName).catch((err) =>
+        console.error('[Email] Failed to send welcome email:', err.message)
+      );
+      createNotification(
+        (user._id as any).toString(),
+        'Welcome to Peeritrade! 🎉',
+        'Your account is verified. Start exploring live markets, fund your wallet, or create outcome orders.',
+        'system'
+      ).catch(() => {});
+    }
+
+    const token = generateToken((user._id as any).toString());
+
+    res.status(200).json({
+      message: 'Email verified successfully',
+      token,
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        balance: user.balance,
+        referralCode: user.referralCode,
+        isVerified: user.isVerified,
+      },
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -292,13 +321,13 @@ export const resendOtp = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await User.findOne({ email: cleanEmail }).select('+password +otp +otpExpires');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     if (user.isVerified) {
-      return res.status(400).json({ message: 'Account is already verified' });
+      return res.status(400).json({ message: 'Account is already verified. You can sign in directly.' });
     }
 
     const otp = generateOtp();
@@ -306,7 +335,9 @@ export const resendOtp = async (req: Request, res: Response) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    await sendOtpEmail(cleanEmail, user.firstName, otp);
+    sendOtpEmail(cleanEmail, user.firstName, otp).catch((err) =>
+      console.error('[Email] Failed to send OTP on resend:', err.message)
+    );
 
     res.json({
       message: 'Verification code resent successfully',
@@ -354,7 +385,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await User.findOne({ email: cleanEmail }).select('+password +otp +otpExpires');
     // Always respond with 200 to prevent email enumeration
     if (!user) {
       return res.status(200).json({ message: 'If that email exists, a reset code has been sent.' });
@@ -365,7 +396,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
     user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    await sendPasswordResetEmail(cleanEmail, user.firstName, otp);
+    sendPasswordResetEmail(cleanEmail, user.firstName, otp).catch((err) =>
+      console.error('[Email] Failed to send password reset email:', err.message)
+    );
 
     res.status(200).json({
       message: 'If that email exists, a reset code has been sent.',
@@ -392,7 +425,7 @@ export const resetPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Email and reset code are required' });
     }
 
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await User.findOne({ email: cleanEmail }).select('+password +otp +otpExpires');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -436,7 +469,7 @@ export const checkResetOtp = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await User.findOne({ email: cleanEmail }).select('+password +otp +otpExpires');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

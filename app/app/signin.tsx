@@ -87,12 +87,16 @@ export default function SignInScreen() {
         const resData = err.response?.data;
         if (resData?.requiresVerification || resData?.isVerified === false) {
           const targetEmail = resData.email || (cleanIdentifier.includes('@') ? cleanIdentifier : '');
+          if (targetEmail) {
+            await AsyncStorage.setItem('pendingVerificationEmail', targetEmail);
+          }
           showToast('Please verify your email address.', 'info');
           router.push({
             pathname: '/verify-otp',
             params: {
               email: targetEmail,
               context: 'signup',
+              ...(resData?.devOtp ? { devOtp: resData.devOtp } : {}),
             },
           });
           return;

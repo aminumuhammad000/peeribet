@@ -179,6 +179,7 @@ export default function App() {
 
   // Notifications feed state
   const [notifications, setNotifications] = useState([]);
+  const [selectedNotification, setSelectedNotification] = useState(null);
 
   // Markets & Backdoor Trades State
   const [markets, setMarkets] = useState([]);
@@ -2937,18 +2938,29 @@ export default function App() {
                 {notifications.map((notif) => (
                   <div
                     key={notif.id}
+                    onClick={() => {
+                      if (!notif.read) handleMarkSingleRead(notif.id);
+                      setSelectedNotification(notif);
+                    }}
                     style={{
+                      cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'flex-start',
                       justifyContent: 'space-between',
                       backgroundColor: notif.read ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 210, 133, 0.04)',
-                      border: notif.read ? '1px solid #1e293b' : '1px solid rgba(0, 210, 133, 0.2)',
+                      border: notif.read ? '1px solid #1e293b' : '1px solid rgba(0, 210, 133, 0.25)',
                       padding: 16,
                       borderRadius: 8,
                       transition: 'all 0.2s ease'
                     }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = notif.read ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 210, 133, 0.08)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = notif.read ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 210, 133, 0.04)';
+                    }}
                   >
-                    <div style={{ display: 'flex', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 12, flex: 1, marginRight: 16 }}>
                       <div
                         style={{
                           width: 8,
@@ -2956,10 +2968,11 @@ export default function App() {
                           borderRadius: '50%',
                           backgroundColor: notif.category === 'SECURITY' ? '#EF4444' :
                             notif.category === 'OPERATIONS' ? '#F59E0B' : '#00D285',
-                          marginTop: 6
+                          marginTop: 6,
+                          flexShrink: 0
                         }}
                       />
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <h4 style={{ margin: 0, fontSize: 14, fontWeight: 'bold', color: '#ffffff' }}>
                             {notif.title}
@@ -2981,12 +2994,12 @@ export default function App() {
                           {notif.desc}
                         </p>
                         <span style={{ display: 'inline-block', marginTop: 8, fontSize: 10, color: '#64748b' }}>
-                          {notif.time}
+                          {notif.time} • Click for details
                         </span>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={(e) => e.stopPropagation()}>
                       {!notif.read && (
                         <button
                           style={{
@@ -2998,7 +3011,10 @@ export default function App() {
                             padding: '4px 8px',
                             borderRadius: 4
                           }}
-                          onClick={() => handleMarkSingleRead(notif.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkSingleRead(notif.id);
+                          }}
                         >
                           Mark Read
                         </button>
@@ -3012,7 +3028,10 @@ export default function App() {
                           fontSize: 11,
                           padding: '4px 8px'
                         }}
-                        onClick={() => handleDismissNotification(notif.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDismissNotification(notif.id);
+                        }}
                       >
                         Dismiss
                       </button>
@@ -3028,6 +3047,86 @@ export default function App() {
                 )}
               </div>
             </section>
+
+            {/* Notification Detail Modal for Admin */}
+            {selectedNotification && (
+              <div className="modal-overlay" onClick={() => setSelectedNotification(null)}>
+                <div
+                  className="modal-content-card"
+                  style={{ maxWidth: 520, width: '90%' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="modal-title-row">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 'bold',
+                          padding: '3px 8px',
+                          borderRadius: 4,
+                          backgroundColor: selectedNotification.category === 'SECURITY' ? 'rgba(239, 68, 68, 0.15)' :
+                            selectedNotification.category === 'OPERATIONS' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(0, 210, 133, 0.15)',
+                          color: selectedNotification.category === 'SECURITY' ? '#EF4444' :
+                            selectedNotification.category === 'OPERATIONS' ? '#F59E0B' : '#00D285',
+                          border: '1px solid currentColor'
+                        }}
+                      >
+                        {selectedNotification.category}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#64748b' }}>{selectedNotification.time}</span>
+                    </div>
+                    <button
+                      className="modal-close-btn"
+                      onClick={() => setSelectedNotification(null)}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div style={{ marginTop: 16 }}>
+                    <h3 style={{ fontSize: 18, color: '#ffffff', margin: '0 0 12px 0', fontWeight: 'bold' }}>
+                      {selectedNotification.title}
+                    </h3>
+                    <div
+                      style={{
+                        background: '#0a1124',
+                        border: '1px solid #1e293b',
+                        borderRadius: 8,
+                        padding: 16,
+                        color: '#cbd5e1',
+                        fontSize: 14,
+                        lineHeight: 1.6,
+                        maxHeight: 260,
+                        overflowY: 'auto',
+                        whiteSpace: 'pre-wrap'
+                      }}
+                    >
+                      {selectedNotification.desc || selectedNotification.text}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+                    <button
+                      className="action-btn"
+                      style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                      onClick={() => {
+                        handleDismissNotification(selectedNotification.id);
+                        setSelectedNotification(null);
+                      }}
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      className="action-btn"
+                      style={{ background: '#1e293b', color: '#94a3b8' }}
+                      onClick={() => setSelectedNotification(null)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </main>
         ) : activeTab === 'settings' ? (
           <main className="dashboard-container">
