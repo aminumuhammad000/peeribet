@@ -503,6 +503,9 @@ export default function App() {
         type: n.type || 'system',
         category: (n.type || 'system').toUpperCase(),
         time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent',
+        fullDate: n.createdAt ? new Date(n.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Recent',
+        user: n.user,
+        createdAt: n.createdAt,
         read: !!n.isRead || !!n.read
       })));
     } catch (error) {
@@ -2993,9 +2996,14 @@ export default function App() {
                         <p style={{ margin: '6px 0 0 0', fontSize: 12, color: '#94a3b8', lineHeight: 1.4 }}>
                           {notif.desc}
                         </p>
-                        <span style={{ display: 'inline-block', marginTop: 8, fontSize: 10, color: '#64748b' }}>
-                          {notif.time} • Click for details
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                          <span style={{ fontSize: 10, color: '#64748b' }}>
+                            {notif.fullDate || notif.time}
+                          </span>
+                          <span style={{ fontSize: 11, fontWeight: '600', color: '#00D285', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            View details →
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -3053,7 +3061,7 @@ export default function App() {
               <div className="modal-overlay" onClick={() => setSelectedNotification(null)}>
                 <div
                   className="modal-content-card"
-                  style={{ maxWidth: 520, width: '90%' }}
+                  style={{ maxWidth: 540, width: '92%' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="modal-title-row">
@@ -3073,7 +3081,9 @@ export default function App() {
                       >
                         {selectedNotification.category}
                       </span>
-                      <span style={{ fontSize: 12, color: '#64748b' }}>{selectedNotification.time}</span>
+                      <span style={{ fontSize: 12, color: '#64748b' }}>
+                        {selectedNotification.fullDate || selectedNotification.time}
+                      </span>
                     </div>
                     <button
                       className="modal-close-btn"
@@ -3082,6 +3092,12 @@ export default function App() {
                       <X size={18} />
                     </button>
                   </div>
+
+                  {selectedNotification.user && (
+                    <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid #1e293b', borderRadius: 6, fontSize: 12, color: '#94a3b8' }}>
+                      Target User: <strong style={{ color: '#ffffff' }}>{selectedNotification.user.firstName} {selectedNotification.user.lastName}</strong> &lt;{selectedNotification.user.email}&gt;
+                    </div>
+                  )}
 
                   <div style={{ marginTop: 16 }}>
                     <h3 style={{ fontSize: 18, color: '#ffffff', margin: '0 0 12px 0', fontWeight: 'bold' }}>
@@ -3096,9 +3112,10 @@ export default function App() {
                         color: '#cbd5e1',
                         fontSize: 14,
                         lineHeight: 1.6,
-                        maxHeight: 260,
+                        maxHeight: 280,
                         overflowY: 'auto',
-                        whiteSpace: 'pre-wrap'
+                        whiteSpace: 'pre-wrap',
+                        userSelect: 'text'
                       }}
                     >
                       {selectedNotification.desc || selectedNotification.text}
@@ -3106,6 +3123,18 @@ export default function App() {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+                    {!selectedNotification.read && (
+                      <button
+                        className="action-btn"
+                        style={{ background: 'rgba(0, 210, 133, 0.1)', color: '#00D285', border: '1px solid rgba(0, 210, 133, 0.25)' }}
+                        onClick={() => {
+                          handleMarkSingleRead(selectedNotification.id);
+                          setSelectedNotification(prev => prev ? { ...prev, read: true } : null);
+                        }}
+                      >
+                        Mark Read
+                      </button>
+                    )}
                     <button
                       className="action-btn"
                       style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}

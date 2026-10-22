@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  RefreshControl, ActivityIndicator, Alert, Platform, Modal
+  RefreshControl, ActivityIndicator, Alert, Platform, Modal, Pressable
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  ArrowLeft, Bell, BellOff, CheckCheck, Trash2, TrendingUp,
-  Wallet, Shield, Zap, X, ChevronRight, Calendar
+  ArrowLeft, BellOff, CheckCheck, Trash2, TrendingUp,
+  Wallet, Shield, Zap, X, ChevronDown, ChevronUp,
+  Calendar, Maximize2
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
@@ -25,10 +26,10 @@ interface Notification {
 }
 
 const typeConfig: Record<NotificationType, { icon: any; color: string; bg: string; label: string }> = {
-  bet:    { icon: TrendingUp, color: '#3B82F6', bg: 'rgba(59,130,246,0.12)',  label: 'BET OUTCOME' },
-  wallet: { icon: Wallet,     color: '#00D285', bg: 'rgba(0,210,133,0.12)', label: 'WALLET' },
-  match:  { icon: Zap,        color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', label: 'MATCH' },
-  system: { icon: Shield,     color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)', label: 'SYSTEM ALERT' },
+  bet:    { icon: TrendingUp, color: '#3B82F6', bg: 'rgba(59,130,246,0.14)',  label: 'BET OUTCOME' },
+  wallet: { icon: Wallet,     color: '#00D285', bg: 'rgba(0,210,133,0.14)', label: 'WALLET' },
+  match:  { icon: Zap,        color: '#F59E0B', bg: 'rgba(245,158,11,0.14)', label: 'MATCH' },
+  system: { icon: Shield,     color: '#8B5CF6', bg: 'rgba(139,92,246,0.14)', label: 'SYSTEM ALERT' },
 };
 
 function timeAgo(isoDate: string) {
@@ -61,6 +62,7 @@ export default function NotificationsScreen() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
   const fetchNotifications = useCallback(async () => {
@@ -100,7 +102,14 @@ export default function NotificationsScreen() {
     }
   };
 
-  const handleNotificationPress = (notification: Notification) => {
+  const handleToggleExpand = (notification: Notification) => {
+    if (!notification.isRead) {
+      handleMarkAsRead(notification._id);
+    }
+    setExpandedId(prev => (prev === notification._id ? null : notification._id));
+  };
+
+  const handleOpenModal = (notification: Notification) => {
     if (!notification.isRead) {
       handleMarkAsRead(notification._id);
     }
@@ -125,6 +134,9 @@ export default function NotificationsScreen() {
     setNotifications(prev => prev.filter(n => n._id !== id));
     if (deleted && !deleted.isRead) {
       setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+    if (expandedId === id) {
+      setExpandedId(null);
     }
     if (selectedNotification?._id === id) {
       setSelectedNotification(null);
@@ -163,6 +175,7 @@ export default function NotificationsScreen() {
   const executeClearAll = async () => {
     setNotifications([]);
     setUnreadCount(0);
+    setExpandedId(null);
     setSelectedNotification(null);
     try {
       await notificationService.clearAll();
@@ -189,6 +202,20 @@ export default function NotificationsScreen() {
       ]);
     }
   };
+
+  const navigateToAction = (type: NotificationType) => {
+    setSelectedNotification(null);
+    if (type === 'wallet') {
+      router.push('/(tabs)/wallet');
+    } else if (type === 'bet') {
+      router.push('/(tabs)/trades');
+    } else if (type === 'match') {
+      router.push('/(tabs)/market');
+    }
+  };
+
+  const unreadList = notifications.filter(n => !n.isRead);
+  const readList = notifications.filter(n => n.isRead);
 
   return (
     <LinearGradient colors={['#0A1124', '#050811']} style={styles.background}>
@@ -238,30 +265,36 @@ export default function NotificationsScreen() {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />}
           >
             {/* Unread section */}
-            {notifications.filter(n => !n.isRead).length > 0 ? (
+            {unreadList.length > 0 ? (
               <>
                 <Text style={styles.sectionLabel}>New</Text>
-                {notifications.filter(n => !n.isRead).map(n => (
+                {unreadList.map(n => (
                   <NotificationCard
                     key={n._id}
                     notification={n}
-                    onPress={handleNotificationPress}
+                    isExpanded={expandedId === n._id}
+                    onToggleExpand={handleToggleExpand}
+                    onOpenModal={handleOpenModal}
                     onDelete={handleDelete}
+                    onNavigateAction={navigateToAction}
                   />
                 ))}
               </>
             ) : null}
 
             {/* Read section */}
-            {notifications.filter(n => n.isRead).length > 0 ? (
+            {readList.length > 0 ? (
               <>
-                <Text style={[styles.sectionLabel, { marginTop: 20 }]}>Earlier</Text>
-                {notifications.filter(n => n.isRead).map(n => (
+                <Text style={[styles.sectionLabel, unreadList.length > 0 && { marginTop: 20 }]}>Earlier</Text>
+                {readList.map(n => (
                   <NotificationCard
                     key={n._id}
                     notification={n}
-                    onPress={handleNotificationPress}
+                    isExpanded={expandedId === n._id}
+                    onToggleExpand={handleToggleExpand}
+                    onOpenModal={handleOpenModal}
                     onDelete={handleDelete}
+                    onNavigateAction={navigateToAction}
                   />
                 ))}
               </>
@@ -269,7 +302,7 @@ export default function NotificationsScreen() {
           </ScrollView>
         )}
 
-        {/* Notification Detail Modal */}
+        {/* Dedicated Full Modal for Notification Details */}
         <Modal
           visible={!!selectedNotification}
           transparent
@@ -277,12 +310,14 @@ export default function NotificationsScreen() {
           onRequestClose={() => setSelectedNotification(null)}
         >
           <View style={styles.modalBackdrop}>
-            <TouchableOpacity
+            <Pressable
               style={StyleSheet.absoluteFill}
-              activeOpacity={1}
               onPress={() => setSelectedNotification(null)}
             />
-            <View style={styles.modalCard}>
+            <View
+              style={styles.modalCard}
+              onStartShouldSetResponder={() => true}
+            >
               {selectedNotification && (() => {
                 const cfg = typeConfig[selectedNotification.type] || typeConfig.system;
                 const Icon = cfg.icon;
@@ -312,7 +347,7 @@ export default function NotificationsScreen() {
                       <TouchableOpacity
                         onPress={() => setSelectedNotification(null)}
                         style={styles.modalCloseBtn}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                       >
                         <X size={18} color="#94A3B8" />
                       </TouchableOpacity>
@@ -342,10 +377,7 @@ export default function NotificationsScreen() {
                         <TouchableOpacity
                           style={[styles.primaryActionBtn, { backgroundColor: '#00D285' }]}
                           activeOpacity={0.8}
-                          onPress={() => {
-                            setSelectedNotification(null);
-                            router.push('/(tabs)/wallet');
-                          }}
+                          onPress={() => navigateToAction('wallet')}
                         >
                           <Wallet size={16} color="#050811" />
                           <Text style={styles.primaryActionBtnText}>Go to Wallet</Text>
@@ -356,10 +388,7 @@ export default function NotificationsScreen() {
                         <TouchableOpacity
                           style={[styles.primaryActionBtn, { backgroundColor: '#3B82F6' }]}
                           activeOpacity={0.8}
-                          onPress={() => {
-                            setSelectedNotification(null);
-                            router.push('/(tabs)/trades');
-                          }}
+                          onPress={() => navigateToAction('bet')}
                         >
                           <TrendingUp size={16} color="#FFFFFF" />
                           <Text style={[styles.primaryActionBtnText, { color: '#FFFFFF' }]}>View Trades</Text>
@@ -370,10 +399,7 @@ export default function NotificationsScreen() {
                         <TouchableOpacity
                           style={[styles.primaryActionBtn, { backgroundColor: '#F59E0B' }]}
                           activeOpacity={0.8}
-                          onPress={() => {
-                            setSelectedNotification(null);
-                            router.push('/(tabs)/market');
-                          }}
+                          onPress={() => navigateToAction('match')}
                         >
                           <Zap size={16} color="#050811" />
                           <Text style={styles.primaryActionBtnText}>Browse Markets</Text>
@@ -416,52 +442,149 @@ export default function NotificationsScreen() {
 
 function NotificationCard({
   notification,
-  onPress,
-  onDelete
+  isExpanded,
+  onToggleExpand,
+  onOpenModal,
+  onDelete,
+  onNavigateAction
 }: {
   notification: Notification;
-  onPress: (notif: Notification) => void;
+  isExpanded: boolean;
+  onToggleExpand: (notif: Notification) => void;
+  onOpenModal: (notif: Notification) => void;
   onDelete: (id: string) => void;
+  onNavigateAction: (type: NotificationType) => void;
 }) {
   const cfg = typeConfig[notification.type] || typeConfig.system;
   const Icon = cfg.icon;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.75}
-      style={[styles.card, !notification.isRead && styles.cardUnread]}
-      onPress={() => onPress(notification)}
-    >
-      <View style={[styles.iconBox, { backgroundColor: cfg.bg }]}>
-        <Icon size={20} color={cfg.color} />
-      </View>
-      <View style={styles.cardBody}>
-        <View style={styles.cardTop}>
-          <Text style={[styles.cardTitle, !notification.isRead && styles.cardTitleUnread]} numberOfLines={1}>
-            {notification.title}
-          </Text>
-          <Text style={styles.cardTime}>{timeAgo(notification.createdAt)}</Text>
+    <View style={[styles.card, !notification.isRead && styles.cardUnread, isExpanded && styles.cardExpanded]}>
+      {/* Primary Clickable Header Row */}
+      <TouchableOpacity
+        activeOpacity={0.75}
+        style={styles.cardHeaderRow}
+        onPress={() => onToggleExpand(notification)}
+      >
+        <View style={[styles.iconBox, { backgroundColor: cfg.bg }]}>
+          <Icon size={20} color={cfg.color} />
         </View>
-        <Text style={styles.cardMsg} numberOfLines={2}>{notification.message}</Text>
-      </View>
-      <View style={styles.cardActions}>
-        {!notification.isRead ? <View style={styles.dot} /> : null}
-        <TouchableOpacity
-          onPress={(e: any) => {
-            if (e && typeof e.stopPropagation === 'function') {
-              e.stopPropagation();
-            }
-            onDelete(notification._id);
-          }}
-          activeOpacity={0.6}
-          style={styles.deleteBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Trash2 size={15} color="#64748B" />
-        </TouchableOpacity>
-        <ChevronRight size={16} color="#475569" />
-      </View>
-    </TouchableOpacity>
+
+        <View style={styles.cardBody}>
+          <View style={styles.cardTop}>
+            <Text style={[styles.cardTitle, !notification.isRead && styles.cardTitleUnread]} numberOfLines={isExpanded ? undefined : 1}>
+              {notification.title}
+            </Text>
+            <Text style={styles.cardTime}>{timeAgo(notification.createdAt)}</Text>
+          </View>
+
+          {!isExpanded ? (
+            <Text style={styles.cardMsg} numberOfLines={2}>
+              {notification.message}
+            </Text>
+          ) : (
+            <View style={styles.expandedBadgeRow}>
+              <Text style={[styles.categoryPill, { color: cfg.color, borderColor: cfg.color }]}>
+                {cfg.label}
+              </Text>
+              <View style={styles.metaTimeGroup}>
+                <Calendar size={11} color="#64748B" />
+                <Text style={styles.metaTimeText}>{formatFullDate(notification.createdAt)}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Right action control */}
+        <View style={styles.cardActions}>
+          {!notification.isRead ? <View style={styles.dot} /> : null}
+          <View style={styles.chevronBox}>
+            {isExpanded ? (
+              <ChevronUp size={18} color="#00D285" />
+            ) : (
+              <ChevronDown size={18} color="#64748B" />
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* Expanded Details Section */}
+      {isExpanded && (
+        <View style={styles.expandedContent}>
+          {/* Full Message Box */}
+          <View style={styles.fullMessageBox}>
+            <Text style={styles.fullMessageText} selectable>
+              {notification.message}
+            </Text>
+          </View>
+
+          {/* Quick Deep Link Action */}
+          {notification.type === 'wallet' && (
+            <TouchableOpacity
+              style={[styles.cardActionBtn, { backgroundColor: 'rgba(0,210,133,0.15)', borderColor: 'rgba(0,210,133,0.3)' }]}
+              activeOpacity={0.7}
+              onPress={() => onNavigateAction('wallet')}
+            >
+              <Wallet size={15} color="#00D285" />
+              <Text style={[styles.cardActionBtnText, { color: '#00D285' }]}>Go to Wallet</Text>
+            </TouchableOpacity>
+          )}
+
+          {notification.type === 'bet' && (
+            <TouchableOpacity
+              style={[styles.cardActionBtn, { backgroundColor: 'rgba(59,130,246,0.15)', borderColor: 'rgba(59,130,246,0.3)' }]}
+              activeOpacity={0.7}
+              onPress={() => onNavigateAction('bet')}
+            >
+              <TrendingUp size={15} color="#3B82F6" />
+              <Text style={[styles.cardActionBtnText, { color: '#3B82F6' }]}>View Trades</Text>
+            </TouchableOpacity>
+          )}
+
+          {notification.type === 'match' && (
+            <TouchableOpacity
+              style={[styles.cardActionBtn, { backgroundColor: 'rgba(245,158,11,0.15)', borderColor: 'rgba(245,158,11,0.3)' }]}
+              activeOpacity={0.7}
+              onPress={() => onNavigateAction('match')}
+            >
+              <Zap size={15} color="#F59E0B" />
+              <Text style={[styles.cardActionBtnText, { color: '#F59E0B' }]}>Browse Markets</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Footer Utility Actions */}
+          <View style={styles.expandedFooter}>
+            <TouchableOpacity
+              style={styles.modalLaunchBtn}
+              activeOpacity={0.7}
+              onPress={() => onOpenModal(notification)}
+            >
+              <Maximize2 size={13} color="#94A3B8" />
+              <Text style={styles.modalLaunchText}>Full Dialog</Text>
+            </TouchableOpacity>
+
+            <View style={styles.footerRightBtns}>
+              <TouchableOpacity
+                onPress={() => onDelete(notification._id)}
+                activeOpacity={0.6}
+                style={styles.deleteActionBtn}
+              >
+                <Trash2 size={14} color="#EF4444" />
+                <Text style={styles.deleteActionText}>Delete</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => onToggleExpand(notification)}
+                activeOpacity={0.6}
+                style={styles.collapseBtn}
+              >
+                <Text style={styles.collapseBtnText}>Collapse</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -500,7 +623,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1E293B',
   },
-  markAllBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#131C32', alignItems: 'center', justifyContent: 'center' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 60 },
   emptyIcon: {
     width: 80, height: 80, borderRadius: 40,
@@ -510,26 +632,188 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 13, color: '#64748B', fontFamily: 'Inter', textAlign: 'center' },
   list: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
   sectionLabel: { fontSize: 12, fontWeight: '700', color: '#64748B', fontFamily: 'Inter', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
+
+  /* Notification Card Styles */
   card: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#131C32', borderRadius: 16,
-    padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: '#1E293B',
+    backgroundColor: '#131C32',
+    borderRadius: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    overflow: 'hidden',
   },
-  cardUnread: { borderColor: 'rgba(0,210,133,0.25)', backgroundColor: '#101D35' },
+  cardUnread: {
+    borderColor: 'rgba(0,210,133,0.3)',
+    backgroundColor: '#101D35',
+  },
+  cardExpanded: {
+    borderColor: '#334155',
+    backgroundColor: '#111A30',
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+  },
   iconBox: {
-    width: 44, height: 44, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    flexShrink: 0,
   },
   cardBody: { flex: 1 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  cardTitle: { fontSize: 13, fontWeight: '600', color: '#94A3B8', fontFamily: 'Inter', flex: 1, marginRight: 8 },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  cardTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+    flex: 1,
+    marginRight: 8,
+  },
   cardTitleUnread: { color: '#FFFFFF', fontWeight: '700' },
   cardTime: { fontSize: 11, color: '#475569', fontFamily: 'Inter' },
   cardMsg: { fontSize: 12, color: '#64748B', fontFamily: 'Inter', lineHeight: 18 },
-  cardActions: { flexDirection: 'row', alignItems: 'center', marginLeft: 8, gap: 8 },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+    gap: 8,
+  },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.dark.primary },
-  deleteBtn: { padding: 4 },
+  chevronBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* Expanded Card Elements */
+  expandedBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    flexWrap: 'wrap',
+  },
+  categoryPill: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    borderWidth: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  metaTimeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaTimeText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontFamily: 'Inter',
+  },
+  expandedContent: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    paddingTop: 12,
+  },
+  fullMessageBox: {
+    backgroundColor: '#0A1124',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    padding: 12,
+    marginBottom: 12,
+  },
+  fullMessageText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#E2E8F0',
+    fontFamily: 'Inter',
+  },
+  cardActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  cardActionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  expandedFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 4,
+  },
+  modalLaunchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#1E293B',
+  },
+  modalLaunchText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+  },
+  footerRightBtns: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  deleteActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+  },
+  deleteActionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#EF4444',
+    fontFamily: 'Inter',
+  },
+  collapseBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#1E293B',
+  },
+  collapseBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+    fontFamily: 'Inter',
+  },
 
   /* Modal Styles */
   modalBackdrop: {
@@ -541,7 +825,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 440,
     backgroundColor: '#111827',
     borderRadius: 20,
     borderWidth: 1,
@@ -552,6 +836,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 10,
+    zIndex: 1000,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -624,7 +909,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
   },
   modalMessageScroll: {
-    maxHeight: 200,
+    maxHeight: 220,
     backgroundColor: '#0A1124',
     borderRadius: 12,
     borderWidth: 1,
