@@ -1,8 +1,8 @@
 {
-  "name": "peeribet-workspace",
+  "name": "peeritrade-workspace",
   "version": "1.0.0",
   "private": true,
-  "description": "Peeritrade / Peeribet Platform Workspace",
+  "description": "Peeritrade Platform Workspace",
   "scripts": {
     "server": "npm --prefix server run dev",
     "admin": "npm --prefix admin run dev",

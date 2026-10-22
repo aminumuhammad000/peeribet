@@ -731,7 +731,7 @@ export default function MarketScreen() {
         {/* Top Header */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.headerTitle}>Peeribet Markets</Text>
+            <Text style={styles.headerTitle}>Peeritrade Markets</Text>
             <Text style={styles.headerSubtitle}>
               {isCurrentSports ? 'Live Sports Trading Markets' : 'Decentralized Backdoor Prediction Markets'}
             </Text>
