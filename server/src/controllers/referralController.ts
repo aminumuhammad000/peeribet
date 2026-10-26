@@ -300,9 +300,6 @@ const verifyUserWinningTrade = async (userId: any, cleanTradeId: string): Promis
         return { isWin: true, actualProfit: profit, tradeType: 'bet' };
       }
     }
-  } else if (cleanTradeId === 'demo_2') {
-    // Verified demo won trade
-    return { isWin: true, actualProfit: 5000, tradeType: 'demo' };
   } else if (mongoose.Types.ObjectId.isValid(cleanTradeId)) {
     const [order, contract, bet] = await Promise.all([
       P2POrder.findOne({ _id: cleanTradeId, user: userId, outcomeResult: 'WON' }),

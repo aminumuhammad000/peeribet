@@ -323,38 +323,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  demoBanner: {
-    backgroundColor: 'rgba(0, 210, 133, 0.08)',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 133, 0.25)',
-  },
-  demoHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  demoBannerTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#00D285',
-    fontFamily: 'Inter',
-  },
-  demoBannerTap: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#3B82F6',
-    fontFamily: 'Inter',
-    textDecorationLine: 'underline',
-  },
-  demoBannerSub: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontFamily: 'Inter',
-  },
   otpOuterContainer: {
     alignItems: 'center',
     marginVertical: 16,

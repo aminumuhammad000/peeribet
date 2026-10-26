@@ -44,49 +44,6 @@ import {
 } from '../../services/apiService';
 import { getSocket } from '../../services/socketService';
 
-// Fallback curated markets across categories
-const FALLBACK_POLITICS_MARKETS = [
-  {
-    _id: '65f1d0000000000000000001',
-    title: 'Central Bank to cut benchmark interest rate in Q4?',
-    category: 'Politics',
-    subcategory: 'Policy & Economy',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 3450000,
-    closingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    yesOdds: 1.85,
-    noOdds: 1.95,
-    rules: 'Resolves to YES if the official Monetary Policy Committee announces a rate cut.',
-  },
-  {
-    _id: '65f1d0000000000000000002',
-    title: 'US Federal Reserve to lower rates at upcoming FOMC meeting?',
-    category: 'Politics',
-    subcategory: 'Global Affairs',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 5120000,
-    closingDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
-    yesOdds: 1.72,
-    noOdds: 2.10,
-    rules: 'Resolves according to the official statement released by the Federal Reserve.',
-  },
-  {
-    _id: '65f1d0000000000000000003',
-    title: 'Nigeria Inflation Rate to drop below 28% in official NBS report?',
-    category: 'Politics',
-    subcategory: 'Policy & Economy',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 2180000,
-    closingDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-    yesOdds: 2.25,
-    noOdds: 1.60,
-    rules: 'Resolves based on headline CPI data published by National Bureau of Statistics.',
-  },
-];
-
 const isBoxingMatch = (m: any) => {
   const s = String(m?.sport || '').toLowerCase();
   const l = String(m?.league || m?.leagueName || '').toLowerCase();
@@ -126,199 +83,6 @@ const isBasketballMatch = (m: any) => {
 const isFootballMatch = (m: any) => {
   return !isBoxingMatch(m) && !isUFCMatch(m) && !isBasketballMatch(m);
 };
-
-const FALLBACK_BOXING_FIXTURES = [
-  {
-    _id: '65f1a0000000000000000001',
-    sport: 'Boxing',
-    homeTeam: 'Tyson Fury',
-    awayTeam: 'Oleksandr Usyk',
-    league: 'Undisputed World Heavyweight Championship',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 9400000,
-    odds: { home: 2.15, draw: 22.0, away: 1.72 },
-  },
-  {
-    _id: '65f1a0000000000000000002',
-    sport: 'Boxing',
-    homeTeam: 'Canelo Alvarez',
-    awayTeam: 'Terence Crawford',
-    league: 'Super Middleweight World Championship',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 200 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 4300000,
-    odds: { home: 1.62, draw: 20.0, away: 2.30 },
-  },
-  {
-    _id: '65f1a0000000000000000003',
-    sport: 'Boxing',
-    homeTeam: 'Anthony Joshua',
-    awayTeam: 'Daniel Dubois',
-    league: 'IBF Heavyweight World Title',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 5600000,
-    odds: { home: 1.70, draw: 24.0, away: 2.10 },
-  },
-];
-
-const FALLBACK_UFC_FIXTURES = [
-  {
-    _id: '65f1b0000000000000000001',
-    sport: 'UFC',
-    homeTeam: 'Islam Makhachev',
-    awayTeam: 'Arman Tsarukyan',
-    league: 'UFC 311: Lightweight Championship',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 4650000,
-    odds: { home: 1.40, draw: 35.0, away: 2.95 },
-  },
-  {
-    _id: '65f1b0000000000000000002',
-    sport: 'UFC',
-    homeTeam: 'Jon Jones',
-    awayTeam: 'Tom Aspinall',
-    league: 'UFC Heavyweight Unification Title',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 5120000,
-    odds: { home: 1.78, draw: 30.0, away: 2.05 },
-  },
-  {
-    _id: '65f1b0000000000000000003',
-    sport: 'UFC',
-    homeTeam: 'Alex Pereira',
-    awayTeam: 'Magomed Ankalaev',
-    league: 'UFC Light Heavyweight Championship',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 3200000,
-    odds: { home: 1.85, draw: 28.0, away: 1.95 },
-  },
-];
-
-const FALLBACK_BASKETBALL_FIXTURES = [
-  {
-    _id: '65f1c0000000000000000001',
-    sport: 'Basketball',
-    homeTeam: 'Boston Celtics',
-    awayTeam: 'Los Angeles Lakers',
-    league: 'NBA Regular Season Matchup',
-    status: 'LIVE',
-    startTime: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
-    poolAmount: 3820000,
-    odds: { home: 1.55, draw: 15.0, away: 2.45 },
-  },
-  {
-    _id: '65f1c0000000000000000002',
-    sport: 'Basketball',
-    homeTeam: 'Golden State Warriors',
-    awayTeam: 'Denver Nuggets',
-    league: 'NBA Western Conference Clash',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 18 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 4100000,
-    odds: { home: 1.90, draw: 15.0, away: 1.90 },
-  },
-  {
-    _id: '65f1c0000000000000000003',
-    sport: 'Basketball',
-    homeTeam: 'Dallas Mavericks',
-    awayTeam: 'Phoenix Suns',
-    league: 'NBA Regular Season',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 2950000,
-    odds: { home: 1.80, draw: 15.0, away: 2.00 },
-  },
-];
-
-
-const FALLBACK_ENTERTAINMENT_MARKETS = [
-  {
-    _id: '65f1e0000000000000000001',
-    title: 'Grammy Awards: Album of the Year Winner 2026',
-    category: 'Entertainment',
-    subcategory: 'Awards & Grammys',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 2850000,
-    closingDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
-    yesOdds: 1.80,
-    noOdds: 2.00,
-    rules: 'Resolves according to the official Recording Academy announcement.',
-  },
-  {
-    _id: '65f1e0000000000000000002',
-    title: 'Spotify Global #1: Burna Boy new track to hit #1 within 72 hours?',
-    category: 'Entertainment',
-    subcategory: 'Spotify & Music',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 1950000,
-    closingDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    yesOdds: 2.10,
-    noOdds: 1.70,
-    rules: 'Resolves based on Spotify Global Daily Top 50 Chart.',
-  },
-  {
-    _id: '65f1e0000000000000000003',
-    title: 'Global Box Office: First 2026 blockbuster to cross $1B revenue',
-    category: 'Entertainment',
-    subcategory: 'Movies & Box Office',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 1420000,
-    closingDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-    yesOdds: 1.95,
-    noOdds: 1.85,
-    rules: 'Resolves based on Box Office Mojo official worldwide gross records.',
-  },
-];
-
-const FALLBACK_LIVE_EVENT_MARKETS = [
-  {
-    _id: '65f1f0000000000000000001',
-    title: 'SpaceX Starship orbital catch & recovery test in Q4?',
-    category: 'Real Life Events',
-    subcategory: 'Space & Tech',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 4120000,
-    closingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    yesOdds: 1.88,
-    noOdds: 1.92,
-    rules: 'Resolves to YES if SpaceX successfully catches the Starship upper stage or Super Heavy booster during an orbital flight test mission.',
-  },
-  {
-    _id: '65f1f0000000000000000002',
-    title: 'OpenAI to officially launch or announce GPT-5 before end of year?',
-    category: 'Real Life Events',
-    subcategory: 'AI & Computing',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 3250000,
-    closingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    yesOdds: 2.10,
-    noOdds: 1.70,
-    rules: 'Resolves to YES if OpenAI formally announces or releases GPT-5 or next-gen flagship foundation model.',
-  },
-  {
-    _id: '65f1f0000000000000000003',
-    title: 'Grand Theft Auto VI release date to break $1B retail revenue in 24h?',
-    category: 'Pop Culture',
-    subcategory: 'Gaming & Media',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 5600000,
-    closingDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-    yesOdds: 1.45,
-    noOdds: 2.70,
-    rules: 'Resolves based on official Take-Two Interactive SEC filings or verified commercial figures.',
-  },
-];
 
 const CATEGORY_TABS = [
   { id: 'ALL', label: 'All Markets', icon: '🔥' },
@@ -392,32 +156,32 @@ export default function HomeScreen() {
       setSportsMatches(fbMatches);
 
       const boxMatches = rawMatches.filter(isBoxingMatch);
-      setBoxingMatches(boxMatches.length > 0 ? boxMatches : FALLBACK_BOXING_FIXTURES);
+      setBoxingMatches(boxMatches);
 
       const ufcRaw = rawMatches.filter(isUFCMatch);
-      setUfcMatches(ufcRaw.length > 0 ? ufcRaw : FALLBACK_UFC_FIXTURES);
+      setUfcMatches(ufcRaw);
 
       const bbMatches = rawMatches.filter(isBasketballMatch);
-      setBasketballMatches(bbMatches.length > 0 ? bbMatches : FALLBACK_BASKETBALL_FIXTURES);
+      setBasketballMatches(bbMatches);
 
       // Prediction Markets
       const allMarkets = marketsRes?.markets || [];
       const pol = allMarkets.filter((m: any) =>
         /politic/i.test(m.category || '') || /governance|election|policy|world leaders/i.test(m.subcategory || '')
       );
-      setPoliticsMarkets(pol.length > 0 ? pol : FALLBACK_POLITICS_MARKETS);
+      setPoliticsMarkets(pol);
 
       const live = allMarkets.filter((m: any) =>
         /live event|real life|pop culture/i.test(m.category || '') ||
         /space|tech|ai|climate|science|gaming/i.test(m.subcategory || '')
       );
-      setLiveEventMarkets(live.length > 0 ? live : FALLBACK_LIVE_EVENT_MARKETS);
+      setLiveEventMarkets(live);
 
       const ent = allMarkets.filter((m: any) =>
         /entertainment/i.test(m.category || '') ||
         /spotify|music|grammy|movie|awards/i.test(m.subcategory || '')
       );
-      setEntertainmentMarkets(ent.length > 0 ? ent : FALLBACK_ENTERTAINMENT_MARKETS);
+      setEntertainmentMarkets(ent);
     } catch (error) {
       console.error('Error fetching home screen data:', error);
     }
@@ -636,6 +400,15 @@ export default function HomeScreen() {
   const filteredEntertainment = filterBySearch(entertainmentMarkets, false);
 
   const CARDS_PER_CATEGORY = 3;
+
+  const hasAnyVisibleCards =
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'FOOTBALL') && filteredSports.length > 0) ||
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'POLITICS') && filteredPolitics.length > 0) ||
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'LIVE_EVENT') && filteredLiveEvents.length > 0) ||
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'BOXING') && filteredBoxing.length > 0) ||
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'UFC') && filteredUFC.length > 0) ||
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'BASKETBALL') && filteredBasketball.length > 0) ||
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'ENTERTAINMENT') && filteredEntertainment.length > 0);
 
   return (
     <LinearGradient
@@ -1891,6 +1664,19 @@ export default function HomeScreen() {
               </View>
             )}
 
+          {/* Empty State when no visible cards exist */}
+          {!hasAnyVisibleCards && (
+            <View style={styles.emptyContainer}>
+              <Flame size={36} color="#64748B" style={{ marginBottom: 12 }} />
+              <Text style={styles.emptyTitle}>No markets available</Text>
+              <Text style={styles.emptySubtitle}>
+                {searchText.trim()
+                  ? `No markets found matching "${searchText.trim()}".`
+                  : 'No active fixtures or prediction markets are currently listed. Check back shortly.'}
+              </Text>
+            </View>
+          )}
+
           <View style={{ height: 40 }} />
         </ScrollView>
 
@@ -2760,5 +2546,29 @@ const styles = StyleSheet.create({
     color: '#090D16',
     fontSize: 15,
     fontWeight: '800',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 56,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: 20,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 19,
+    maxWidth: 280,
   },
 });

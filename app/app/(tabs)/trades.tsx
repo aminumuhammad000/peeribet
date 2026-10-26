@@ -51,12 +51,12 @@ export default function TradesScreen() {
   // Win Receipt & Referral State
   const [selectedWinTrade, setSelectedWinTrade] = useState<any | null>(null);
   const [winReceiptModalVisible, setWinReceiptModalVisible] = useState(false);
-  const [userReferralCode, setUserReferralCode] = useState('TRADE1K');
+  const [userReferralCode, setUserReferralCode] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Performance Metrics
-  const [winRate, setWinRate] = useState('68.4%');
-  const [avgReturn, setAvgReturn] = useState('₦2,100');
+  const [winRate, setWinRate] = useState('0.0%');
+  const [avgReturn, setAvgReturn] = useState('₦0');
 
   const fetchUserTrades = async () => {
     try {
@@ -69,28 +69,28 @@ export default function TradesScreen() {
       const p2pList = (p2pRes.orders || []).map((o: any) => ({
         id: `p2p_${o._id}`,
         type: 'P2P',
-        matchTitle: o.match ? `${o.match.homeTeam} vs ${o.match.awayTeam}` : 'Chelsea vs Arsenal',
+        matchTitle: o.match ? `${o.match.homeTeam} vs ${o.match.awayTeam}` : 'P2P Trade',
         market: o.market === 'MATCH_OUTCOME' ? 'Match Winner' : o.market === 'OVER_UNDER_25' ? 'Over 2.5 Goals' : 'Both Teams to Score',
         position: o.selection === 'HOME' ? 'Long (Home)' : o.selection === 'AWAY' ? 'Short (Away)' : o.selection,
-        amount: o.totalAmount || (o.totalShares ? o.totalShares * 1000 : 5000),
+        amount: o.totalAmount || (o.totalShares ? o.totalShares * 1000 : 0),
         status: o.outcomeResult === 'WON' ? 'WON' : o.outcomeResult === 'LOST' ? 'LOST' : o.status === 'SETTLED' ? 'SETTLED' : 'ACTIVE',
         isLive: o.match?.status === 'LIVE' || (!o.outcomeResult && o.status !== 'SETTLED'),
-        pnl: o.payout ? o.payout - (o.totalAmount || 5000) : (o.matchedShares ? o.matchedShares * 620 : 1240),
-        rawProfit: o.payout ? o.payout - (o.totalAmount || 5000) : (o.totalAmount || 5000),
+        pnl: o.payout ? o.payout - (o.totalAmount || 0) : 0,
+        rawProfit: o.payout ? o.payout - (o.totalAmount || 0) : 0,
         createdAt: o.createdAt || new Date(),
       }));
 
       const poolList = (poolRes.contracts || []).map((c: any) => ({
         id: `pool_${c._id}`,
         type: 'POOL',
-        matchTitle: c.match ? `${c.match.homeTeam} vs ${c.match.awayTeam}` : 'Real Madrid vs Barca',
+        matchTitle: c.match ? `${c.match.homeTeam} vs ${c.match.awayTeam}` : 'Pool Trade',
         market: 'Match Winner',
         position: c.selection === 'HOME' ? 'Long (Home)' : c.selection === 'AWAY' ? 'Short (Away)' : c.selection,
-        amount: c.stake || 5000,
+        amount: c.stake || 0,
         status: c.status === 'WON' ? 'WON' : c.status === 'LOST' ? 'LOST' : 'ACTIVE',
         isLive: c.match?.status === 'LIVE' || c.status === 'PENDING',
-        pnl: c.payout ? c.payout - (c.stake || 5000) : 1500,
-        rawProfit: c.payout ? c.payout - (c.stake || 5000) : (c.stake || 5000),
+        pnl: c.payout ? c.payout - (c.stake || 0) : 0,
+        rawProfit: c.payout ? c.payout - (c.stake || 0) : 0,
         createdAt: c.createdAt || new Date(),
       }));
 
@@ -100,7 +100,7 @@ export default function TradesScreen() {
         matchTitle: b.market ? b.market.title : b.match ? `${b.match.homeTeam} vs ${b.match.awayTeam}` : 'Sports Match',
         market: b.market ? b.market.category : (b.selection?.includes('OVER') ? 'Total Points Over 210' : 'Match Winner'),
         position: b.selection || 'Pick',
-        amount: b.amount || 5000,
+        amount: b.amount || 0,
         status: b.status === 'WON' ? 'WON' : b.status === 'LOST' ? 'LOST' : b.status === 'REFUNDED' ? 'SETTLED' : 'ACTIVE',
         isLive: b.market?.status === 'ACTIVE' || b.match?.status === 'LIVE' || b.status === 'PENDING',
         pnl: b.status === 'WON' ? (b.potentialPayout ? b.potentialPayout - b.amount : b.amount) : (b.status === 'LOST' ? -b.amount : 0),
@@ -109,75 +109,27 @@ export default function TradesScreen() {
       }));
 
       const combined = [...p2pList, ...poolList, ...legacyBetsList];
+      setAllTrades(combined);
 
-      // If user has zero trades yet, supply reference preview entries matching Figma
-      if (combined.length === 0) {
-        setAllTrades([
-          {
-            id: 'demo_1',
-            type: 'P2P',
-            matchTitle: 'Chelsea vs Arsenal',
-            market: 'Over 2.5 Goals',
-            position: 'Long',
-            amount: 5000,
-            status: 'ACTIVE',
-            isLive: true,
-            pnl: 1240,
-            rawProfit: 1240,
-            createdAt: new Date(),
-            dateFormatted: 'Today • 8:00 PM',
-          },
-          {
-            id: 'demo_2',
-            type: 'P2P',
-            matchTitle: 'Real Madrid vs Barca',
-            market: 'Match Winner',
-            position: 'Short',
-            amount: 5000,
-            status: 'WON',
-            isLive: false,
-            pnl: 5000,
-            rawProfit: 5000,
-            createdAt: new Date(Date.now() - 86400000),
-            dateFormatted: 'Yesterday • 4:15 PM',
-          },
-          {
-            id: 'demo_3',
-            type: 'BET',
-            matchTitle: 'Lakers vs Celtics',
-            market: 'Total Points Over 210',
-            position: 'Long',
-            amount: 5000,
-            status: 'LOST',
-            isLive: false,
-            pnl: -5000,
-            rawProfit: -5000,
-            createdAt: new Date(Date.now() - 172800000),
-            dateFormatted: 'Oct 24 • 2:00 AM',
-          },
-        ]);
-        setWinRate('68.4%');
-        setAvgReturn('₦2,100');
+      // Compute real metrics
+      const settledTrades = combined.filter((t) => t.status === 'WON' || t.status === 'LOST');
+      if (settledTrades.length > 0) {
+        const wonCount = settledTrades.filter((t) => t.status === 'WON').length;
+        const calculatedWinRate = ((wonCount / settledTrades.length) * 100).toFixed(1);
+        setWinRate(`${calculatedWinRate}%`);
+
+        const totalNetReturns = settledTrades.reduce((sum, t) => sum + (t.status === 'WON' ? t.rawProfit : -t.amount), 0);
+        const avg = Math.round(totalNetReturns / settledTrades.length);
+        setAvgReturn(`₦${Math.abs(avg).toLocaleString()}`);
       } else {
-        setAllTrades(combined);
-
-        // Compute real metrics
-        const settledTrades = combined.filter((t) => t.status === 'WON' || t.status === 'LOST');
-        if (settledTrades.length > 0) {
-          const wonCount = settledTrades.filter((t) => t.status === 'WON').length;
-          const calculatedWinRate = ((wonCount / settledTrades.length) * 100).toFixed(1);
-          setWinRate(`${calculatedWinRate}%`);
-
-          const totalNetReturns = settledTrades.reduce((sum, t) => sum + (t.status === 'WON' ? t.rawProfit : -t.amount), 0);
-          const avg = Math.round(totalNetReturns / settledTrades.length);
-          setAvgReturn(`₦${Math.abs(avg).toLocaleString()}`);
-        } else {
-          setWinRate('68.4%');
-          setAvgReturn('₦2,100');
-        }
+        setWinRate('0.0%');
+        setAvgReturn('₦0');
       }
     } catch (err) {
       console.error('Error fetching user trades:', err);
+      setAllTrades([]);
+      setWinRate('0.0%');
+      setAvgReturn('₦0');
     } finally {
       setLoading(false);
       setRefreshing(false);

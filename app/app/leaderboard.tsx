@@ -87,7 +87,9 @@ export default function LeaderboardScreen() {
       const tf = (selectedTimeframe || timeframe).toLowerCase();
       const res = await authService.getLeaderboard(tf);
 
-      if (Array.isArray(res)) {
+      if (res && res.leaderboard) {
+        setData(res);
+      } else if (Array.isArray(res)) {
         const TIERS = ['Diamond Whale', 'Grandmaster', 'Master Trader', 'Alpha Scalper'];
         const mapped: LeaderboardUser[] = res.map((u: any, idx: number) => ({
           _id: u._id || `user_${idx}`,
@@ -96,128 +98,42 @@ export default function LeaderboardScreen() {
           lastName: u.lastName || '',
           username: u.username || `trader_${idx + 1}`,
           profileImage: u.profileImage,
-          balance: u.balance || 50000,
-          seasonProfit: u.balance > 10000 ? u.balance - 5000 : u.balance || 25000,
-          winRate: `${Math.min(94, Math.max(65, 88 - idx * 1.5)).toFixed(0)}%`,
-          tradesCount: Math.max(10, 45 - idx * 2),
-          tier: idx === 0 ? 'Grand Champion' : idx === 1 ? 'Diamond Elite' : idx === 2 ? 'Master Trader' : TIERS[idx % TIERS.length],
-          prize: idx === 0 ? 1000000 : idx === 1 ? 500000 : idx === 2 ? 250000 : idx < 10 ? 50000 : 10000,
+          balance: u.balance || 0,
+          seasonProfit: u.seasonProfit || 0,
+          winRate: u.winRate || '0%',
+          tradesCount: u.tradesCount || 0,
+          tier: u.tier || (idx === 0 ? 'Grand Champion' : idx === 1 ? 'Diamond Elite' : idx === 2 ? 'Master Trader' : TIERS[idx % TIERS.length]),
+          prize: u.prize || (idx === 0 ? 1000000 : idx === 1 ? 500000 : idx === 2 ? 250000 : idx < 10 ? 50000 : 10000),
+          isCurrentUser: Boolean(u.isCurrentUser),
         }));
 
         setData({
-          seasonName: 'Season 4: European League & Macro',
+          seasonName: 'Season Tournament',
           totalPrizePool: 2500000,
           endsInDays: 4,
           endsInHours: 12,
           leaderboard: mapped,
-          currentUser: mapped[0],
+          currentUser: mapped.find((u) => u.isCurrentUser) || undefined,
         });
-      } else if (res && res.leaderboard) {
-        setData(res);
+      } else {
+        setData({
+          seasonName: 'Season Tournament',
+          totalPrizePool: 2500000,
+          endsInDays: 4,
+          endsInHours: 12,
+          leaderboard: [],
+          currentUser: undefined,
+        });
       }
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
-      // Fallback enticing state if network error
-      const demoUsers: LeaderboardUser[] = [
-        {
-          _id: 'demo_1',
-          rank: 1,
-          firstName: 'Emeka',
-          lastName: 'Okafor',
-          username: 'emeka_whale',
-          balance: 4850000,
-          seasonProfit: 3950000,
-          winRate: '91%',
-          tradesCount: 64,
-          tier: 'Grand Champion',
-          prize: 1000000,
-        },
-        {
-          _id: 'demo_2',
-          rank: 2,
-          firstName: 'Fatima',
-          lastName: 'Bello',
-          username: 'fatima_trades',
-          balance: 2920000,
-          seasonProfit: 2380000,
-          winRate: '86%',
-          tradesCount: 48,
-          tier: 'Diamond Elite',
-          prize: 500000,
-        },
-        {
-          _id: 'demo_3',
-          rank: 3,
-          firstName: 'Chidi',
-          lastName: 'Nwosu',
-          username: 'chidi_alpha',
-          balance: 1850000,
-          seasonProfit: 1420000,
-          winRate: '82%',
-          tradesCount: 39,
-          tier: 'Master Trader',
-          prize: 250000,
-        },
-        {
-          _id: 'demo_4',
-          rank: 4,
-          firstName: 'Tunde',
-          lastName: 'Adeleke',
-          username: 'tunde_king',
-          balance: 1240000,
-          seasonProfit: 980000,
-          winRate: '79%',
-          tradesCount: 32,
-          tier: 'Grandmaster',
-          prize: 50000,
-        },
-        {
-          _id: 'demo_5',
-          rank: 5,
-          firstName: 'Blessing',
-          lastName: 'Eze',
-          username: 'blessing_pro',
-          balance: 950000,
-          seasonProfit: 780000,
-          winRate: '77%',
-          tradesCount: 29,
-          tier: 'Alpha Scalper',
-          prize: 50000,
-        },
-        {
-          _id: 'demo_6',
-          rank: 6,
-          firstName: 'Abubakar',
-          lastName: 'Ibrahim',
-          username: 'abu_scalps',
-          balance: 810000,
-          seasonProfit: 650000,
-          winRate: '75%',
-          tradesCount: 26,
-          tier: 'Pro Trader',
-          prize: 50000,
-        },
-      ];
       setData({
-        seasonName: 'Season 4: European League & Macro',
+        seasonName: 'Season Tournament',
         totalPrizePool: 2500000,
         endsInDays: 4,
         endsInHours: 12,
-        leaderboard: demoUsers,
-        currentUser: {
-          _id: 'curr_user',
-          rank: 8,
-          firstName: 'You',
-          lastName: '',
-          username: 'your_account',
-          balance: 620000,
-          seasonProfit: 480000,
-          winRate: '74%',
-          tradesCount: 22,
-          tier: 'Alpha Scalper',
-          prize: 50000,
-          isCurrentUser: true,
-        },
+        leaderboard: [],
+        currentUser: undefined,
       });
     } finally {
       setLoading(false);
@@ -579,6 +495,15 @@ export default function LeaderboardScreen() {
             data={restUsers}
             keyExtractor={(item) => item._id}
             ListHeaderComponent={renderPodium}
+            ListEmptyComponent={
+              users.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Trophy size={36} color="#64748B" style={{ marginBottom: 12 }} />
+                  <Text style={styles.emptyTitle}>No Rankings Yet</Text>
+                  <Text style={styles.emptySubtitle}>Be the first to trade and claim the #1 spot on the leaderboard!</Text>
+                </View>
+              ) : null
+            }
             renderItem={renderItem}
             contentContainerStyle={[
               styles.listContent,
@@ -1264,5 +1189,23 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#050811',
     letterSpacing: 0.2,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

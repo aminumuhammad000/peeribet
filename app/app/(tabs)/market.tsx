@@ -102,303 +102,6 @@ const isFootballMatch = (m: any) => {
   return !isBoxingMatch(m) && !isUFCMatch(m) && !isBasketballMatch(m);
 };
 
-const FALLBACK_FOOTBALL_FIXTURES = [
-  {
-    _id: '65f100000000000000000001',
-    sport: 'Football',
-    homeTeam: 'Arsenal',
-    awayTeam: 'Chelsea',
-    league: 'Premier League Super Derby',
-    status: 'LIVE',
-    startTime: new Date().toISOString(),
-    poolAmount: 4850000,
-    odds: { home: 1.85, draw: 3.10, away: 2.40 },
-  },
-  {
-    _id: '65f100000000000000000002',
-    sport: 'Football',
-    homeTeam: 'Real Madrid',
-    awayTeam: 'Barcelona',
-    league: 'La Liga El Clásico',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 7200000,
-    odds: { home: 1.95, draw: 3.40, away: 2.30 },
-  },
-  {
-    _id: '65f100000000000000000003',
-    sport: 'Football',
-    homeTeam: 'Manchester City',
-    awayTeam: 'Liverpool',
-    league: 'Premier League Title Clash',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 6400000,
-    odds: { home: 1.75, draw: 3.60, away: 2.70 },
-  },
-];
-
-const FALLBACK_BOXING_FIXTURES = [
-  {
-    _id: '65f1a0000000000000000001',
-    sport: 'Boxing',
-    homeTeam: 'Tyson Fury',
-    awayTeam: 'Oleksandr Usyk',
-    league: 'Undisputed World Heavyweight Championship',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 9400000,
-    odds: { home: 2.15, draw: 22.0, away: 1.72 },
-  },
-  {
-    _id: '65f1a0000000000000000002',
-    sport: 'Boxing',
-    homeTeam: 'Canelo Alvarez',
-    awayTeam: 'Terence Crawford',
-    league: 'Super Middleweight World Championship',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 200 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 4300000,
-    odds: { home: 1.62, draw: 20.0, away: 2.30 },
-  },
-  {
-    _id: '65f1a0000000000000000003',
-    sport: 'Boxing',
-    homeTeam: 'Anthony Joshua',
-    awayTeam: 'Daniel Dubois',
-    league: 'IBF Heavyweight World Title',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 5600000,
-    odds: { home: 1.70, draw: 24.0, away: 2.10 },
-  },
-];
-
-const FALLBACK_UFC_FIXTURES = [
-  {
-    _id: '65f1b0000000000000000001',
-    sport: 'UFC',
-    homeTeam: 'Islam Makhachev',
-    awayTeam: 'Arman Tsarukyan',
-    league: 'UFC 311: Lightweight Championship',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 4650000,
-    odds: { home: 1.40, draw: 35.0, away: 2.95 },
-  },
-  {
-    _id: '65f1b0000000000000000002',
-    sport: 'UFC',
-    homeTeam: 'Jon Jones',
-    awayTeam: 'Tom Aspinall',
-    league: 'UFC Heavyweight Unification Title',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 5120000,
-    odds: { home: 1.78, draw: 30.0, away: 2.05 },
-  },
-  {
-    _id: '65f1b0000000000000000003',
-    sport: 'UFC',
-    homeTeam: 'Alex Pereira',
-    awayTeam: 'Magomed Ankalaev',
-    league: 'UFC Light Heavyweight Championship',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 3200000,
-    odds: { home: 1.85, draw: 28.0, away: 1.95 },
-  },
-];
-
-const FALLBACK_BASKETBALL_FIXTURES = [
-  {
-    _id: '65f1c0000000000000000001',
-    sport: 'Basketball',
-    homeTeam: 'Boston Celtics',
-    awayTeam: 'Los Angeles Lakers',
-    league: 'NBA Regular Season Matchup',
-    status: 'LIVE',
-    startTime: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
-    poolAmount: 3820000,
-    odds: { home: 1.55, draw: 15.0, away: 2.45 },
-  },
-  {
-    _id: '65f1c0000000000000000002',
-    sport: 'Basketball',
-    homeTeam: 'Golden State Warriors',
-    awayTeam: 'Denver Nuggets',
-    league: 'NBA Western Conference Clash',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 18 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 4100000,
-    odds: { home: 1.90, draw: 15.0, away: 1.90 },
-  },
-  {
-    _id: '65f1c0000000000000000003',
-    sport: 'Basketball',
-    homeTeam: 'Dallas Mavericks',
-    awayTeam: 'Phoenix Suns',
-    league: 'NBA Regular Season',
-    status: 'UPCOMING',
-    startTime: new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString(),
-    poolAmount: 2950000,
-    odds: { home: 1.80, draw: 15.0, away: 2.00 },
-  },
-];
-
-const FALLBACK_POLITICS_MARKETS = [
-  {
-    _id: '65f1d0000000000000000001',
-    title: 'Central Bank to cut benchmark interest rate in Q4?',
-    category: 'Politics',
-    subcategory: 'Policy & Economy',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 3450000,
-    closingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    rules: 'Resolves to YES if the official Monetary Policy Committee announces a benchmark rate cut.',
-    resolutionSource: 'Official Central Bank Monetary Policy Communiqué',
-    options: [
-      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1800000 },
-      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1650000 },
-    ],
-  },
-  {
-    _id: '65f1d0000000000000000002',
-    title: 'US Federal Reserve to lower rates at upcoming FOMC meeting?',
-    category: 'Politics',
-    subcategory: 'Global Affairs',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 5120000,
-    closingDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
-    rules: 'Resolves according to the official statement released by the Federal Reserve Board.',
-    resolutionSource: 'Federal Reserve Official Statement',
-    options: [
-      { id: 'yes', label: 'Yes', odds: 1.72, totalStaked: 2800000 },
-      { id: 'no', label: 'No', odds: 2.10, totalStaked: 2320000 },
-    ],
-  },
-  {
-    _id: '65f1d0000000000000000003',
-    title: 'Nigeria Inflation Rate to drop below 28% in official NBS report?',
-    category: 'Politics',
-    subcategory: 'Policy & Economy',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 2180000,
-    closingDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-    rules: 'Resolves based on headline CPI data published by National Bureau of Statistics.',
-    resolutionSource: 'National Bureau of Statistics (NBS) CPI Report',
-    options: [
-      { id: 'yes', label: 'Yes', odds: 2.25, totalStaked: 850000 },
-      { id: 'no', label: 'No', odds: 1.60, totalStaked: 1330000 },
-    ],
-  },
-];
-
-const FALLBACK_ENTERTAINMENT_MARKETS = [
-  {
-    _id: '65f1e0000000000000000001',
-    title: 'Grammy Awards: Album of the Year Winner 2026',
-    category: 'Entertainment',
-    subcategory: 'Awards & Grammys',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 2850000,
-    closingDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
-    rules: 'Resolves according to the official Recording Academy announcement.',
-    resolutionSource: 'Grammy Awards Official Announcement',
-    options: [
-      { id: 'yes', label: 'Yes', odds: 1.80, totalStaked: 1500000 },
-      { id: 'no', label: 'No', odds: 2.00, totalStaked: 1350000 },
-    ],
-  },
-  {
-    _id: '65f1e0000000000000000002',
-    title: 'Spotify Global #1: Burna Boy new track to hit #1 within 72 hours?',
-    category: 'Entertainment',
-    subcategory: 'Spotify & Music',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 1950000,
-    closingDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    rules: 'Resolves based on Spotify Global Daily Top 50 Chart.',
-    resolutionSource: 'Spotify Global Charts Official API',
-    options: [
-      { id: 'yes', label: 'Yes', odds: 2.10, totalStaked: 820000 },
-      { id: 'no', label: 'No', odds: 1.70, totalStaked: 1130000 },
-    ],
-  },
-  {
-    _id: '65f1e0000000000000000003',
-    title: 'Global Box Office: First 2026 blockbuster to cross $1B revenue',
-    category: 'Entertainment',
-    subcategory: 'Movies & Box Office',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 1420000,
-    closingDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-    rules: 'Resolves based on Box Office Mojo official worldwide gross records.',
-    resolutionSource: 'Box Office Mojo / IMDbPro',
-    options: [
-      { id: 'yes', label: 'Yes', odds: 1.95, totalStaked: 720000 },
-      { id: 'no', label: 'No', odds: 1.85, totalStaked: 700000 },
-    ],
-  },
-];
-
-const FALLBACK_LIVE_EVENT_MARKETS = [
-  {
-    _id: '65f1f0000000000000000001',
-    title: 'SpaceX Starship orbital catch & recovery test in Q4?',
-    category: 'Real Life Events',
-    subcategory: 'Space & Tech',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 4120000,
-    closingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    rules: 'Resolves to YES if SpaceX successfully catches the Starship upper stage or Super Heavy booster during an orbital flight test mission.',
-    resolutionSource: 'SpaceX Official Broadcast & FAA License Data',
-    options: [
-      { id: 'yes', label: 'Yes', odds: 1.88, totalStaked: 2150000 },
-      { id: 'no', label: 'No', odds: 1.92, totalStaked: 1970000 },
-    ],
-  },
-  {
-    _id: 'live_2',
-    title: 'OpenAI to officially launch or announce GPT-5 before end of year?',
-    category: 'Real Life Events',
-    subcategory: 'AI & Computing',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 3250000,
-    closingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    rules: 'Resolves to YES if OpenAI formally announces or releases GPT-5 or next-gen flagship foundation model.',
-    resolutionSource: 'OpenAI Official Keynote & Blog',
-    options: [
-      { id: 'yes', label: 'Yes', odds: 2.10, totalStaked: 1300000 },
-      { id: 'no', label: 'No', odds: 1.70, totalStaked: 1950000 },
-    ],
-  },
-  {
-    _id: 'live_3',
-    title: 'Grand Theft Auto VI release date to break $1B retail revenue in 24h?',
-    category: 'Pop Culture',
-    subcategory: 'Gaming & Pop Culture',
-    marketType: 'YES_NO',
-    status: 'ACTIVE',
-    poolAmount: 5600000,
-    closingDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-    rules: 'Resolves based on official Take-Two Interactive SEC filings or verified commercial figures.',
-    resolutionSource: 'Take-Two Interactive SEC 10-Q Filing',
-    options: [
-      { id: 'yes', label: 'Yes', odds: 1.45, totalStaked: 3500000 },
-      { id: 'no', label: 'No', odds: 2.70, totalStaked: 2100000 },
-    ],
-  },
-];
-
 const STAKE_PRESETS = [500, 1000, 2500, 5000, 10000];
 
 export interface ContractInfoDetail {
@@ -454,25 +157,18 @@ export default function MarketScreen() {
       // Client-side categorization filter safeguard
       if (normalized === 'Boxing') {
         list = list.filter(isBoxingMatch);
-        if (list.length === 0) list = FALLBACK_BOXING_FIXTURES;
       } else if (normalized === 'UFC') {
         list = list.filter(isUFCMatch);
-        if (list.length === 0) list = FALLBACK_UFC_FIXTURES;
       } else if (normalized === 'Basketball') {
         list = list.filter(isBasketballMatch);
-        if (list.length === 0) list = FALLBACK_BASKETBALL_FIXTURES;
       } else if (normalized === 'Football') {
         list = list.filter(isFootballMatch);
-        if (list.length === 0) list = FALLBACK_FOOTBALL_FIXTURES;
       }
 
       setMatches(list);
     } catch (error) {
       console.error('Error fetching matches:', error);
-      if (sportCategory === 'Boxing') setMatches(FALLBACK_BOXING_FIXTURES);
-      else if (sportCategory === 'UFC') setMatches(FALLBACK_UFC_FIXTURES);
-      else if (sportCategory === 'Basketball') setMatches(FALLBACK_BASKETBALL_FIXTURES);
-      else setMatches(FALLBACK_FOOTBALL_FIXTURES);
+      setMatches([]);
     }
   };
 
@@ -485,18 +181,10 @@ export default function MarketScreen() {
 
       const data = await predictionMarketService.getMarkets(params);
       let list = data.markets || [];
-      if (list.length === 0 && !search) {
-        if (category === 'Politics') list = FALLBACK_POLITICS_MARKETS;
-        else if (category === 'Entertainment') list = FALLBACK_ENTERTAINMENT_MARKETS;
-        else if (category === 'Live Event Prediction') list = FALLBACK_LIVE_EVENT_MARKETS;
-      }
       setPredictionMarkets(list);
     } catch (error) {
       console.error('Error fetching prediction markets:', error);
-      if (category === 'Politics') setPredictionMarkets(FALLBACK_POLITICS_MARKETS);
-      else if (category === 'Entertainment') setPredictionMarkets(FALLBACK_ENTERTAINMENT_MARKETS);
-      else if (category === 'Live Event Prediction') setPredictionMarkets(FALLBACK_LIVE_EVENT_MARKETS);
-      else setPredictionMarkets([]);
+      setPredictionMarkets([]);
     }
   };
 
