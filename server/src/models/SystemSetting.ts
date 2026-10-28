@@ -13,8 +13,16 @@ export interface ISystemSetting extends Document {
   vtstackApiKey?: string;
   vtstackPayoutKey?: string;
   vtstackWebhookSecret?: string;
+  monnifyApiKey?: string;
+  monnifySecretKey?: string;
+  monnifyContractCode?: string;
+  manualBankName?: string;
+  manualAccountNumber?: string;
+  manualAccountName?: string;
+  manualInstructions?: string;
   gatewayMode: 'TEST' | 'LIVE';
   autoWithdrawalApproval: boolean;
+  maintenanceMode?: boolean;
   referralEnabled: boolean;
   referrerBonus: number;
   refereeBonus: number;
@@ -46,8 +54,16 @@ const systemSettingSchema = new Schema(
     vtstackApiKey: { type: String, default: '' },
     vtstackPayoutKey: { type: String, default: '' },
     vtstackWebhookSecret: { type: String, default: '' },
+    monnifyApiKey: { type: String, default: '' },
+    monnifySecretKey: { type: String, default: '' },
+    monnifyContractCode: { type: String, default: '' },
+    manualBankName: { type: String, default: '' },
+    manualAccountNumber: { type: String, default: '' },
+    manualAccountName: { type: String, default: '' },
+    manualInstructions: { type: String, default: '' },
     gatewayMode: { type: String, enum: ['TEST', 'LIVE'], default: 'TEST' },
     autoWithdrawalApproval: { type: Boolean, default: true },
+    maintenanceMode: { type: Boolean, default: false },
     referralEnabled: { type: Boolean, default: true },
     referrerBonus: { type: Number, default: 1000 },
     refereeBonus: { type: Number, default: 1000 },

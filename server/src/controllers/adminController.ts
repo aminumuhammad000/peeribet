@@ -46,13 +46,13 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const userFunds = users.reduce((acc, user) => acc + (user.balance || 0), 0);
     
     // Volume: Sum of completed transactions + matched/settled p2p orders + pool stakes
-    const completedTxns = await Transaction.find({ status: 'completed' });
+    const completedTxns = await Transaction.find({ status: 'completed', ...dateFilter });
     const txnVolume = completedTxns.reduce((acc, txn) => acc + (txn.amount || 0), 0);
 
-    const completedP2P = await P2POrder.find({ status: { $in: ['MATCHED', 'SETTLED'] } });
+    const completedP2P = await P2POrder.find({ status: { $in: ['MATCHED', 'SETTLED'] }, ...dateFilter });
     const p2pVolume = completedP2P.reduce((acc, order) => acc + (order.totalAmount || (order.totalShares * (order.sharePrice || 1000))), 0);
 
-    const allPools = await PoolContract.find();
+    const allPools = await PoolContract.find({ ...dateFilter });
     const poolVolume = allPools.reduce((acc, p) => acc + (p.stake || 0), 0);
 
     const totalVolume = txnVolume + p2pVolume + poolVolume;
@@ -235,10 +235,27 @@ export const getUserById = async (req: Request, res: Response) => {
   }
 };
 
+export const deleteUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: 'Cannot delete an administrator account' });
+    }
+    await User.findByIdAndDelete(id);
+    res.json({ message: 'User deleted successfully', userId: id });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const getAllTransactions = async (req: Request, res: Response) => {
   try {
     const transactions = await Transaction.find()
-      .populate('user', 'firstName lastName email phone')
+      .populate('user', 'firstName lastName username email phone')
       .sort({ createdAt: -1 });
     res.json(transactions);
   } catch (error: any) {
@@ -352,8 +369,16 @@ export const updateSettings = async (req: Request, res: Response) => {
       vtstackApiKey,
       vtstackPayoutKey,
       vtstackWebhookSecret,
+      monnifyApiKey,
+      monnifySecretKey,
+      monnifyContractCode,
+      manualBankName,
+      manualAccountNumber,
+      manualAccountName,
+      manualInstructions,
       gatewayMode,
-      autoWithdrawalApproval
+      autoWithdrawalApproval,
+      maintenanceMode
     } = req.body;
     let settings = await SystemSetting.findOne();
     if (!settings) {
@@ -371,8 +396,16 @@ export const updateSettings = async (req: Request, res: Response) => {
     if (vtstackApiKey !== undefined) settings.vtstackApiKey = vtstackApiKey;
     if (vtstackPayoutKey !== undefined) settings.vtstackPayoutKey = vtstackPayoutKey;
     if (vtstackWebhookSecret !== undefined) settings.vtstackWebhookSecret = vtstackWebhookSecret;
+    if (monnifyApiKey !== undefined) settings.monnifyApiKey = monnifyApiKey;
+    if (monnifySecretKey !== undefined) settings.monnifySecretKey = monnifySecretKey;
+    if (monnifyContractCode !== undefined) settings.monnifyContractCode = monnifyContractCode;
+    if (manualBankName !== undefined) settings.manualBankName = manualBankName;
+    if (manualAccountNumber !== undefined) settings.manualAccountNumber = manualAccountNumber;
+    if (manualAccountName !== undefined) settings.manualAccountName = manualAccountName;
+    if (manualInstructions !== undefined) settings.manualInstructions = manualInstructions;
     if (gatewayMode !== undefined) settings.gatewayMode = gatewayMode;
     if (autoWithdrawalApproval !== undefined) settings.autoWithdrawalApproval = autoWithdrawalApproval;
+    if (maintenanceMode !== undefined) settings.maintenanceMode = maintenanceMode;
 
     await settings.save();
     res.json(settings);
@@ -1566,14 +1599,23 @@ export const resetUserPassword = async (req: Request, res: Response) => {
 
 export const updateAdminProfile = async (req: Request, res: Response) => {
   try {
-    const { firstName, lastName, email, phone } = req.body;
+    const { firstName, lastName, name, email, phone, avatar, profileImage } = req.body;
     const adminUser = await User.findById((req as any).user._id);
     if (!adminUser) return res.status(404).json({ message: 'Admin not found' });
 
-    adminUser.firstName = firstName;
-    adminUser.lastName = lastName;
-    adminUser.email = email;
-    adminUser.phone = phone;
+    let fName = firstName;
+    let lName = lastName;
+    if (name && (!fName || !lName)) {
+      const parts = String(name).trim().split(' ');
+      fName = parts[0] || 'Admin';
+      lName = parts.slice(1).join(' ') || 'User';
+    }
+
+    if (fName) adminUser.firstName = fName;
+    if (lName !== undefined) adminUser.lastName = lName;
+    if (email) adminUser.email = String(email).trim().toLowerCase();
+    if (phone) adminUser.phone = String(phone).trim();
+    if (avatar || profileImage) adminUser.profileImage = avatar || profileImage;
     await adminUser.save();
     res.json(adminUser);
   } catch (error: any) {
@@ -1839,7 +1881,7 @@ export const getAirdropHistory = async (req: Request, res: Response) => {
 
 export const creditUser = async (req: Request, res: Response) => {
   try {
-    const { userId, amount, description } = req.body;
+    const { userId, amount, description, note } = req.body;
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
     
@@ -1859,7 +1901,7 @@ export const creditUser = async (req: Request, res: Response) => {
         amount: numAmount,
         status: 'completed',
         reference: `ADMIN_CREDIT_${Date.now()}`,
-        description: description || 'Manual wallet credit by Administrator',
+        description: description || note || 'Manual wallet credit by Administrator',
       });
     } catch (txnErr) {
       console.warn('Could not record credit transaction:', txnErr);

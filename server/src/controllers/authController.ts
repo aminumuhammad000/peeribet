@@ -150,6 +150,7 @@ export const login = async (req: Request, res: Response) => {
       firstName: user.firstName,
       lastName: user.lastName,
       username: user.username,
+      profileImage: user.profileImage,
       email: user.email,
       phone: user.phone,
       role: user.role,

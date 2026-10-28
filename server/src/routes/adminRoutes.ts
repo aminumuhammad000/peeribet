@@ -39,6 +39,7 @@ import {
   getAirdropHistory,
   creditUser,
   getUserById,
+  deleteUser,
   getPendingKyc,
   triggerSettlement,
   bootstrapAdmin
@@ -59,6 +60,7 @@ router.use(admin);
 router.get('/stats', getDashboardStats);
 router.get('/users', getAllUsers);
 router.get('/users/:id', getUserById);
+router.delete('/users/:id', deleteUser);
 router.post('/users/credit', creditUser);
 router.post('/users/reset-password', resetUserPassword);
 router.get('/transactions', getAllTransactions);
