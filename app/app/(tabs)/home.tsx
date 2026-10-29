@@ -347,14 +347,27 @@ export default function HomeScreen() {
   };
 
   const handleOpenTradeModal = (market: any, option: any) => {
+    const yesOption = market.options?.find(
+      (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
+    ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
+    const noOption = market.options?.find(
+      (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
+    ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
+    const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
+    const noOdds = market.noOdds || noOption?.odds || 1.95;
+    const selectedOutcome = (option?.label || 'YES').toUpperCase();
+    const selectedOdds = option?.odds || (selectedOutcome === 'NO' ? noOdds : yesOdds);
+
     router.push({
       pathname: '/enter-amount',
       params: {
         marketId: market._id,
         matchTitle: market.title,
         marketName: market.subcategory || market.category || 'Prediction Contract',
-        outcome: option.label || 'YES',
-        odds: option.odds || 1.95,
+        outcome: selectedOutcome,
+        odds: selectedOdds,
+        yesOdds,
+        noOdds,
         isPrediction: 'true',
         poolAmount: market.poolAmount || 0,
         startTime: market.closingDate
@@ -861,8 +874,16 @@ export default function HomeScreen() {
                     ? filteredPolitics
                     : filteredPolitics.slice(0, CARDS_PER_CATEGORY)
                   ).map((market) => {
-                    const isYesLocked = isContractLocked(market, 'YES', market.yesOdds);
-                    const isNoLocked = isContractLocked(market, 'NO', market.noOdds);
+                    const yesOption = market.options?.find(
+                      (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
+                    ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
+                    const noOption = market.options?.find(
+                      (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
+                    ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
+                    const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
+                    const noOdds = market.noOdds || noOption?.odds || 1.95;
+                    const isYesLocked = isContractLocked(market, 'YES', yesOdds);
+                    const isNoLocked = isContractLocked(market, 'NO', noOdds);
                     const isAllLocked = isYesLocked && isNoLocked;
                     return (
                       <View key={market._id} style={styles.richMarketCard}>
@@ -901,7 +922,7 @@ export default function HomeScreen() {
                             style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
                             activeOpacity={0.8}
                             disabled={isYesLocked}
-                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                            onPress={() => handleOpenTradeModal(market, yesOption)}
                           >
                             <Text style={styles.binaryOptionLabelYes}>YES</Text>
                             <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
@@ -911,7 +932,7 @@ export default function HomeScreen() {
                             style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
                             activeOpacity={0.8}
                             disabled={isNoLocked}
-                            onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.95 })}
+                            onPress={() => handleOpenTradeModal(market, noOption)}
                           >
                             <Text style={styles.binaryOptionLabelNo}>NO</Text>
                             <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
@@ -926,12 +947,12 @@ export default function HomeScreen() {
                             </Text>
                           </View>
                           <TouchableOpacity
-                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                            onPress={() => handleOpenTradeModal(market, isYesLocked && !isNoLocked ? noOption : yesOption)}
                             style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
                             activeOpacity={0.8}
                             disabled={isAllLocked}
                           >
-                            <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade Outcome'}</Text>
+                            <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade YES / NO'}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -977,8 +998,16 @@ export default function HomeScreen() {
                     ? filteredLiveEvents
                     : filteredLiveEvents.slice(0, CARDS_PER_CATEGORY)
                   ).map((market) => {
-                    const isYesLocked = isContractLocked(market, 'YES', market.yesOdds);
-                    const isNoLocked = isContractLocked(market, 'NO', market.noOdds);
+                    const yesOption = market.options?.find(
+                      (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
+                    ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
+                    const noOption = market.options?.find(
+                      (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
+                    ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
+                    const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
+                    const noOdds = market.noOdds || noOption?.odds || 1.95;
+                    const isYesLocked = isContractLocked(market, 'YES', yesOdds);
+                    const isNoLocked = isContractLocked(market, 'NO', noOdds);
                     const isAllLocked = isYesLocked && isNoLocked;
                     return (
                       <View key={market._id} style={styles.richMarketCard}>
@@ -1017,7 +1046,7 @@ export default function HomeScreen() {
                             style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
                             activeOpacity={0.8}
                             disabled={isYesLocked}
-                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                            onPress={() => handleOpenTradeModal(market, yesOption)}
                           >
                             <Text style={styles.binaryOptionLabelYes}>YES</Text>
                             <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
@@ -1027,7 +1056,7 @@ export default function HomeScreen() {
                             style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
                             activeOpacity={0.8}
                             disabled={isNoLocked}
-                            onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.95 })}
+                            onPress={() => handleOpenTradeModal(market, noOption)}
                           >
                             <Text style={styles.binaryOptionLabelNo}>NO</Text>
                             <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
@@ -1042,12 +1071,12 @@ export default function HomeScreen() {
                             </Text>
                           </View>
                           <TouchableOpacity
-                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                            onPress={() => handleOpenTradeModal(market, isYesLocked && !isNoLocked ? noOption : yesOption)}
                             style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
                             activeOpacity={0.8}
                             disabled={isAllLocked}
                           >
-                            <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade Outcome'}</Text>
+                            <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade YES / NO'}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1585,8 +1614,16 @@ export default function HomeScreen() {
                     ? filteredEntertainment
                     : filteredEntertainment.slice(0, CARDS_PER_CATEGORY)
                   ).map((market) => {
-                    const isYesLocked = isContractLocked(market, 'YES', market.yesOdds);
-                    const isNoLocked = isContractLocked(market, 'NO', market.noOdds);
+                    const yesOption = market.options?.find(
+                      (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
+                    ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
+                    const noOption = market.options?.find(
+                      (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
+                    ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
+                    const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
+                    const noOdds = market.noOdds || noOption?.odds || 1.95;
+                    const isYesLocked = isContractLocked(market, 'YES', yesOdds);
+                    const isNoLocked = isContractLocked(market, 'NO', noOdds);
                     const isAllLocked = isYesLocked && isNoLocked;
                     return (
                       <View key={market._id} style={styles.richMarketCard}>
@@ -1624,7 +1661,7 @@ export default function HomeScreen() {
                             style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
                             activeOpacity={0.8}
                             disabled={isYesLocked}
-                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                            onPress={() => handleOpenTradeModal(market, yesOption)}
                           >
                             <Text style={styles.binaryOptionLabelYes}>YES</Text>
                             <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
@@ -1634,7 +1671,7 @@ export default function HomeScreen() {
                             style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
                             activeOpacity={0.8}
                             disabled={isNoLocked}
-                            onPress={() => handleOpenTradeModal(market, { label: 'NO', odds: market.noOdds || 1.95 })}
+                            onPress={() => handleOpenTradeModal(market, noOption)}
                           >
                             <Text style={styles.binaryOptionLabelNo}>NO</Text>
                             <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
@@ -1649,12 +1686,12 @@ export default function HomeScreen() {
                             </Text>
                           </View>
                           <TouchableOpacity
-                            onPress={() => handleOpenTradeModal(market, { label: 'YES', odds: market.yesOdds || 1.85 })}
+                            onPress={() => handleOpenTradeModal(market, isYesLocked && !isNoLocked ? noOption : yesOption)}
                             style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
                             activeOpacity={0.8}
                             disabled={isAllLocked}
                           >
-                            <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade Contract'}</Text>
+                            <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade YES / NO'}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>

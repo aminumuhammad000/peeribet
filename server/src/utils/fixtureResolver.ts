@@ -209,6 +209,12 @@ export const KNOWN_MARKET_MAP: Record<string, any> = {
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 3450000,
+    yesOdds: 1.85,
+    noOdds: 1.95,
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1000000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1000000 },
+    ],
   },
   '65f1d0000000000000000001': {
     title: 'Central Bank to cut benchmark interest rate in Q4?',
@@ -217,6 +223,12 @@ export const KNOWN_MARKET_MAP: Record<string, any> = {
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 3450000,
+    yesOdds: 1.85,
+    noOdds: 1.95,
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1000000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1000000 },
+    ],
   },
   pol_2: {
     hexId: '65f1d0000000000000000002',
@@ -226,6 +238,12 @@ export const KNOWN_MARKET_MAP: Record<string, any> = {
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 5120000,
+    yesOdds: 1.85,
+    noOdds: 1.95,
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1000000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1000000 },
+    ],
   },
   '65f1d0000000000000000002': {
     title: 'US Federal Reserve to lower rates at upcoming FOMC meeting?',
@@ -234,6 +252,12 @@ export const KNOWN_MARKET_MAP: Record<string, any> = {
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 5120000,
+    yesOdds: 1.85,
+    noOdds: 1.95,
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1000000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1000000 },
+    ],
   },
   pol_3: {
     hexId: '65f1d0000000000000000003',
@@ -243,6 +267,12 @@ export const KNOWN_MARKET_MAP: Record<string, any> = {
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 2180000,
+    yesOdds: 1.85,
+    noOdds: 1.95,
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1000000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1000000 },
+    ],
   },
   '65f1d0000000000000000003': {
     title: 'Nigeria Inflation Rate to drop below 28% in official NBS report?',
@@ -251,6 +281,12 @@ export const KNOWN_MARKET_MAP: Record<string, any> = {
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 2180000,
+    yesOdds: 1.85,
+    noOdds: 1.95,
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1000000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1000000 },
+    ],
   },
   ent_1: {
     hexId: '65f1e0000000000000000001',
@@ -260,6 +296,12 @@ export const KNOWN_MARKET_MAP: Record<string, any> = {
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 2850000,
+    yesOdds: 1.85,
+    noOdds: 1.95,
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1000000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1000000 },
+    ],
   },
   '65f1e0000000000000000001': {
     title: 'Grammy Awards: Album of the Year Winner 2026',
@@ -268,6 +310,12 @@ export const KNOWN_MARKET_MAP: Record<string, any> = {
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 2850000,
+    yesOdds: 1.85,
+    noOdds: 1.95,
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1000000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1000000 },
+    ],
   },
   ev_1: {
     hexId: '65f1f0000000000000000001',
@@ -277,6 +325,12 @@ export const KNOWN_MARKET_MAP: Record<string, any> = {
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 4320000,
+    yesOdds: 1.85,
+    noOdds: 1.95,
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1000000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1000000 },
+    ],
   },
   '65f1f0000000000000000001': {
     title: 'SpaceX Starship to successfully complete next orbital test flight?',
@@ -285,6 +339,12 @@ export const KNOWN_MARKET_MAP: Record<string, any> = {
     marketType: 'YES_NO',
     status: 'ACTIVE',
     poolAmount: 4320000,
+    yesOdds: 1.85,
+    noOdds: 1.95,
+    options: [
+      { id: 'yes', label: 'Yes', odds: 1.85, totalStaked: 1000000 },
+      { id: 'no', label: 'No', odds: 1.95, totalStaked: 1000000 },
+    ],
   },
 };
 
@@ -353,6 +413,10 @@ export async function resolveTargetMatchOrMarket(targetId: string): Promise<{ ma
           status: mkt.status || 'ACTIVE',
           poolAmount: mkt.poolAmount || 2000000,
           closingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          options: mkt.options || [
+            { id: 'yes', label: 'Yes', odds: mkt.yesOdds || 1.85, totalStaked: 1000000 },
+            { id: 'no', label: 'No', odds: mkt.noOdds || 1.95, totalStaked: 1000000 },
+          ],
         };
         if (mkt.hexId && mongoose.Types.ObjectId.isValid(mkt.hexId)) {
           mdoc._id = new mongoose.Types.ObjectId(mkt.hexId);
@@ -362,7 +426,16 @@ export async function resolveTargetMatchOrMarket(targetId: string): Promise<{ ma
         predictionMarket = await Market.findOne({ title: mkt.title });
       }
     }
-    if (predictionMarket) return { match: null, predictionMarket };
+    if (predictionMarket) {
+      if (!predictionMarket.options || predictionMarket.options.length === 0) {
+        predictionMarket.options = mkt.options || [
+          { id: 'yes', label: 'Yes', odds: mkt.yesOdds || 1.85, totalStaked: 1000000 },
+          { id: 'no', label: 'No', odds: mkt.noOdds || 1.95, totalStaked: 1000000 },
+        ];
+        await predictionMarket.save().catch(() => {});
+      }
+      return { match: null, predictionMarket };
+    }
   }
 
   return { match: null, predictionMarket: null };

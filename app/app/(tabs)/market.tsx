@@ -259,14 +259,27 @@ export default function MarketScreen() {
 
   // Open Trading Screen for a Prediction Option (Same UI as 1.jpeg and 2.jpeg)
   const handleOpenTrade = (market: any, option: any) => {
+    const yesOption = market.options?.find(
+      (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
+    ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
+    const noOption = market.options?.find(
+      (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
+    ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
+    const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
+    const noOdds = market.noOdds || noOption?.odds || 1.95;
+    const selectedOutcome = (option?.label || 'YES').toUpperCase();
+    const selectedOdds = option?.odds || (selectedOutcome === 'NO' ? noOdds : yesOdds);
+
     router.push({
       pathname: '/enter-amount',
       params: {
         marketId: market._id,
         matchTitle: market.title,
         marketName: market.subcategory || market.category || 'Prediction Contract',
-        outcome: option.label,
-        odds: option.odds || 1.95,
+        outcome: selectedOutcome,
+        odds: selectedOdds,
+        yesOdds,
+        noOdds,
         isPrediction: 'true',
         poolAmount: market.poolAmount || 0,
         startTime: market.closingDate
@@ -1007,12 +1020,12 @@ export default function MarketScreen() {
                         </Text>
                       </View>
                       <TouchableOpacity
-                        onPress={() => handleOpenTrade(market, yesOption)}
+                        onPress={() => handleOpenTrade(market, isYesLocked && !isNoLocked ? noOption : yesOption)}
                         style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
                         activeOpacity={0.8}
                         disabled={isAllLocked}
                       >
-                        <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade Outcome'}</Text>
+                        <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade YES / NO'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>

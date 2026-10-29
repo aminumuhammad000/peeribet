@@ -44,8 +44,14 @@ export default function EnterAmountScreen() {
   const matchTitle = (params.matchTitle as string) || (params.title as string) || 'Match Detail';
   const startTime = (params.startTime as string) || 'Upcoming';
   const marketName = (params.marketName as string) || (isPrediction ? 'Prediction Contract' : 'Match Outcome');
-  const outcome = (params.outcome as string) || 'HOME';
-  const odds = parseFloat(params.odds as string) || 1.95;
+  const outcomeParam = ((params.outcome as string) || 'YES').toUpperCase();
+  const initialOdds = parseFloat(params.odds as string) || 1.95;
+  const passedYesOdds = parseFloat(params.yesOdds as string) || (outcomeParam === 'NO' ? 1.85 : initialOdds);
+  const passedNoOdds = parseFloat(params.noOdds as string) || (outcomeParam === 'NO' ? initialOdds : 1.95);
+
+  // User-selectable outcome state (allows switching between YES and NO)
+  const [outcome, setOutcome] = useState<'YES' | 'NO'>(outcomeParam === 'NO' ? 'NO' : 'YES');
+  const odds = outcome === 'YES' ? passedYesOdds : passedNoOdds;
   const homeTeamParam = (params.homeTeam as string) || '';
   const awayTeamParam = (params.awayTeam as string) || '';
   const initialPoolAmount = Number.isFinite(parseFloat(params.poolAmount as string))
@@ -412,6 +418,79 @@ export default function EnterAmountScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Binary Outcome Selector (YES / NO) */}
+            <View style={styles.outcomeSelectorCard}>
+              <View style={styles.outcomeSelectorHeader}>
+                <Text style={styles.outcomeSelectorLabel}>SELECT OUTCOME</Text>
+                <View style={[styles.outcomeSelectedPill, outcome === 'YES' ? styles.outcomePillYes : styles.outcomePillNo]}>
+                  <Text style={[styles.outcomeSelectedPillText, outcome === 'YES' ? styles.outcomePillTextYes : styles.outcomePillTextNo]}>
+                    Selected: {outcome}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.outcomeChoiceRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.outcomeChoiceBtn,
+                    styles.outcomeChoiceBtnYes,
+                    outcome === 'YES' && styles.outcomeChoiceBtnYesActive,
+                  ]}
+                  onPress={() => {
+                    setOutcome('YES');
+                    setError('');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.outcomeChoiceLabelYes,
+                      outcome === 'YES' && styles.outcomeChoiceLabelYesActive,
+                    ]}
+                  >
+                    YES
+                  </Text>
+                  <Text
+                    style={[
+                      styles.outcomeChoiceOdds,
+                      outcome === 'YES' && styles.outcomeChoiceOddsActive,
+                    ]}
+                  >
+                    ₦1,000 / Share
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.outcomeChoiceBtn,
+                    styles.outcomeChoiceBtnNo,
+                    outcome === 'NO' && styles.outcomeChoiceBtnNoActive,
+                  ]}
+                  onPress={() => {
+                    setOutcome('NO');
+                    setError('');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.outcomeChoiceLabelNo,
+                      outcome === 'NO' && styles.outcomeChoiceLabelNoActive,
+                    ]}
+                  >
+                    NO
+                  </Text>
+                  <Text
+                    style={[
+                      styles.outcomeChoiceOdds,
+                      outcome === 'NO' && styles.outcomeChoiceOddsActive,
+                    ]}
+                  >
+                    ₦1,000 / Share
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* ─── P2P MODE UI ─── */}
             {tradingMode === 'P2P' ? (
               <View style={styles.cardContainer}>
@@ -698,6 +777,120 @@ const styles = StyleSheet.create({
   modeButtonText: { fontSize: 13, fontWeight: '700', color: '#8FA2C7', fontFamily: 'Inter' },
   modeTextActiveP2P: { color: '#00D285' },
   modeTextActivePool: { color: '#3B82F6' },
+  outcomeSelectorCard: {
+    width: '100%',
+    backgroundColor: 'rgba(19, 28, 50, 0.9)',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  outcomeSelectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  outcomeSelectorLabel: {
+    color: '#8FA2C7',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    fontFamily: 'Inter',
+  },
+  outcomeSelectedPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  outcomePillYes: {
+    backgroundColor: 'rgba(0, 210, 133, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.3)',
+  },
+  outcomePillNo: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  outcomeSelectedPillText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    fontFamily: 'Inter',
+  },
+  outcomePillTextYes: { color: '#00D285' },
+  outcomePillTextNo: { color: '#EF4444' },
+  outcomeChoiceRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  outcomeChoiceBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    borderWidth: 1.5,
+  },
+  outcomeChoiceBtnYes: {
+    backgroundColor: 'rgba(0, 210, 133, 0.06)',
+    borderColor: 'rgba(0, 210, 133, 0.25)',
+  },
+  outcomeChoiceBtnYesActive: {
+    backgroundColor: 'rgba(0, 210, 133, 0.2)',
+    borderColor: '#00D285',
+    shadowColor: '#00D285',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  outcomeChoiceBtnNo: {
+    backgroundColor: 'rgba(239, 68, 68, 0.06)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  outcomeChoiceBtnNoActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: '#EF4444',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  outcomeChoiceLabelYes: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#00D285',
+    fontFamily: 'Inter',
+    marginBottom: 2,
+  },
+  outcomeChoiceLabelYesActive: {
+    color: '#00D285',
+    fontWeight: '900',
+  },
+  outcomeChoiceLabelNo: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#EF4444',
+    fontFamily: 'Inter',
+    marginBottom: 2,
+  },
+  outcomeChoiceLabelNoActive: {
+    color: '#EF4444',
+    fontWeight: '900',
+  },
+  outcomeChoiceOdds: {
+    fontSize: 10.5,
+    color: '#94A3B8',
+    fontWeight: '600',
+    fontFamily: 'Inter',
+  },
+  outcomeChoiceOddsActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
   cardContainer: {
     width: '100%',
     backgroundColor: 'rgba(19, 28, 50, 0.85)',
