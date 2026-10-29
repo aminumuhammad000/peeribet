@@ -348,6 +348,11 @@ export const getSettings = async (req: Request, res: Response) => {
     if (!settings) {
       settings = await SystemSetting.create({});
     }
+    // Ensure active payment gateway is only vtstack or flutterwave
+    if (settings.activePaymentGateway !== 'vtstack' && settings.activePaymentGateway !== 'flutterwave') {
+      settings.activePaymentGateway = 'vtstack';
+      await settings.save();
+    }
     res.json(settings);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
@@ -378,7 +383,12 @@ export const updateSettings = async (req: Request, res: Response) => {
       manualInstructions,
       gatewayMode,
       autoWithdrawalApproval,
-      maintenanceMode
+      maintenanceMode,
+      footballApiKey,
+      theSportsDbApiKey,
+      oddsApiKey,
+      rapidApiKey,
+      geminiApiKey
     } = req.body;
     let settings = await SystemSetting.findOne();
     if (!settings) {
@@ -387,7 +397,10 @@ export const updateSettings = async (req: Request, res: Response) => {
     if (platformFee !== undefined) settings.platformFee = platformFee;
     if (settlementMode !== undefined) settings.settlementMode = settlementMode;
     if (complianceThreshold !== undefined) settings.complianceThreshold = complianceThreshold;
-    if (activePaymentGateway !== undefined) settings.activePaymentGateway = activePaymentGateway;
+    if (activePaymentGateway !== undefined) {
+      // Restrict payment gateway strictly to vtstack and flutterwave
+      settings.activePaymentGateway = activePaymentGateway === 'flutterwave' ? 'flutterwave' : 'vtstack';
+    }
     if (paystackPublicKey !== undefined) settings.paystackPublicKey = paystackPublicKey;
     if (paystackSecretKey !== undefined) settings.paystackSecretKey = paystackSecretKey;
     if (flutterwavePublicKey !== undefined) settings.flutterwavePublicKey = flutterwavePublicKey;
@@ -406,6 +419,11 @@ export const updateSettings = async (req: Request, res: Response) => {
     if (gatewayMode !== undefined) settings.gatewayMode = gatewayMode;
     if (autoWithdrawalApproval !== undefined) settings.autoWithdrawalApproval = autoWithdrawalApproval;
     if (maintenanceMode !== undefined) settings.maintenanceMode = maintenanceMode;
+    if (footballApiKey !== undefined) settings.footballApiKey = footballApiKey;
+    if (theSportsDbApiKey !== undefined) settings.theSportsDbApiKey = theSportsDbApiKey;
+    if (oddsApiKey !== undefined) settings.oddsApiKey = oddsApiKey;
+    if (rapidApiKey !== undefined) settings.rapidApiKey = rapidApiKey;
+    if (geminiApiKey !== undefined) settings.geminiApiKey = geminiApiKey;
 
     await settings.save();
     res.json(settings);

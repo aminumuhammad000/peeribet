@@ -1,16 +1,29 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import SystemSetting from '../models/SystemSetting';
 
 dotenv.config();
 
-const API_KEY = process.env.FOOTBALL_API_KEY || 'XxXxXxXxXxXxXxXxXxXxXxXx';
 const BASE_URL = 'https://v3.football.api-sports.io';
+
+export const getFootballApiKey = async (): Promise<string> => {
+  try {
+    const settings = await SystemSetting.findOne();
+    if (settings?.footballApiKey && settings.footballApiKey.trim()) {
+      return settings.footballApiKey.trim();
+    }
+  } catch (err) {}
+  return process.env.FOOTBALL_API_KEY || 'XxXxXxXxXxXxXxXxXxXxXxXx';
+};
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
-  headers: {
-    'x-apisports-key': API_KEY,
-  },
+});
+
+apiClient.interceptors.request.use(async (config) => {
+  const apiKey = await getFootballApiKey();
+  config.headers['x-apisports-key'] = apiKey;
+  return config;
 });
 
 export const footballApiService = {

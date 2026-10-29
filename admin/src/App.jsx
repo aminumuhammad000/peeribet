@@ -362,27 +362,27 @@ export default function App() {
   const [referralPage, setReferralPage] = useState(1);
   const referralPerPage = 25;
 
-  // Payment Gateway Configuration State
+  // Payment Gateway Configuration State (Only VTStack & Flutterwave)
   const [activeGateway, setActiveGateway] = useState('vtstack');
-  const [paystackPublicKey, setPaystackPublicKey] = useState('');
-  const [paystackSecretKey, setPaystackSecretKey] = useState('');
   const [flutterwavePublicKey, setFlutterwavePublicKey] = useState('');
   const [flutterwaveSecretKey, setFlutterwaveSecretKey] = useState('');
   const [flutterwaveSecretHash, setFlutterwaveSecretHash] = useState('');
   const [vtstackApiKey, setVtstackApiKey] = useState('');
   const [vtstackPayoutKey, setVtstackPayoutKey] = useState('');
   const [vtstackWebhookSecret, setVtstackWebhookSecret] = useState('');
-  const [monnifyApiKey, setMonnifyApiKey] = useState('');
-  const [monnifySecretKey, setMonnifySecretKey] = useState('');
-  const [monnifyContractCode, setMonnifyContractCode] = useState('');
-  const [manualBankName, setManualBankName] = useState('');
-  const [manualAccountNumber, setManualAccountNumber] = useState('');
-  const [manualAccountName, setManualAccountName] = useState('');
-  const [manualInstructions, setManualInstructions] = useState('');
   const [gatewayMode, setGatewayMode] = useState('TEST');
   const [autoWithdrawalApproval, setAutoWithdrawalApproval] = useState(true);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [showSecretKeys, setShowSecretKeys] = useState(false);
+
+  // External Sports & Data API Configuration State
+  const [footballApiKey, setFootballApiKey] = useState('');
+  const [theSportsDbApiKey, setTheSportsDbApiKey] = useState('');
+  const [oddsApiKey, setOddsApiKey] = useState('');
+  const [rapidApiKey, setRapidApiKey] = useState('');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [isSavingApis, setIsSavingApis] = useState(false);
+  const [showApiKeys, setShowApiKeys] = useState(false);
 
   // Portfolio vault reserve states
   const [vaultBalances, setVaultBalances] = useState({
@@ -749,25 +749,23 @@ export default function App() {
         setEditMode(data.settlementMode || 'AUTOMATED');
         setEditThreshold(data.complianceThreshold ?? 0);
 
-        setActiveGateway(data.activePaymentGateway || 'vtstack');
-        setPaystackPublicKey(data.paystackPublicKey || '');
-        setPaystackSecretKey(data.paystackSecretKey || '');
+        setActiveGateway(data.activePaymentGateway === 'flutterwave' ? 'flutterwave' : 'vtstack');
         setFlutterwavePublicKey(data.flutterwavePublicKey || '');
         setFlutterwaveSecretKey(data.flutterwaveSecretKey || '');
         setFlutterwaveSecretHash(data.flutterwaveSecretHash || '');
         setVtstackApiKey(data.vtstackApiKey || '');
         setVtstackPayoutKey(data.vtstackPayoutKey || '');
         setVtstackWebhookSecret(data.vtstackWebhookSecret || '');
-        setMonnifyApiKey(data.monnifyApiKey || '');
-        setMonnifySecretKey(data.monnifySecretKey || '');
-        setMonnifyContractCode(data.monnifyContractCode || '');
-        setManualBankName(data.manualBankName || '');
-        setManualAccountNumber(data.manualAccountNumber || '');
-        setManualAccountName(data.manualAccountName || '');
-        setManualInstructions(data.manualInstructions || '');
         setGatewayMode(data.gatewayMode || 'TEST');
         setAutoWithdrawalApproval(data.autoWithdrawalApproval !== false);
         setMaintenanceMode(data.maintenanceMode === true);
+
+        // External Sports and Data APIs
+        setFootballApiKey(data.footballApiKey || '');
+        setTheSportsDbApiKey(data.theSportsDbApiKey || '');
+        setOddsApiKey(data.oddsApiKey || '');
+        setRapidApiKey(data.rapidApiKey || '');
+        setGeminiApiKey(data.geminiApiKey || '');
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -1167,34 +1165,47 @@ export default function App() {
     }
   };
 
-  // Handle saving payment gateway settings
+  // Handle saving payment gateway settings (Only VTStack & Flutterwave)
   const handleSaveGatewaySettings = async (e) => {
     if (e) e.preventDefault();
     try {
+      const chosenGateway = activeGateway === 'flutterwave' ? 'flutterwave' : 'vtstack';
       await api.post('/admin/settings', {
-        activePaymentGateway: activeGateway,
-        paystackPublicKey,
-        paystackSecretKey,
+        activePaymentGateway: chosenGateway,
         flutterwavePublicKey,
         flutterwaveSecretKey,
         flutterwaveSecretHash,
         vtstackApiKey,
         vtstackPayoutKey,
         vtstackWebhookSecret,
-        monnifyApiKey,
-        monnifySecretKey,
-        monnifyContractCode,
-        manualBankName,
-        manualAccountNumber,
-        manualAccountName,
-        manualInstructions,
         gatewayMode,
         autoWithdrawalApproval,
       });
-      showToast(`Payment Gateway set to ${activeGateway.toUpperCase()} (${gatewayMode} mode)`, 'success');
-      logSecurityEvent('warning', `Payment gateway provider updated to ${activeGateway} (${gatewayMode})`, `Authorized by ${adminName}`, 'key');
+      showToast(`Payment Gateway set to ${chosenGateway.toUpperCase()} (${gatewayMode} mode)`, 'success');
+      logSecurityEvent('warning', `Payment gateway provider updated to ${chosenGateway} (${gatewayMode})`, `Authorized by ${adminName}`, 'key');
     } catch (error) {
       showToast('Failed to save payment gateway settings.', 'error');
+    }
+  };
+
+  // Handle saving external API keys (Football API, TheSportsDB, Odds, RapidAPI, Gemini)
+  const handleSaveApiSettings = async (e) => {
+    if (e) e.preventDefault();
+    setIsSavingApis(true);
+    try {
+      await api.post('/admin/settings', {
+        footballApiKey,
+        theSportsDbApiKey,
+        oddsApiKey,
+        rapidApiKey,
+        geminiApiKey,
+      });
+      showToast('External sports & data API credentials updated successfully!', 'success');
+      logSecurityEvent('info', 'Sports and External API keys updated', `Authorized by ${adminName}`, 'key');
+    } catch (error) {
+      showToast('Failed to save API credentials.', 'error');
+    } finally {
+      setIsSavingApis(false);
     }
   };
 
@@ -4675,14 +4686,14 @@ export default function App() {
                 </form>
               </div>
 
-              {/* Payment Gateway Configurations Card */}
+              {/* Payment Gateway Configurations Card (VTStack & Flutterwave only) */}
               <div className="settings-card" style={{ gridColumn: 'span 2', marginTop: 8 }}>
                 <div className="settings-card-title">
                   <CreditCard size={18} color="#00D285" />
                   Payment Gateway &amp; Merchant Integrations
                 </div>
                 <p className="settings-card-sub" style={{ marginBottom: 20 }}>
-                  Select active payment processing infrastructure and configure API credentials for virtual accounts, instant deposits, and automated withdrawals.
+                  Select active payment processing infrastructure and configure API credentials for virtual accounts, instant deposits, and automated withdrawals. Supported gateways: <strong>VTStack</strong> and <strong>Flutterwave</strong>.
                 </p>
 
                 <form onSubmit={handleSaveGatewaySettings}>
@@ -4691,13 +4702,10 @@ export default function App() {
                     <label className="settings-label" style={{ marginBottom: 10, display: 'block' }}>
                       Select Active Payment Gateway Provider
                     </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
                       {[
                         { id: 'vtstack', name: 'VTStack', badge: 'Virtual Accounts & Instant Payouts', icon: '⚡' },
-                        { id: 'paystack', name: 'Paystack', badge: 'Cards, Bank Transfer & USSD', icon: '💳' },
                         { id: 'flutterwave', name: 'Flutterwave', badge: 'Pan-African & Global Cards', icon: '🌍' },
-                        { id: 'monnify', name: 'Monnify', badge: 'Reserved Account Transfers', icon: '🏦' },
-                        { id: 'manual', name: 'Manual Transfer', badge: 'Admin Bank Verification', icon: '📝' },
                       ].map((gw) => (
                         <div
                           key={gw.id}
@@ -4759,36 +4767,31 @@ export default function App() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-white)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                           {activeGateway === 'vtstack' && '⚡ VTStack API & Webhook Credentials'}
-                          {activeGateway === 'paystack' && '💳 Paystack Merchant API Keys'}
                           {activeGateway === 'flutterwave' && '🌍 Flutterwave Merchant API Keys'}
-                          {activeGateway === 'monnify' && '🏦 Monnify Merchant API Keys'}
-                          {activeGateway === 'manual' && '📝 Manual Bank Deposit Destination'}
                         </span>
                         <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, backgroundColor: 'rgba(0, 210, 133, 0.1)', color: '#00D285', fontWeight: 600 }}>
                           {gatewayMode}
                         </span>
                       </div>
 
-                      {activeGateway !== 'manual' && (
-                        <button
-                          type="button"
-                          onClick={() => setShowSecretKeys(!showSecretKeys)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            fontSize: 11,
-                            fontWeight: 600
-                          }}
-                        >
-                          {showSecretKeys ? <EyeOff size={14} /> : <Eye size={14} />}
-                          <span>{showSecretKeys ? 'Conceal Keys' : 'Reveal Keys'}</span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowSecretKeys(!showSecretKeys)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: 11,
+                          fontWeight: 600
+                        }}
+                      >
+                        {showSecretKeys ? <EyeOff size={14} /> : <Eye size={14} />}
+                        <span>{showSecretKeys ? 'Conceal Keys' : 'Reveal Keys'}</span>
+                      </button>
                     </div>
 
                     {activeGateway === 'vtstack' && (
@@ -4821,31 +4824,6 @@ export default function App() {
                             placeholder="whsec_..."
                             value={vtstackWebhookSecret}
                             onChange={(e) => setVtstackWebhookSecret(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {activeGateway === 'paystack' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
-                        <div className="settings-field">
-                          <label className="settings-label">Paystack Public Key</label>
-                          <input
-                            type="text"
-                            className="vault-input"
-                            placeholder="pk_live_..."
-                            value={paystackPublicKey}
-                            onChange={(e) => setPaystackPublicKey(e.target.value)}
-                          />
-                        </div>
-                        <div className="settings-field">
-                          <label className="settings-label">Paystack Secret Key</label>
-                          <input
-                            type={showSecretKeys ? 'text' : 'password'}
-                            className="vault-input"
-                            placeholder="sk_live_..."
-                            value={paystackSecretKey}
-                            onChange={(e) => setPaystackSecretKey(e.target.value)}
                           />
                         </div>
                       </div>
@@ -4885,91 +4863,142 @@ export default function App() {
                         </div>
                       </div>
                     )}
-
-                    {activeGateway === 'monnify' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
-                        <div className="settings-field">
-                          <label className="settings-label">Monnify API Key</label>
-                          <input
-                            type="text"
-                            className="vault-input"
-                            placeholder="MK_PROD_..."
-                            value={monnifyApiKey}
-                            onChange={(e) => setMonnifyApiKey(e.target.value)}
-                          />
-                        </div>
-                        <div className="settings-field">
-                          <label className="settings-label">Monnify Secret Key</label>
-                          <input
-                            type={showSecretKeys ? 'text' : 'password'}
-                            className="vault-input"
-                            placeholder="SK_PROD_..."
-                            value={monnifySecretKey}
-                            onChange={(e) => setMonnifySecretKey(e.target.value)}
-                          />
-                        </div>
-                        <div className="settings-field" style={{ gridColumn: 'span 2' }}>
-                          <label className="settings-label">Monnify Contract Code</label>
-                          <input
-                            type="text"
-                            className="vault-input"
-                            placeholder="e.g. 1234567890"
-                            value={monnifyContractCode}
-                            onChange={(e) => setMonnifyContractCode(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {activeGateway === 'manual' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
-                        <div className="settings-field">
-                          <label className="settings-label">Designated Bank Name</label>
-                          <input
-                            type="text"
-                            className="vault-input"
-                            placeholder="e.g. Zenith Bank / Guaranty Trust Bank"
-                            value={manualBankName}
-                            onChange={(e) => setManualBankName(e.target.value)}
-                          />
-                        </div>
-                        <div className="settings-field">
-                          <label className="settings-label">Account Number</label>
-                          <input
-                            type="text"
-                            className="vault-input"
-                            placeholder="e.g. 1012345678"
-                            value={manualAccountNumber}
-                            onChange={(e) => setManualAccountNumber(e.target.value)}
-                          />
-                        </div>
-                        <div className="settings-field">
-                          <label className="settings-label">Account Name</label>
-                          <input
-                            type="text"
-                            className="vault-input"
-                            placeholder="e.g. Peeritrade Escrow Services"
-                            value={manualAccountName}
-                            onChange={(e) => setManualAccountName(e.target.value)}
-                          />
-                        </div>
-                        <div className="settings-field">
-                          <label className="settings-label">Payment Reference Instructions</label>
-                          <input
-                            type="text"
-                            className="vault-input"
-                            placeholder="e.g. Transfer with username as narration"
-                            value={manualInstructions}
-                            onChange={(e) => setManualInstructions(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <button type="submit" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 22px' }}>
                     <Save size={16} />
                     <span>Update Payment Gateway &amp; Keys</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* External Football & Data APIs Configuration Card */}
+              <div className="settings-card" style={{ gridColumn: 'span 2', marginTop: 16 }}>
+                <div className="settings-card-title">
+                  <Globe size={18} color="#00D285" />
+                  Football &amp; External Sports Data API Configurations
+                </div>
+                <p className="settings-card-sub" style={{ marginBottom: 20 }}>
+                  Configure external API keys and live feeds for real-time football fixtures, live match scores, betting odds, and prediction contracts.
+                </p>
+
+                <form onSubmit={handleSaveApiSettings}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 16 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKeys(!showApiKeys)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 11,
+                        fontWeight: 600
+                      }}
+                    >
+                      {showApiKeys ? <EyeOff size={14} /> : <Eye size={14} />}
+                      <span>{showApiKeys ? 'Conceal API Keys' : 'Reveal API Keys'}</span>
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 24 }}>
+                    <div className="settings-field">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <label className="settings-label" style={{ margin: 0 }}>⚽ Football API Key (API-Sports / API-Football)</label>
+                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 600 }}>v3.football.api-sports.io</span>
+                      </div>
+                      <input
+                        type={showApiKeys ? 'text' : 'password'}
+                        className="vault-input"
+                        placeholder="e.g. 7f8a9b2c3d4e5f6..."
+                        value={footballApiKey}
+                        onChange={(e) => setFootballApiKey(e.target.value)}
+                      />
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                        Used for live football fixture sync, scores, lineups, and in-play stats. Header: <code>x-apisports-key</code>.
+                      </span>
+                    </div>
+
+                    <div className="settings-field">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <label className="settings-label" style={{ margin: 0 }}>🏆 TheSportsDB API Key</label>
+                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 600 }}>thesportsdb.com</span>
+                      </div>
+                      <input
+                        type={showApiKeys ? 'text' : 'password'}
+                        className="vault-input"
+                        placeholder="Default is '3' (Free tier) or enter custom key"
+                        value={theSportsDbApiKey}
+                        onChange={(e) => setTheSportsDbApiKey(e.target.value)}
+                      />
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                        Used for sports league schedules, team badges, and match info.
+                      </span>
+                    </div>
+
+                    <div className="settings-field">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <label className="settings-label" style={{ margin: 0 }}>📊 Live Sports Odds API Key</label>
+                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 600 }}>the-odds-api.com</span>
+                      </div>
+                      <input
+                        type={showApiKeys ? 'text' : 'password'}
+                        className="vault-input"
+                        placeholder="Enter The-Odds-API Key"
+                        value={oddsApiKey}
+                        onChange={(e) => setOddsApiKey(e.target.value)}
+                      />
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                        Used for global sports odds benchmarking and live market pricing.
+                      </span>
+                    </div>
+
+                    <div className="settings-field">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <label className="settings-label" style={{ margin: 0 }}>⚡ RapidAPI Key (Multi-Sport Data Hub)</label>
+                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 600 }}>rapidapi.com</span>
+                      </div>
+                      <input
+                        type={showApiKeys ? 'text' : 'password'}
+                        className="vault-input"
+                        placeholder="Enter RapidAPI Key"
+                        value={rapidApiKey}
+                        onChange={(e) => setRapidApiKey(e.target.value)}
+                      />
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                        Unified key for external sports, boxing, and MMA feeds via RapidAPI.
+                      </span>
+                    </div>
+
+                    <div className="settings-field" style={{ gridColumn: '1 / -1' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <label className="settings-label" style={{ margin: 0 }}>🤖 AI Settlement &amp; News Engine Key (Gemini / AI)</label>
+                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 600 }}>AI Market Resolver</span>
+                      </div>
+                      <input
+                        type={showApiKeys ? 'text' : 'password'}
+                        className="vault-input"
+                        placeholder="AI API Key for automated oracle verification"
+                        value={geminiApiKey}
+                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                      />
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                        Powers automated verification of real-life events, politics, and prediction contracts.
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={isSavingApis}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 22px' }}
+                  >
+                    <Save size={16} />
+                    <span>{isSavingApis ? 'Saving API Credentials...' : 'Save Sports &amp; API Credentials'}</span>
                   </button>
                 </form>
               </div>

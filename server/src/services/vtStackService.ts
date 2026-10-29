@@ -1,8 +1,25 @@
 import axios from 'axios';
 import crypto from 'crypto';
+import SystemSetting from '../models/SystemSetting';
 
 const VTSTACK_BASE = (process.env.VTSTACK_BASE_URL || 'https://api.vtstack.ng/api').replace(/\/$/, '');
-const API_KEY = process.env.VTSTACK_API_KEY || '';
+
+export const getVtStackConfig = async () => {
+  let apiKey = process.env.VTSTACK_API_KEY || '';
+  let payoutKey = process.env.VTSTACK_PAYOUT_KEY || process.env.VTSTACK_API_KEY || '';
+  let webhookSecret = process.env.VTSTACK_WEBHOOK_SECRET || '';
+
+  try {
+    const settings = await SystemSetting.findOne();
+    if (settings) {
+      if (settings.vtstackApiKey && settings.vtstackApiKey.trim()) apiKey = settings.vtstackApiKey.trim();
+      if (settings.vtstackPayoutKey && settings.vtstackPayoutKey.trim()) payoutKey = settings.vtstackPayoutKey.trim();
+      if (settings.vtstackWebhookSecret && settings.vtstackWebhookSecret.trim()) webhookSecret = settings.vtstackWebhookSecret.trim();
+    }
+  } catch (e) {}
+
+  return { apiKey, payoutKey, webhookSecret };
+};
 
 const FALLBACK_BANKS = [
   { code: '044', name: 'Access Bank' },
@@ -17,9 +34,9 @@ const FALLBACK_BANKS = [
   { code: '221', name: 'Stanbic IBTC' },
 ];
 
-const requireApiKey = () => {
-  if (!API_KEY) {
-    throw new Error('VTStack API key is not configured. Set VTSTACK_API_KEY in environment variables.');
+const requireApiKey = (key: string) => {
+  if (!key) {
+    throw new Error('VTStack API key is not configured. Set VTSTACK_API_KEY in environment variables or Admin Settings.');
   }
 };
 
@@ -34,10 +51,11 @@ export const createVirtualAccount = async (payload: {
   reference: string;
 }) => {
   try {
-    requireApiKey();
+    const { apiKey } = await getVtStackConfig();
+    requireApiKey(apiKey);
 
     const { data } = await axios.post(`${VTSTACK_BASE}/virtual-accounts`, payload, {
-      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
     });
 
     return withFallback(data, 'Virtual account created successfully');
@@ -55,9 +73,10 @@ export const createVirtualAccount = async (payload: {
 // ─── Get Virtual Account by Reference ───────────────────────────────────────
 export const getVirtualAccounts = async () => {
   try {
-    requireApiKey();
+    const { apiKey } = await getVtStackConfig();
+    requireApiKey(apiKey);
     const { data } = await axios.get(`${VTSTACK_BASE}/virtual-accounts`, {
-      headers: { 'x-api-key': API_KEY },
+      headers: { 'x-api-key': apiKey },
     });
     return withFallback(data, 'Virtual accounts fetched successfully');
   } catch (error: any) {
@@ -68,9 +87,10 @@ export const getVirtualAccounts = async () => {
 // ─── List Supported Banks ───────────────────────────────────────────────────
 export const getBanks = async () => {
   try {
-    requireApiKey();
+    const { apiKey } = await getVtStackConfig();
+    requireApiKey(apiKey);
     const { data } = await axios.get(`${VTSTACK_BASE}/banks`, {
-      headers: { 'x-api-key': API_KEY },
+      headers: { 'x-api-key': apiKey },
     });
 
     const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : FALLBACK_BANKS;
@@ -83,10 +103,11 @@ export const getBanks = async () => {
 // ─── Verify Bank Account (Name Enquiry) ──────────────────────────────────────
 export const verifyBankAccount = async (bankCode: string, accountNumber: string) => {
   try {
-    requireApiKey();
+    const { apiKey } = await getVtStackConfig();
+    requireApiKey(apiKey);
     const { data } = await axios.get(`${VTSTACK_BASE}/banks/verify`, {
       params: { bankCode, accountNumber },
-      headers: { 'x-api-key': API_KEY },
+      headers: { 'x-api-key': apiKey },
     });
 
     const accountName = data?.data?.accountName || data?.accountName || 'Verification unavailable';
@@ -108,7 +129,7 @@ export const sendPayout = async (payload: {
   accountName: string;
   narration?: string;
 }) => {
-  const PAYOUT_KEY = process.env.VTSTACK_PAYOUT_KEY || process.env.VTSTACK_API_KEY || '';
+  const { payoutKey: PAYOUT_KEY } = await getVtStackConfig();
   if (!PAYOUT_KEY) {
     console.warn('[VTStack Payout] VTSTACK_PAYOUT_KEY is not configured. Queued locally for review.');
     return {

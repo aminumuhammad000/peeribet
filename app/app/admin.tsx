@@ -31,6 +31,12 @@ import {
   Award,
   Clock,
   Sparkles,
+  Globe,
+  Key,
+  Eye,
+  EyeOff,
+  CreditCard,
+  Save,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
@@ -39,7 +45,7 @@ import { adminService, authService, showToast } from '../services/apiService';
 export default function AdminMarketControlScreen() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'MATCHES' | 'MARKETS' | 'REFERRALS'>('MATCHES');
+  const [activeTab, setActiveTab] = useState<'MATCHES' | 'MARKETS' | 'REFERRALS' | 'SETTINGS'>('MATCHES');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -57,13 +63,31 @@ export default function AdminMarketControlScreen() {
   const [editReferralDescription, setEditReferralDescription] = useState('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
+  // System & External API Configuration State (VTStack & Flutterwave only)
+  const [activeGateway, setActiveGateway] = useState<'vtstack' | 'flutterwave'>('vtstack');
+  const [gatewayMode, setGatewayMode] = useState<'TEST' | 'LIVE'>('TEST');
+  const [vtstackApiKey, setVtstackApiKey] = useState('');
+  const [vtstackPayoutKey, setVtstackPayoutKey] = useState('');
+  const [vtstackWebhookSecret, setVtstackWebhookSecret] = useState('');
+  const [flutterwavePublicKey, setFlutterwavePublicKey] = useState('');
+  const [flutterwaveSecretKey, setFlutterwaveSecretKey] = useState('');
+  const [flutterwaveSecretHash, setFlutterwaveSecretHash] = useState('');
+  const [footballApiKey, setFootballApiKey] = useState('');
+  const [theSportsDbApiKey, setTheSportsDbApiKey] = useState('');
+  const [oddsApiKey, setOddsApiKey] = useState('');
+  const [rapidApiKey, setRapidApiKey] = useState('');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [showSecretKeys, setShowSecretKeys] = useState(false);
+  const [isSavingApiSettings, setIsSavingApiSettings] = useState(false);
+
   const loadData = useCallback(async () => {
     try {
-      const [userData, matchesRes, marketsRes, refData] = await Promise.all([
+      const [userData, matchesRes, marketsRes, refData, sysSettings] = await Promise.all([
         authService.getMe().catch(() => null),
         adminService.getAdminMatches().catch(() => ({ matches: [] })),
         adminService.getAdminMarkets().catch(() => ({ markets: [] })),
         adminService.getAdminReferralStats().catch(() => null),
+        adminService.getSettings().catch(() => null),
       ]);
 
       if (userData) setUser(userData);
@@ -81,6 +105,22 @@ export default function AdminMarketControlScreen() {
           setEditReferralDescription(refData.settings.referralDescription || '');
         }
       }
+
+      if (sysSettings) {
+        setActiveGateway(sysSettings.activePaymentGateway === 'flutterwave' ? 'flutterwave' : 'vtstack');
+        setGatewayMode(sysSettings.gatewayMode || 'TEST');
+        setVtstackApiKey(sysSettings.vtstackApiKey || '');
+        setVtstackPayoutKey(sysSettings.vtstackPayoutKey || '');
+        setVtstackWebhookSecret(sysSettings.vtstackWebhookSecret || '');
+        setFlutterwavePublicKey(sysSettings.flutterwavePublicKey || '');
+        setFlutterwaveSecretKey(sysSettings.flutterwaveSecretKey || '');
+        setFlutterwaveSecretHash(sysSettings.flutterwaveSecretHash || '');
+        setFootballApiKey(sysSettings.footballApiKey || '');
+        setTheSportsDbApiKey(sysSettings.theSportsDbApiKey || '');
+        setOddsApiKey(sysSettings.oddsApiKey || '');
+        setRapidApiKey(sysSettings.rapidApiKey || '');
+        setGeminiApiKey(sysSettings.geminiApiKey || '');
+      }
     } catch (err: any) {
       console.error('Error loading admin data:', err);
       showToast('Failed to load admin market list', 'error');
@@ -89,6 +129,32 @@ export default function AdminMarketControlScreen() {
       setRefreshing(false);
     }
   }, []);
+
+  const handleSavePlatformSettings = async () => {
+    setIsSavingApiSettings(true);
+    try {
+      await adminService.updateSettings({
+        activePaymentGateway: activeGateway,
+        gatewayMode,
+        vtstackApiKey,
+        vtstackPayoutKey,
+        vtstackWebhookSecret,
+        flutterwavePublicKey,
+        flutterwaveSecretKey,
+        flutterwaveSecretHash,
+        footballApiKey,
+        theSportsDbApiKey,
+        oddsApiKey,
+        rapidApiKey,
+        geminiApiKey,
+      });
+      showToast('Payment & Sports API keys saved successfully!', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update system settings', 'error');
+    } finally {
+      setIsSavingApiSettings(false);
+    }
+  };
 
   const handleSaveReferralSettings = async () => {
     setIsSavingSettings(true);
@@ -242,23 +308,25 @@ export default function AdminMarketControlScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchWrap}>
-          <Search size={16} color="#64748B" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={
-              activeTab === 'MATCHES'
-                ? 'Search sports fixture by club or league...'
-                : activeTab === 'MARKETS'
-                ? 'Search prediction market title...'
-                : 'Search referrals by user, code, or referee...'
-            }
-            placeholderTextColor="#64748B"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+        {/* Search Bar (Only shown for list tabs) */}
+        {activeTab !== 'SETTINGS' && (
+          <View style={styles.searchWrap}>
+            <Search size={16} color="#64748B" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={
+                activeTab === 'MATCHES'
+                  ? 'Search sports fixture by club or league...'
+                  : activeTab === 'MARKETS'
+                  ? 'Search prediction market title...'
+                  : 'Search referrals by user, code, or referee...'
+              }
+              placeholderTextColor="#64748B"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+        )}
 
         {/* Tab Switcher */}
         <View style={styles.tabBar}>
@@ -287,6 +355,15 @@ export default function AdminMarketControlScreen() {
           >
             <Text style={[styles.tabBtnText, activeTab === 'REFERRALS' && styles.tabBtnTextActive]}>
               Referrals ({referralStats?.totalReferrals || 0})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === 'SETTINGS' && styles.tabBtnActive]}
+            onPress={() => setActiveTab('SETTINGS')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.tabBtnText, activeTab === 'SETTINGS' && styles.tabBtnTextActive]}>
+              Settings & APIs
             </Text>
           </TouchableOpacity>
         </View>
@@ -518,7 +595,7 @@ export default function AdminMarketControlScreen() {
                 );
               })
             )
-          ) : (
+          ) : activeTab === 'REFERRALS' ? (
             /* REFERRALS TAB CONTENT */
               <View style={styles.referralsTabContainer}>
                 {/* 4 Metric Summary Cards */}
@@ -763,6 +840,313 @@ export default function AdminMarketControlScreen() {
                     ))}
                   </View>
                 )}
+              </View>
+            ) : (
+              /* SETTINGS & APIS TAB CONTENT */
+              <View style={styles.referralsTabContainer}>
+                {/* Reveal Keys Action Bar */}
+                <View style={styles.apiTopBar}>
+                  <Text style={styles.apiTopBarTitle}>Configuration &amp; API Management</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowSecretKeys(!showSecretKeys)}
+                    style={styles.revealKeysBtn}
+                    activeOpacity={0.7}
+                  >
+                    {showSecretKeys ? <EyeOff size={14} color="#00D285" /> : <Eye size={14} color="#00D285" />}
+                    <Text style={styles.revealKeysBtnText}>
+                      {showSecretKeys ? 'Conceal Keys' : 'Reveal Keys'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* 1. Payment Gateway Section (VTStack & Flutterwave ONLY) */}
+                <View style={styles.adminSectionCard}>
+                  <View style={styles.adminSettingsHeader}>
+                    <CreditCard size={18} color="#00D285" />
+                    <Text style={styles.adminSettingsTitle}>Payment Gateway Providers</Text>
+                  </View>
+                  <Text style={styles.sectionSubtitleText}>
+                    Select active banking rail and merchant credentials for deposits and payouts. Supported: VTStack &amp; Flutterwave.
+                  </Text>
+
+                  {/* Gateway Selector (VTStack & Flutterwave only) */}
+                  <Text style={styles.inputLabel}>ACTIVE PAYMENT GATEWAY</Text>
+                  <View style={styles.gatewaySelectorRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.gatewayOptionBtn,
+                        activeGateway === 'vtstack' && styles.gatewayOptionBtnActive,
+                      ]}
+                      onPress={() => setActiveGateway('vtstack')}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.gatewayOptionIcon}>⚡</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.gatewayOptionTitle, activeGateway === 'vtstack' && styles.gatewayOptionTitleActive]}>
+                          VTStack
+                        </Text>
+                        <Text style={styles.gatewayOptionSub}>Virtual Accounts &amp; Payouts</Text>
+                      </View>
+                      {activeGateway === 'vtstack' && (
+                        <View style={styles.activePillSmall}>
+                          <Text style={styles.activePillSmallText}>ACTIVE</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.gatewayOptionBtn,
+                        activeGateway === 'flutterwave' && styles.gatewayOptionBtnActive,
+                      ]}
+                      onPress={() => setActiveGateway('flutterwave')}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.gatewayOptionIcon}>🌍</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.gatewayOptionTitle, activeGateway === 'flutterwave' && styles.gatewayOptionTitleActive]}>
+                          Flutterwave
+                        </Text>
+                        <Text style={styles.gatewayOptionSub}>Cards &amp; Bank Transfers</Text>
+                      </View>
+                      {activeGateway === 'flutterwave' && (
+                        <View style={styles.activePillSmall}>
+                          <Text style={styles.activePillSmallText}>ACTIVE</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Environment Mode Selector */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>ENVIRONMENT MODE</Text>
+                    <View style={styles.modeToggleRow}>
+                      <TouchableOpacity
+                        style={[styles.modeToggleBtn, gatewayMode === 'TEST' && styles.modeToggleBtnActive]}
+                        onPress={() => setGatewayMode('TEST')}
+                      >
+                        <Text style={[styles.modeToggleText, gatewayMode === 'TEST' && styles.modeToggleTextActive]}>
+                          🧪 Sandbox / Test Mode
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.modeToggleBtn, gatewayMode === 'LIVE' && styles.modeToggleBtnActiveLive]}
+                        onPress={() => setGatewayMode('LIVE')}
+                      >
+                        <Text style={[styles.modeToggleText, gatewayMode === 'LIVE' && styles.modeToggleTextActiveLive]}>
+                          ⚠️ Production / Live Mode
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Credentials Form for VTStack */}
+                  {activeGateway === 'vtstack' && (
+                    <View style={styles.credentialFieldsBox}>
+                      <Text style={styles.credentialsBoxHeader}>⚡ VTStack API Credentials</Text>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>VTSTACK API KEY</Text>
+                        <TextInput
+                          style={styles.numberInput}
+                          secureTextEntry={!showSecretKeys}
+                          placeholder="vts_live_..."
+                          placeholderTextColor="#64748B"
+                          value={vtstackApiKey}
+                          onChangeText={setVtstackApiKey}
+                          autoCapitalize="none"
+                        />
+                      </View>
+
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>VTSTACK PAYOUT KEY</Text>
+                        <TextInput
+                          style={styles.numberInput}
+                          secureTextEntry={!showSecretKeys}
+                          placeholder="vts_payout_..."
+                          placeholderTextColor="#64748B"
+                          value={vtstackPayoutKey}
+                          onChangeText={setVtstackPayoutKey}
+                          autoCapitalize="none"
+                        />
+                      </View>
+
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>VTSTACK WEBHOOK SIGNING SECRET</Text>
+                        <TextInput
+                          style={styles.numberInput}
+                          secureTextEntry={!showSecretKeys}
+                          placeholder="whsec_..."
+                          placeholderTextColor="#64748B"
+                          value={vtstackWebhookSecret}
+                          onChangeText={setVtstackWebhookSecret}
+                          autoCapitalize="none"
+                        />
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Credentials Form for Flutterwave */}
+                  {activeGateway === 'flutterwave' && (
+                    <View style={styles.credentialFieldsBox}>
+                      <Text style={styles.credentialsBoxHeader}>🌍 Flutterwave Merchant Keys</Text>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>FLUTTERWAVE PUBLIC KEY</Text>
+                        <TextInput
+                          style={styles.numberInput}
+                          placeholder="FLWPUBK_TEST-..."
+                          placeholderTextColor="#64748B"
+                          value={flutterwavePublicKey}
+                          onChangeText={setFlutterwavePublicKey}
+                          autoCapitalize="none"
+                        />
+                      </View>
+
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>FLUTTERWAVE SECRET KEY</Text>
+                        <TextInput
+                          style={styles.numberInput}
+                          secureTextEntry={!showSecretKeys}
+                          placeholder="FLWSECK_TEST-..."
+                          placeholderTextColor="#64748B"
+                          value={flutterwaveSecretKey}
+                          onChangeText={setFlutterwaveSecretKey}
+                          autoCapitalize="none"
+                        />
+                      </View>
+
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>FLUTTERWAVE WEBHOOK SECRET HASH (verif-hash)</Text>
+                        <TextInput
+                          style={styles.numberInput}
+                          secureTextEntry={!showSecretKeys}
+                          placeholder="peeritrade_flw_secret"
+                          placeholderTextColor="#64748B"
+                          value={flutterwaveSecretHash}
+                          onChangeText={setFlutterwaveSecretHash}
+                          autoCapitalize="none"
+                        />
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                {/* 2. Football & External Sports APIs Section */}
+                <View style={styles.adminSectionCard}>
+                  <View style={styles.adminSettingsHeader}>
+                    <Globe size={18} color="#00D285" />
+                    <Text style={styles.adminSettingsTitle}>Football &amp; External Sports APIs</Text>
+                  </View>
+                  <Text style={styles.sectionSubtitleText}>
+                    Configure API keys for live football fixture synchronization, real-time match scores, bookmaker odds, and prediction oracle feeds.
+                  </Text>
+
+                  {/* Football API (API-Sports) */}
+                  <View style={styles.inputGroup}>
+                    <View style={styles.labelRowWithTag}>
+                      <Text style={styles.inputLabel}>⚽ FOOTBALL API KEY (API-SPORTS)</Text>
+                      <Text style={styles.apiTag}>v3.football.api-sports.io</Text>
+                    </View>
+                    <TextInput
+                      style={styles.numberInput}
+                      secureTextEntry={!showSecretKeys}
+                      placeholder="e.g. 7f8a9b2c3d4e5f6..."
+                      placeholderTextColor="#64748B"
+                      value={footballApiKey}
+                      onChangeText={setFootballApiKey}
+                      autoCapitalize="none"
+                    />
+                    <Text style={styles.inputHint}>Used for live fixtures, score updates, lineups, and in-play event tracking.</Text>
+                  </View>
+
+                  {/* TheSportsDB */}
+                  <View style={styles.inputGroup}>
+                    <View style={styles.labelRowWithTag}>
+                      <Text style={styles.inputLabel}>🏆 THESPORTSDB API KEY</Text>
+                      <Text style={styles.apiTag}>thesportsdb.com</Text>
+                    </View>
+                    <TextInput
+                      style={styles.numberInput}
+                      secureTextEntry={!showSecretKeys}
+                      placeholder="Default is '3' (Free tier) or enter custom key"
+                      placeholderTextColor="#64748B"
+                      value={theSportsDbApiKey}
+                      onChangeText={setTheSportsDbApiKey}
+                      autoCapitalize="none"
+                    />
+                    <Text style={styles.inputHint}>Provides team emblems, league tables, and schedule metadata.</Text>
+                  </View>
+
+                  {/* Live Sports Odds API */}
+                  <View style={styles.inputGroup}>
+                    <View style={styles.labelRowWithTag}>
+                      <Text style={styles.inputLabel}>📊 LIVE SPORTS ODDS API KEY</Text>
+                      <Text style={styles.apiTag}>the-odds-api.com</Text>
+                    </View>
+                    <TextInput
+                      style={styles.numberInput}
+                      secureTextEntry={!showSecretKeys}
+                      placeholder="Enter The-Odds-API key"
+                      placeholderTextColor="#64748B"
+                      value={oddsApiKey}
+                      onChangeText={setOddsApiKey}
+                      autoCapitalize="none"
+                    />
+                    <Text style={styles.inputHint}>Benchmark market prices and initial probability calculations.</Text>
+                  </View>
+
+                  {/* RapidAPI */}
+                  <View style={styles.inputGroup}>
+                    <View style={styles.labelRowWithTag}>
+                      <Text style={styles.inputLabel}>⚡ RAPIDAPI KEY (MULTI-SPORT HUB)</Text>
+                      <Text style={styles.apiTag}>rapidapi.com</Text>
+                    </View>
+                    <TextInput
+                      style={styles.numberInput}
+                      secureTextEntry={!showSecretKeys}
+                      placeholder="Enter RapidAPI Key"
+                      placeholderTextColor="#64748B"
+                      value={rapidApiKey}
+                      onChangeText={setRapidApiKey}
+                      autoCapitalize="none"
+                    />
+                    <Text style={styles.inputHint}>Unified sports and combat events feed (UFC, Boxing, Tennis).</Text>
+                  </View>
+
+                  {/* Gemini AI Settlement */}
+                  <View style={styles.inputGroup}>
+                    <View style={styles.labelRowWithTag}>
+                      <Text style={styles.inputLabel}>🤖 AI SETTLEMENT &amp; NEWS ENGINE KEY</Text>
+                      <Text style={styles.apiTag}>Gemini / AI Oracle</Text>
+                    </View>
+                    <TextInput
+                      style={styles.numberInput}
+                      secureTextEntry={!showSecretKeys}
+                      placeholder="AI API Key for automated oracle verification"
+                      placeholderTextColor="#64748B"
+                      value={geminiApiKey}
+                      onChangeText={setGeminiApiKey}
+                      autoCapitalize="none"
+                    />
+                    <Text style={styles.inputHint}>Powers automated verification of prediction contracts and public news events.</Text>
+                  </View>
+
+                  {/* Save Button */}
+                  <TouchableOpacity
+                    style={[styles.saveSettingsBtn, isSavingApiSettings && { opacity: 0.6 }]}
+                    onPress={handleSavePlatformSettings}
+                    disabled={isSavingApiSettings}
+                    activeOpacity={0.8}
+                  >
+                    {isSavingApiSettings ? (
+                      <ActivityIndicator size="small" color="#050811" />
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Save size={16} color="#050811" />
+                        <Text style={styles.saveSettingsBtnText}>Save Payment &amp; API Configurations</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </ScrollView>
@@ -1308,5 +1692,157 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     textAlign: 'center',
     paddingVertical: 16,
+  },
+  apiTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  apiTopBarTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  revealKeysBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 210, 133, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 210, 133, 0.25)',
+  },
+  revealKeysBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  sectionSubtitleText: {
+    fontSize: 11,
+    color: '#8FA2C7',
+    marginBottom: 16,
+    fontFamily: 'Inter',
+    lineHeight: 16,
+  },
+  gatewaySelectorRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  gatewayOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#090F1E',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    padding: 12,
+  },
+  gatewayOptionBtnActive: {
+    borderColor: '#00D285',
+    backgroundColor: 'rgba(0, 210, 133, 0.08)',
+  },
+  gatewayOptionIcon: {
+    fontSize: 20,
+  },
+  gatewayOptionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: 'Inter',
+  },
+  gatewayOptionTitleActive: {
+    color: '#00D285',
+  },
+  gatewayOptionSub: {
+    fontSize: 9,
+    color: '#64748B',
+    fontFamily: 'Inter',
+    marginTop: 2,
+  },
+  activePillSmall: {
+    backgroundColor: '#00D285',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  activePillSmallText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: '#050811',
+  },
+  modeToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modeToggleBtn: {
+    flex: 1,
+    backgroundColor: '#090F1E',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+  },
+  modeToggleBtnActive: {
+    borderColor: '#3B82F6',
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+  },
+  modeToggleBtnActiveLive: {
+    borderColor: '#00D285',
+    backgroundColor: 'rgba(0, 210, 133, 0.12)',
+  },
+  modeToggleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+    fontFamily: 'Inter',
+  },
+  modeToggleTextActive: {
+    color: '#3B82F6',
+  },
+  modeToggleTextActiveLive: {
+    color: '#00D285',
+  },
+  credentialFieldsBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginTop: 4,
+  },
+  credentialsBoxHeader: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 12,
+    fontFamily: 'Inter',
+  },
+  labelRowWithTag: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  apiTag: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#00D285',
+    fontFamily: 'Inter',
   },
 });

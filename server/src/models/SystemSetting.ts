@@ -4,7 +4,7 @@ export interface ISystemSetting extends Document {
   platformFee: number;
   settlementMode: 'AUTOMATED' | 'DELAYED' | 'MANUAL';
   complianceThreshold: number;
-  activePaymentGateway: 'vtstack' | 'paystack' | 'flutterwave' | 'monnify' | 'manual';
+  activePaymentGateway: 'vtstack' | 'flutterwave';
   paystackPublicKey?: string;
   paystackSecretKey?: string;
   flutterwavePublicKey?: string;
@@ -23,6 +23,13 @@ export interface ISystemSetting extends Document {
   gatewayMode: 'TEST' | 'LIVE';
   autoWithdrawalApproval: boolean;
   maintenanceMode?: boolean;
+  // External APIs
+  footballApiKey?: string;
+  theSportsDbApiKey?: string;
+  oddsApiKey?: string;
+  rapidApiKey?: string;
+  geminiApiKey?: string;
+  // Referral settings
   referralEnabled: boolean;
   referrerBonus: number;
   refereeBonus: number;
@@ -43,7 +50,7 @@ const systemSettingSchema = new Schema(
     complianceThreshold: { type: Number, default: 1000000 },
     activePaymentGateway: { 
       type: String, 
-      enum: ['vtstack', 'paystack', 'flutterwave', 'monnify', 'manual'], 
+      enum: ['vtstack', 'flutterwave'], 
       default: 'vtstack' 
     },
     paystackPublicKey: { type: String, default: '' },
@@ -64,6 +71,13 @@ const systemSettingSchema = new Schema(
     gatewayMode: { type: String, enum: ['TEST', 'LIVE'], default: 'TEST' },
     autoWithdrawalApproval: { type: Boolean, default: true },
     maintenanceMode: { type: Boolean, default: false },
+    // External APIs
+    footballApiKey: { type: String, default: '' },
+    theSportsDbApiKey: { type: String, default: '' },
+    oddsApiKey: { type: String, default: '' },
+    rapidApiKey: { type: String, default: '' },
+    geminiApiKey: { type: String, default: '' },
+    // Referral settings
     referralEnabled: { type: Boolean, default: true },
     referrerBonus: { type: Number, default: 1000 },
     refereeBonus: { type: Number, default: 1000 },

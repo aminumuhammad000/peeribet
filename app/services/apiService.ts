@@ -556,6 +556,31 @@ export const adminService = {
     const response = await apiRequest(api.post('/admin/referrals/settings', data));
     return response.data;
   },
+  getSettings: async () => {
+    const response = await apiRequest(api.get('/admin/settings'));
+    return response.data;
+  },
+  updateSettings: async (data: {
+    activePaymentGateway?: 'vtstack' | 'flutterwave';
+    vtstackApiKey?: string;
+    vtstackPayoutKey?: string;
+    vtstackWebhookSecret?: string;
+    flutterwavePublicKey?: string;
+    flutterwaveSecretKey?: string;
+    flutterwaveSecretHash?: string;
+    gatewayMode?: 'TEST' | 'LIVE';
+    autoWithdrawalApproval?: boolean;
+    footballApiKey?: string;
+    theSportsDbApiKey?: string;
+    oddsApiKey?: string;
+    rapidApiKey?: string;
+    geminiApiKey?: string;
+    platformFee?: number;
+    settlementMode?: 'AUTOMATED' | 'DELAYED' | 'MANUAL';
+  }) => {
+    const response = await apiRequest(api.post('/admin/settings', data));
+    return response.data;
+  },
 };
 
 export default api;
