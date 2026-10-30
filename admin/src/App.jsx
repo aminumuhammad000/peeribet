@@ -5,6 +5,7 @@ import {
   TrendingUp,
   Briefcase,
   ArrowLeftRight,
+  ArrowRight,
   ShieldCheck,
   Plus,
   Search,
