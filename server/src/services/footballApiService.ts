@@ -28,8 +28,20 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(async (config) => {
-  const apiKey = await getFootballApiKey();
-  config.headers['x-apisports-key'] = apiKey;
+  const apiKey = (await getFootballApiKey()).trim().replace(/^["']|["']$/g, '');
+  if (apiKey.length > 35) {
+    // RapidAPI format key (typically 50 chars)
+    config.baseURL = 'https://api-football-v1.p.rapidapi.com/v3';
+    config.headers['x-rapidapi-key'] = apiKey;
+    config.headers['x-rapidapi-host'] = 'api-football-v1.p.rapidapi.com';
+    delete config.headers['x-apisports-key'];
+  } else {
+    // Direct API-Sports format key (32 hex characters)
+    config.baseURL = BASE_URL;
+    config.headers['x-apisports-key'] = apiKey;
+    delete config.headers['x-rapidapi-key'];
+    delete config.headers['x-rapidapi-host'];
+  }
   return config;
 });
 

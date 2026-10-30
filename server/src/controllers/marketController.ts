@@ -27,7 +27,7 @@ export const getPublicMarkets = async (req: Request, res: Response) => {
       filter.status = { $in: ['ACTIVE', 'SUSPENDED'] };
     }
 
-    if (category && category !== 'ALL') {
+    if (category && String(category).trim().toUpperCase() !== 'ALL') {
       const catStr = String(category).trim().toLowerCase();
       if (catStr.includes('politic')) {
         filter.category = { $regex: /politic/i };
@@ -40,7 +40,7 @@ export const getPublicMarkets = async (req: Request, res: Response) => {
       }
     }
 
-    if (subcategory && subcategory !== 'ALL') {
+    if (subcategory && String(subcategory).trim().toUpperCase() !== 'ALL') {
       const subcatStr = String(subcategory).trim();
       filter.subcategory = { $regex: new RegExp(`^${subcatStr}$`, 'i') };
     }

@@ -427,16 +427,16 @@ export const updateSettings = async (req: Request, res: Response) => {
 export const testFootballApi = async (req: Request, res: Response) => {
   try {
     const { apiKey } = req.body;
-    let keyToTest = (apiKey || '').trim();
+    let keyToTest = (apiKey || '').trim().replace(/^["']|["']$/g, '');
     let source = 'Provided in test request';
 
     if (!keyToTest) {
       const settings = await SystemSetting.findOne();
       if (settings?.footballApiKey && settings.footballApiKey.trim()) {
-        keyToTest = settings.footballApiKey.trim();
+        keyToTest = settings.footballApiKey.trim().replace(/^["']|["']$/g, '');
         source = 'Platform Settings (Custom configured)';
       } else {
-        keyToTest = (process.env.FOOTBALL_API_KEY || process.env.API_FOOTBALL_KEY || process.env.APISPORTS_KEY || '').trim();
+        keyToTest = (process.env.FOOTBALL_API_KEY || process.env.API_FOOTBALL_KEY || process.env.APISPORTS_KEY || '').trim().replace(/^["']|["']$/g, '');
         source = 'Server .env fallback (FOOTBALL_API_KEY)';
       }
     }
@@ -448,45 +448,107 @@ export const testFootballApi = async (req: Request, res: Response) => {
       });
     }
 
-    const response = await axios.get('https://v3.football.api-sports.io/status', {
-      headers: {
-        'x-apisports-key': keyToTest,
-      },
-      timeout: 10000,
-    });
-
-    const data = response.data;
-    if (data.errors && Object.keys(data.errors).length > 0) {
-      const errorMsg = typeof data.errors === 'string' ? data.errors : Object.values(data.errors).join(', ');
+    if (keyToTest.startsWith('http://') || keyToTest.startsWith('https://')) {
       return res.status(400).json({
         success: false,
         source,
-        message: `API-Football rejected key: ${errorMsg}`
+        message: 'The value entered appears to be a URL instead of an API Key. Please copy only your 32-character key from the API-Football Dashboard (https://dashboard.api-football.com/) or your RapidAPI key.'
       });
     }
 
-    const account = data.response?.account;
-    const subscription = data.response?.subscription;
-    const requests = data.response?.requests;
+    let testSuccess = false;
+    let verifiedAccount: any = null;
+    let verifiedSub: any = null;
+    let verifiedReq: any = null;
+    let providerName = 'API-Sports Direct (v3.football.api-sports.io)';
+    let failureReasons: string[] = [];
+
+    // Attempt 1: Direct API-Sports endpoint (Used by https://dashboard.api-football.com/)
+    try {
+      const response = await axios.get('https://v3.football.api-sports.io/status', {
+        headers: {
+          'x-apisports-key': keyToTest,
+        },
+        timeout: 10000,
+      });
+
+      const data = response.data;
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        const errorMsg = typeof data.errors === 'string' ? data.errors : Object.values(data.errors).join(', ');
+        failureReasons.push(`API-Sports Direct: ${errorMsg}`);
+      } else if (data.response && (data.response.account || data.response.subscription)) {
+        testSuccess = true;
+        verifiedAccount = data.response.account;
+        verifiedSub = data.response.subscription;
+        verifiedReq = data.response.requests;
+        providerName = 'API-Sports Direct (v3.football.api-sports.io)';
+      }
+    } catch (err: any) {
+      const errDetails = err.response?.data?.errors
+        ? (typeof err.response.data.errors === 'string' ? err.response.data.errors : Object.values(err.response.data.errors).join(', '))
+        : err.response?.data?.message || err.message;
+      failureReasons.push(`API-Sports Direct: ${errDetails}`);
+    }
+
+    // Attempt 2: RapidAPI Hub endpoint (If key was subscribed via RapidAPI marketplace)
+    if (!testSuccess) {
+      try {
+        const rResponse = await axios.get('https://api-football-v1.p.rapidapi.com/v3/status', {
+          headers: {
+            'x-rapidapi-key': keyToTest,
+            'x-rapidapi-host': 'api-football-v1.p.rapidapi.com',
+          },
+          timeout: 10000,
+        });
+
+        const rData = rResponse.data;
+        if (rData.errors && Object.keys(rData.errors).length > 0) {
+          const rErrorMsg = typeof rData.errors === 'string' ? rData.errors : Object.values(rData.errors).join(', ');
+          failureReasons.push(`RapidAPI: ${rErrorMsg}`);
+        } else if (rData.response && (rData.response.account || rData.response.subscription)) {
+          testSuccess = true;
+          verifiedAccount = rData.response.account;
+          verifiedSub = rData.response.subscription;
+          verifiedReq = rData.response.requests;
+          providerName = 'RapidAPI Hub (api-football-v1.p.rapidapi.com)';
+        }
+      } catch (rErr: any) {
+        const rErrDetails = rErr.response?.data?.errors
+          ? (typeof rErr.response.data.errors === 'string' ? rErr.response.data.errors : Object.values(rErr.response.data.errors).join(', '))
+          : rErr.response?.data?.message || rErr.message;
+        failureReasons.push(`RapidAPI: ${rErrDetails}`);
+      }
+    }
+
+    if (!testSuccess) {
+      return res.status(400).json({
+        success: false,
+        source,
+        message: `API-Football verification failed: ${failureReasons.join(' | ')}. Please check that your email is verified at https://dashboard.api-football.com/ and your API key is copied correctly.`
+      });
+    }
 
     res.json({
       success: true,
       source,
-      message: 'API-Football (https://www.api-football.com/) connected successfully!',
+      provider: providerName,
+      message: `API-Football verified successfully via ${providerName}!`,
       details: {
-        accountName: account ? `${account.firstname || ''} ${account.lastname || ''}`.trim() : 'Account verified',
-        email: account?.email || 'N/A',
-        plan: subscription?.plan || 'Free',
-        active: subscription?.active !== false,
-        requestsToday: requests?.current ?? 0,
-        requestsLimit: requests?.limit_day ?? 100,
+        accountName: verifiedAccount ? `${verifiedAccount.firstname || ''} ${verifiedAccount.lastname || ''}`.trim() : 'Account verified',
+        email: verifiedAccount?.email || 'N/A',
+        plan: verifiedSub?.plan || 'Free',
+        active: verifiedSub?.active !== false,
+        requestsToday: verifiedReq?.current ?? 0,
+        requestsLimit: verifiedReq?.limit_day ?? 100,
       }
     });
   } catch (error: any) {
-    const msg = error.response?.data?.message || error.message || 'Failed to connect to API-Football';
+    const errorDetails = error.response?.data?.errors
+      ? (typeof error.response.data.errors === 'string' ? error.response.data.errors : Object.values(error.response.data.errors).join(', '))
+      : error.response?.data?.message || error.message || 'Failed to connect to API-Football';
     res.status(500).json({
       success: false,
-      message: msg
+      message: errorDetails
     });
   }
 };
@@ -496,13 +558,13 @@ export const getMarkets = async (req: Request, res: Response) => {
     const { category, subcategory, status, search } = req.query;
     const filter: any = {};
 
-    if (category && category !== 'ALL') {
+    if (category && String(category).trim().toUpperCase() !== 'ALL') {
       filter.category = { $regex: new RegExp(`^${String(category).trim()}$`, 'i') };
     }
-    if (subcategory && subcategory !== 'ALL') {
+    if (subcategory && String(subcategory).trim().toUpperCase() !== 'ALL') {
       filter.subcategory = { $regex: new RegExp(`^${String(subcategory).trim()}$`, 'i') };
     }
-    if (status && status !== 'ALL') {
+    if (status && String(status).trim().toUpperCase() !== 'ALL') {
       filter.status = status;
     }
     if (search) {

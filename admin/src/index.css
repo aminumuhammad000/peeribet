@@ -54,6 +54,16 @@ body.dark-theme {
   font-family: var(--font-primary);
 }
 
+/* Global Heading & Typography Normalization - reduced boldness */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+b, strong {
+  font-weight: 600;
+}
+
 body {
   background-color: var(--bg-primary);
   color: var(--text-white);
@@ -178,7 +188,7 @@ body.dark-theme .sidebar {
 .logo-title {
   font-family: var(--font-display);
   font-size: 14.5px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-white);
   line-height: 1.2;
@@ -201,7 +211,7 @@ body.dark-theme .sidebar {
 
 .logo-subtitle {
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--color-primary);
   letter-spacing: 0.6px;
   text-transform: uppercase;
@@ -310,7 +320,7 @@ body.dark-theme .sidebar {
 
 .sidebar-group-title {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -391,7 +401,7 @@ body:not(.dark-theme) .menu-item-btn:hover {
 .menu-item-btn.active {
   background: linear-gradient(90deg, rgba(var(--color-primary-rgb), 0.15) 0%, rgba(var(--color-primary-rgb), 0.03) 100%);
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: 500;
   border: 1px solid rgba(var(--color-primary-rgb), 0.28);
   border-left: 3.5px solid var(--color-primary);
   box-shadow: 0 2px 8px rgba(0, 210, 133, 0.09);
@@ -400,7 +410,7 @@ body:not(.dark-theme) .menu-item-btn:hover {
 
 .menu-item-btn.active .menu-label-text {
   color: var(--text-white);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .sidebar.collapsed .menu-item-btn {
@@ -486,7 +496,7 @@ body:not(.dark-theme) .menu-item-btn:hover {
 
 .nav-pill-badge {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   padding: 2px 7px;
   border-radius: 10px;
   line-height: 1.2;
@@ -556,7 +566,7 @@ body:not(.dark-theme) .sidebar-user-card {
   border-radius: 50%;
   background: linear-gradient(135deg, #00d285 0%, #059669 100%);
   color: #04130d;
-  font-weight: 800;
+  font-weight: 600;
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -589,7 +599,7 @@ body:not(.dark-theme) .sidebar-user-card {
 
 .sidebar-user-name {
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--text-white);
   white-space: nowrap;
   overflow: hidden;
@@ -599,7 +609,7 @@ body:not(.dark-theme) .sidebar-user-card {
 
 .sidebar-user-role {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -662,7 +672,7 @@ body:not(.dark-theme) .sidebar-user-card {
   color: var(--color-red);
   text-decoration: none;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   background: transparent;
   border: none;
   width: 100%;
@@ -811,7 +821,7 @@ body.dark-theme .top-bar {
 
 .kbd-key {
   font-family: inherit;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .top-bar-controls {
@@ -867,7 +877,7 @@ body.dark-theme .top-bar {
 
 .user-name {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.5px;
   color: var(--text-white);
 }
@@ -897,7 +907,7 @@ body.dark-theme .top-bar {
 .overview-title {
   font-family: var(--font-display);
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-white);
 }
 
@@ -919,7 +929,7 @@ body.dark-theme .top-bar {
   padding: 8px 16px;
   border-radius: 8px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   outline: none;
   cursor: pointer;
 }
@@ -931,7 +941,7 @@ body.dark-theme .top-bar {
   padding: 8px 16px;
   border-radius: 8px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -997,7 +1007,7 @@ body.dark-theme .top-bar {
 
 .metric-change-badge {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -1015,14 +1025,14 @@ body.dark-theme .top-bar {
   font-size: 11px;
   text-transform: uppercase;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.5px;
 }
 
 .metric-value {
   font-family: var(--font-display);
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--text-white);
   margin-top: 6px;
 }
@@ -1050,7 +1060,7 @@ body.dark-theme .top-bar {
 
 .card-heading {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-white);
 }
 
@@ -1110,7 +1120,7 @@ body.dark-theme .top-bar {
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 10px;
-  font-weight: bold;
+  font-weight: 500;
   color: var(--text-white);
   white-space: nowrap;
   opacity: 0;
@@ -1152,7 +1162,7 @@ body.dark-theme .top-bar {
   border: none;
   color: var(--text-muted);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -1224,7 +1234,7 @@ body.dark-theme .top-bar {
 
 .oversight-label {
   font-size: 9px;
-  font-weight: bold;
+  font-weight: 500;
   text-transform: uppercase;
   color: var(--text-muted);
   letter-spacing: 0.5px;
@@ -1233,14 +1243,14 @@ body.dark-theme .top-bar {
 .oversight-value {
   font-family: var(--font-display);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-white);
   margin-top: 2px;
 }
 
 .oversight-badge {
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 500;
   padding: 3px 8px;
   border-radius: 12px;
 }
@@ -1261,7 +1271,7 @@ body.dark-theme .top-bar {
   justify-content: space-between;
   align-items: center;
   font-size: 10px;
-  font-weight: bold;
+  font-weight: 500;
   color: var(--text-muted);
   margin-bottom: 8px;
 }
@@ -1366,7 +1376,7 @@ body.dark-theme .top-bar {
 
 .trades-table th {
   font-size: 10px;
-  font-weight: bold;
+  font-weight: 500;
   text-transform: uppercase;
   color: var(--text-muted);
   letter-spacing: 0.5px;
@@ -1388,7 +1398,7 @@ body.dark-theme .top-bar {
 
 .trade-id-col {
   font-family: var(--font-display);
-  font-weight: bold;
+  font-weight: 500;
   color: var(--text-muted);
 }
 
@@ -1425,7 +1435,7 @@ body.dark-theme .top-bar {
 }
 
 .parties-names {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-white);
 }
 
@@ -1433,7 +1443,7 @@ body.dark-theme .top-bar {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--text-white);
 }
 
@@ -1442,14 +1452,14 @@ body.dark-theme .top-bar {
 }
 
 .amount-cell {
-  font-weight: bold;
+  font-weight: 500;
   color: var(--text-white);
 }
 
 .status-badge-td {
   display: inline-block;
   font-size: 9px;
-  font-weight: bold;
+  font-weight: 500;
   padding: 4px 10px;
   border-radius: 4px;
   text-transform: uppercase;
@@ -1490,7 +1500,7 @@ body.dark-theme .top-bar {
   display: inline-block;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   padding: 3px 6px;
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.04);
@@ -1516,7 +1526,7 @@ body.dark-theme .top-bar {
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
   border: 1px solid transparent;
@@ -1588,7 +1598,7 @@ body.dark-theme .top-bar {
   background: transparent;
   border: none;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   text-align: left;
   transition: background 0.15s ease;
@@ -1620,7 +1630,7 @@ body.dark-theme .top-bar {
   padding: 5px 12px;
   border-radius: 6px;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 500;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -1717,7 +1727,7 @@ body.dark-theme .top-bar {
 .modal-title-row h2 {
   font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-white);
 }
 
@@ -1751,7 +1761,7 @@ body.dark-theme .top-bar {
 
 .form-group-wrap label {
   font-size: 11px;
-  font-weight: bold;
+  font-weight: 500;
   text-transform: uppercase;
   color: var(--text-muted);
   letter-spacing: 0.5px;
@@ -1793,7 +1803,7 @@ body.dark-theme .top-bar {
   height: 40px;
   padding: 0 20px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: background-color var(--transition-fast);
 }
@@ -1810,7 +1820,7 @@ body.dark-theme .top-bar {
   height: 40px;
   padding: 0 20px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: background-color var(--transition-fast);
 }
@@ -1836,7 +1846,7 @@ body.dark-theme .top-bar {
 .placeholder-view h2 {
   font-family: var(--font-display);
   font-size: 20px;
-  font-weight: bold;
+  font-weight: 600;
   margin-bottom: 12px;
   color: var(--text-white);
 }
@@ -1900,7 +1910,7 @@ body.dark-theme .top-bar {
 .login-title {
   font-family: var(--font-display);
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--text-white);
   margin-bottom: 4px;
 }
@@ -1926,7 +1936,7 @@ body.dark-theme .top-bar {
 
 .login-input-group label {
   font-size: 11px;
-  font-weight: bold;
+  font-weight: 500;
   text-transform: uppercase;
   color: var(--text-muted);
   letter-spacing: 0.5px;
@@ -1960,7 +1970,7 @@ body.dark-theme .top-bar {
   border-radius: 8px;
   height: 44px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: background-color var(--transition-fast);
   margin-top: 8px;
@@ -1982,7 +1992,7 @@ body.dark-theme .top-bar {
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   margin-top: 4px;
 }
 
@@ -2044,7 +2054,7 @@ body.dark-theme .top-bar {
 
 .security-section-title {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-white);
   margin-bottom: 14px;
   text-transform: uppercase;
@@ -2066,7 +2076,7 @@ body.dark-theme .top-bar {
 
 .toggle-setting-label {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-white);
 }
 
@@ -2188,7 +2198,7 @@ body.dark-theme .top-bar {
 
 .notification-text {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-white);
 }
 
@@ -2365,7 +2375,7 @@ body.dark-theme .top-bar {
 
 .vault-label {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2374,7 +2384,7 @@ body.dark-theme .top-bar {
 
 .vault-amount {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   margin: 4px 0 2px 0;
   color: var(--text-white);
@@ -2390,7 +2400,7 @@ body.dark-theme .top-bar {
 
 .vault-badge {
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 2px 6px;
   border-radius: 4px;
   text-transform: uppercase;
@@ -2430,7 +2440,7 @@ body.dark-theme .top-bar {
 
 .vault-field-label {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2481,7 +2491,7 @@ body.dark-theme .top-bar {
 
 .settings-card-title {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-white);
   margin-bottom: 4px;
   display: flex;
@@ -2505,7 +2515,7 @@ body.dark-theme .top-bar {
 
 .settings-label {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2521,7 +2531,7 @@ body.dark-theme .top-bar {
   position: absolute;
   left: 12px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-muted);
   pointer-events: none;
 }
@@ -2879,14 +2889,14 @@ body.dark-theme .top-bar {
 .market-subtab-btn.active {
   background: var(--bg-card);
   color: var(--text-white);
-  font-weight: 600;
+  font-weight: 500;
   border-color: var(--border-color);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 .market-subtab-badge {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 1px 6px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
@@ -2944,7 +2954,7 @@ body.dark-theme .top-bar {
 
 .market-metric-label {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -2953,7 +2963,7 @@ body.dark-theme .top-bar {
 
 .market-metric-value {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   margin: 6px 0 2px 0;
   color: var(--text-white);
@@ -2990,13 +3000,13 @@ body.dark-theme .top-bar {
   background: rgba(var(--color-primary-rgb), 0.16);
   color: var(--color-primary);
   border-color: rgba(var(--color-primary-rgb), 0.4);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Table Item Badges and Controls */
 .market-question-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-white);
   line-height: 1.35;
 }
@@ -3013,7 +3023,7 @@ body.dark-theme .top-bar {
 .market-cat-badge {
   display: inline-block;
   font-size: 9.5px;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.4px;
   padding: 2px 7px;
@@ -3032,7 +3042,7 @@ body.dark-theme .top-bar {
   padding: 3px 7px;
   border-radius: 5px;
   font-size: 10.5px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
 }
 
@@ -3079,7 +3089,7 @@ body.dark-theme .top-bar {
   align-items: center;
   gap: 4px;
   font-size: 9.5px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.4px;
   padding: 3px 8px;
   border-radius: 5px;
@@ -3245,7 +3255,7 @@ body.dark-theme .top-bar {
 .txn-type-pill {
   display: inline-block;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.4px;
   text-transform: uppercase;
   padding: 2.5px 8px;
@@ -3345,7 +3355,7 @@ body.dark-theme .top-bar {
 
 .user-stat-label {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -3354,7 +3364,7 @@ body.dark-theme .top-bar {
 
 .user-stat-value {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   margin: 6px 0 2px 0;
   color: var(--text-white);
@@ -3378,7 +3388,7 @@ body.dark-theme .top-bar {
   align-items: center;
   justify-content: center;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 500;
   color: #ffffff;
   flex-shrink: 0;
 }
@@ -3498,7 +3508,7 @@ body.dark-theme .top-bar {
 
 .referral-config-title {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-white);
   display: flex;
   align-items: center;
@@ -3537,7 +3547,7 @@ body.dark-theme .top-bar {
 .referral-input-label {
   display: block;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--text-light);
   margin-bottom: 6px;
   text-transform: uppercase;
@@ -3579,7 +3589,7 @@ body.dark-theme .top-bar {
   height: 24px;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .referral-rank-badge.rank-1 {
@@ -3613,7 +3623,7 @@ body.dark-theme .top-bar {
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   font-family: monospace;
   letter-spacing: 0.5px;
   background: rgba(59, 130, 246, 0.1);
@@ -3639,7 +3649,7 @@ body.dark-theme .top-bar {
   padding: 6px 14px !important;
   border-radius: 7px !important;
   font-size: 12px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   cursor: pointer !important;
   background-color: var(--bg-primary) !important;
   color: var(--text-muted) !important;
@@ -3661,7 +3671,7 @@ body.dark-theme .top-bar {
 .table-tab-btn.active {
   background-color: var(--bg-card) !important;
   color: var(--text-white) !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   border-color: var(--border-focus) !important;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
 }
@@ -3673,7 +3683,7 @@ body.dark-theme .top-bar {
   padding: 1.5px 7px;
   border-radius: 10px;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-muted);
   line-height: 1;

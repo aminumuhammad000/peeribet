@@ -73,6 +73,99 @@ const avatarList = [
   'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face'
 ];
 
+// Canonical Category & Subcategory Master Registry (100% synchronized with App tabs)
+export const APP_CATEGORIES = [
+  {
+    id: 'Politics',
+    label: 'Politics & Policy',
+    icon: Landmark,
+    emoji: '🏛️',
+    description: 'Central bank rates, elections, global affairs, and governance',
+    subcategories: [
+      'Policy & Economy',
+      'Elections',
+      'Global Affairs',
+      'World Leaders',
+    ],
+  },
+  {
+    id: 'Entertainment',
+    label: 'Entertainment & Media',
+    icon: Film,
+    emoji: '🎬',
+    description: 'Spotify streams, music charts, box office sales, and awards',
+    subcategories: [
+      'Spotify & Music',
+      'Movies & Box Office',
+      'Awards & Grammys',
+    ],
+  },
+  {
+    id: 'Live Event Prediction',
+    label: 'Live Event Prediction',
+    icon: Globe,
+    emoji: '🌍',
+    description: 'Space missions, AI milestones, scientific breakthroughs, and viral culture',
+    subcategories: [
+      'Space & Tech',
+      'AI & Computing',
+      'Climate & Science',
+      'Pop Culture',
+    ],
+  },
+  {
+    id: 'Football',
+    label: 'Football (Soccer)',
+    icon: Trophy,
+    emoji: '⚽',
+    description: 'Premier League, Champions League, La Liga, and international fixtures',
+    subcategories: [
+      'Premier League',
+      'Champions League',
+      'La Liga',
+      'Serie A',
+      'Bundesliga',
+      'International',
+    ],
+  },
+  {
+    id: 'Boxing',
+    label: 'Boxing',
+    icon: Swords,
+    emoji: '🥊',
+    description: 'Heavyweight world titles, championship fights, and boxing bouts',
+    subcategories: [
+      'World Championship',
+      'Heavyweight Title',
+      'Undisputed',
+    ],
+  },
+  {
+    id: 'UFC',
+    label: 'UFC / MMA',
+    icon: Swords,
+    emoji: '🥋',
+    description: 'UFC pay-per-view cards, championship title defenses, and fight nights',
+    subcategories: [
+      'Championship Title',
+      'Main Card',
+      'Fight Night',
+    ],
+  },
+  {
+    id: 'Basketball',
+    label: 'Basketball (NBA)',
+    icon: CircleDot,
+    emoji: '🏀',
+    description: 'NBA regular season, playoffs, and international EuroLeague matches',
+    subcategories: [
+      'NBA Regular Season',
+      'NBA Playoffs',
+      'EuroLeague',
+    ],
+  },
+];
+
 export default function App() {
   // Session authentication state
   const [isLoggedIn, setIsLoggedIn] = useState(
@@ -253,7 +346,7 @@ export default function App() {
   const [tradeResolutionSource, setTradeResolutionSource] = useState('');
   const [tradePoolAmount, setTradePoolAmount] = useState('500000');
   const [tradeClosingHours, setTradeClosingHours] = useState('24');
-  const [tradePublishNow, setTradePublishNow] = useState(false); // Default: Backdoor Draft
+  const [tradePublishNow, setTradePublishNow] = useState(true); // Default: Live Market
 
   // User Portfolio balances ledger
   const [userBalances, setUserBalances] = useState([]);
@@ -1231,7 +1324,7 @@ export default function App() {
       setFootballApiStatus(res.data);
       showToast(res.data.message || 'API-Football verified successfully!', 'success');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to verify API-Football key.';
+      const msg = err.response?.data?.message || err.message || 'Failed to verify API-Football key.';
       setFootballApiStatus({ success: false, message: msg });
       showToast(msg, 'error');
     } finally {
@@ -1329,7 +1422,7 @@ export default function App() {
     setTradeResolutionSource('');
     setTradePoolAmount('500000');
     setTradeClosingHours('24');
-    setTradePublishNow(false);
+    setTradePublishNow(true);
   };
 
   // Pre-load preset trade templates (including exact user requested examples!)
@@ -1407,7 +1500,7 @@ export default function App() {
       setTradeClosingHours('140');
     } else if (presetKey === 'spacex_orbital') {
       setTradeTitle('Will SpaceX Starship successfully complete full orbital catch & recovery test in Q4?');
-      setTradeCategory('Real Life Events');
+      setTradeCategory('Live Event Prediction');
       setTradeSubcategory('Space & Tech');
       setTradeMarketType('YES_NO');
       setTradeYesOdds('1.88');
@@ -1418,8 +1511,8 @@ export default function App() {
       setTradeClosingHours('96');
     } else if (presetKey === 'gta_revenue') {
       setTradeTitle('Will GTA VI break the worldwide gaming revenue record ($1B in 24 hours) upon release?');
-      setTradeCategory('Pop Culture');
-      setTradeSubcategory('Gaming & Media');
+      setTradeCategory('Live Event Prediction');
+      setTradeSubcategory('Pop Culture');
       setTradeMarketType('YES_NO');
       setTradeYesOdds('1.35');
       setTradeNoOdds('3.20');
@@ -1868,9 +1961,16 @@ export default function App() {
   const filteredAdminMarkets = useMemo(() => {
     return markets.filter((m) => {
       // 1. Category Filter
+      const catLower = marketCategoryFilter.toLowerCase();
+      const mCatLower = (m.category || '').toLowerCase();
       const matchesCategory =
         marketCategoryFilter === 'ALL' ||
-        (m.category && m.category.toLowerCase() === marketCategoryFilter.toLowerCase());
+        mCatLower === catLower ||
+        (marketCategoryFilter === 'Live Event Prediction' && (mCatLower.includes('real life') || mCatLower.includes('live event') || mCatLower.includes('pop culture'))) ||
+        (marketCategoryFilter === 'Football' && (mCatLower.includes('football') || mCatLower.includes('soccer'))) ||
+        (marketCategoryFilter === 'Boxing' && (mCatLower.includes('boxing') || mCatLower.includes('ufc & boxing'))) ||
+        (marketCategoryFilter === 'UFC' && (mCatLower.includes('ufc') || mCatLower.includes('ufc & boxing'))) ||
+        (marketCategoryFilter === 'Basketball' && (mCatLower.includes('basket') || mCatLower.includes('nba')));
 
       // 2. Status Filter
       let matchesStatus = true;
@@ -3457,12 +3557,12 @@ export default function App() {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 fontSize: 11,
-                                fontWeight: '700',
+                                fontWeight: '500',
                                 flexShrink: 0
                               }}>
                                 {txn.userName?.charAt(0)?.toUpperCase() || 'U'}
                               </div>
-                              <span style={{ fontWeight: '600', color: 'var(--text-white)', fontSize: 13, letterSpacing: '0.2px' }}>
+                              <span style={{ fontWeight: '500', color: 'var(--text-white)', fontSize: 13, letterSpacing: '0.2px' }}>
                                 {txn.userName}
                               </span>
                             </div>
@@ -3476,7 +3576,7 @@ export default function App() {
                           </td>
 
                           {/* Amount */}
-                          <td className="amount-cell" style={{ color: '#00D285', fontWeight: '600', fontSize: 12.5 }}>
+                          <td className="amount-cell" style={{ color: '#00D285', fontWeight: '500', fontSize: 12.5 }}>
                             ₦{Number(txn.amount || 0).toLocaleString()}
                           </td>
 
@@ -3497,7 +3597,7 @@ export default function App() {
                                 color: txn.status === 'SUCCESS' ? '#00D285' :
                                   txn.status === 'PENDING' ? '#F59E0B' : '#EF4444',
                                 fontSize: 9.5,
-                                fontWeight: '600',
+                                fontWeight: '500',
                                 padding: '3px 7px',
                                 borderRadius: 4
                               }}
@@ -3517,7 +3617,7 @@ export default function App() {
                                     border: '1px solid rgba(0, 210, 133, 0.3)',
                                     color: '#00D285',
                                     fontSize: 10.5,
-                                    fontWeight: '600',
+                                    fontWeight: '500',
                                     padding: '3px 8px',
                                     borderRadius: 4,
                                     cursor: 'pointer'
@@ -3533,7 +3633,7 @@ export default function App() {
                                     border: '1px solid rgba(239, 68, 68, 0.3)',
                                     color: '#EF4444',
                                     fontSize: 10.5,
-                                    fontWeight: '600',
+                                    fontWeight: '500',
                                     padding: '3px 8px',
                                     borderRadius: 4,
                                     cursor: 'pointer'
@@ -3773,7 +3873,7 @@ export default function App() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, flexWrap: 'wrap', gap: 12 }}>
                   <div>
                     {newPassword && confirmPassword && (
-                      <div style={{ fontSize: 11.5, display: 'flex', alignItems: 'center', gap: 6, color: newPassword === confirmPassword ? '#00D285' : '#EF4444', fontWeight: 600 }}>
+                      <div style={{ fontSize: 11.5, display: 'flex', alignItems: 'center', gap: 6, color: newPassword === confirmPassword ? '#00D285' : '#EF4444', fontWeight: 500 }}>
                         {newPassword === confirmPassword ? (
                           <>
                             <CheckCircle size={14} />
@@ -3799,7 +3899,7 @@ export default function App() {
                       gap: 8,
                       padding: '8px 18px',
                       fontSize: 12.5,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       opacity: isChangingPassword ? 0.7 : 1,
                       cursor: isChangingPassword ? 'not-allowed' : 'pointer'
                     }}
@@ -3888,7 +3988,7 @@ export default function App() {
                     <RefreshCw size={13} />
                     <span>Refresh</span>
                   </button>
-                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
                     25 per page
                   </span>
                 </div>
@@ -3947,7 +4047,7 @@ export default function App() {
                                     <Shield size={14} />
                                   )}
                                 </div>
-                                <span style={{ fontWeight: 600, color: 'var(--text-white)', fontSize: 12.5, lineHeight: 1.4 }}>
+                                <span style={{ fontWeight: 500, color: 'var(--text-white)', fontSize: 12.5, lineHeight: 1.4 }}>
                                   {log.text}
                                 </span>
                               </div>
@@ -3960,7 +4060,7 @@ export default function App() {
                                 color: iconColor,
                                 textTransform: 'uppercase',
                                 fontSize: 9.5,
-                                fontWeight: 700
+                                fontWeight: 500
                               }}>
                                 {log.type || 'INFO'}
                               </span>
@@ -4158,7 +4258,7 @@ export default function App() {
                     <RefreshCw size={13} />
                     <span>Refresh</span>
                   </button>
-                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
                     15 per page
                   </span>
                 </div>
@@ -4231,7 +4331,7 @@ export default function App() {
                                   {isSec ? <ShieldCheck size={14} /> : isOp ? <Activity size={14} /> : isWarn ? <AlertTriangle size={14} /> : <Bell size={14} />}
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                                  <span style={{ fontWeight: !notif.read ? '700' : '600', color: 'var(--text-white)', fontSize: 12.5 }}>
+                                  <span style={{ fontWeight: !notif.read ? '600' : '500', color: 'var(--text-white)', fontSize: 12.5 }}>
                                     {notif.title}
                                   </span>
                                   <span style={{ fontSize: 11, color: 'var(--text-muted)', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -4249,7 +4349,7 @@ export default function App() {
                                 color: iconColor,
                                 textTransform: 'uppercase',
                                 fontSize: 9.5,
-                                fontWeight: 700
+                                fontWeight: 500
                               }}>
                                 {notif.category || 'SYSTEM'}
                               </span>
@@ -4266,7 +4366,7 @@ export default function App() {
                                     backgroundColor: 'rgba(59, 130, 246, 0.12)',
                                     color: '#3B82F6',
                                     fontSize: 10,
-                                    fontWeight: 700,
+                                    fontWeight: 500,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -4275,7 +4375,7 @@ export default function App() {
                                     {(notif.user.firstName || notif.user.email || 'U').charAt(0).toUpperCase()}
                                   </div>
                                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-white)' }}>
+                                    <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--text-white)' }}>
                                       {notif.user.firstName ? `${notif.user.firstName} ${notif.user.lastName || ''}`.trim() : notif.user.email}
                                     </span>
                                   </div>
@@ -4399,7 +4499,7 @@ export default function App() {
                         className="status-badge-td"
                         style={{
                           fontSize: 10,
-                          fontWeight: 700,
+                          fontWeight: 500,
                           padding: '3px 8px',
                           borderRadius: 6,
                           backgroundColor: selectedNotification.category === 'SECURITY' ? 'rgba(239, 68, 68, 0.12)' :
@@ -4445,7 +4545,7 @@ export default function App() {
                   )}
 
                   <div style={{ marginBottom: 16 }}>
-                    <h3 style={{ fontSize: 16, color: 'var(--text-white)', margin: '0 0 10px 0', fontWeight: 700, lineHeight: 1.35 }}>
+                    <h3 style={{ fontSize: 16, color: 'var(--text-white)', margin: '0 0 10px 0', fontWeight: 600, lineHeight: 1.35 }}>
                       {selectedNotification.title}
                     </h3>
                     <div
@@ -4490,7 +4590,7 @@ export default function App() {
                         borderRadius: 8,
                         padding: '8px 14px',
                         fontSize: 12,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -4513,7 +4613,7 @@ export default function App() {
                         borderRadius: 8,
                         padding: '8px 14px',
                         fontSize: 12,
-                        fontWeight: 600,
+                        fontWeight: 500,
                         cursor: 'pointer'
                       }}
                       onClick={() => setSelectedNotification(null)}
@@ -4691,13 +4791,13 @@ export default function App() {
                     <div className="settings-maintenance-box">
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-white)' }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-white)' }}>
                             Emergency Maintenance
                           </span>
                           <span
                             style={{
                               fontSize: 10,
-                              fontWeight: 700,
+                              fontWeight: 500,
                               padding: '2px 8px',
                               borderRadius: 12,
                               backgroundColor: maintenanceMode ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 210, 133, 0.15)',
@@ -4758,11 +4858,11 @@ export default function App() {
                           onClick={() => setActiveGateway(gw.id)}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <span style={{ fontSize: 14, fontWeight: 'bold', color: 'var(--text-white)' }}>
+                            <span style={{ fontSize: 14, fontWeight: '600', color: 'var(--text-white)' }}>
                               {gw.icon} {gw.name}
                             </span>
                             {activeGateway === gw.id && (
-                              <span style={{ fontSize: 9, backgroundColor: '#00D285', color: '#090d16', fontWeight: 'bold', padding: '2px 7px', borderRadius: 10 }}>
+                              <span style={{ fontSize: 9, backgroundColor: '#00D285', color: '#090d16', fontWeight: '500', padding: '2px 7px', borderRadius: 10 }}>
                                 ACTIVE
                               </span>
                             )}
@@ -4810,11 +4910,11 @@ export default function App() {
                   <div className="settings-credentials-panel">
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-white)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-white)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                           {activeGateway === 'vtstack' && '⚡ VTStack API & Webhook Credentials'}
                           {activeGateway === 'flutterwave' && '🌍 Flutterwave Merchant API Keys'}
                         </span>
-                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, backgroundColor: 'rgba(0, 210, 133, 0.1)', color: '#00D285', fontWeight: 600 }}>
+                        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, backgroundColor: 'rgba(0, 210, 133, 0.1)', color: '#00D285', fontWeight: 500 }}>
                           {gatewayMode}
                         </span>
                       </div>
@@ -4831,7 +4931,7 @@ export default function App() {
                           alignItems: 'center',
                           gap: 6,
                           fontSize: 11,
-                          fontWeight: 600
+                          fontWeight: 500
                         }}
                       >
                         {showSecretKeys ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -4941,7 +5041,7 @@ export default function App() {
                         alignItems: 'center',
                         gap: 6,
                         fontSize: 11,
-                        fontWeight: 600
+                        fontWeight: 500
                       }}
                     >
                       {showApiKeys ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -4956,7 +5056,7 @@ export default function App() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ fontSize: 18 }}>⚽</span>
                           <div>
-                            <label className="settings-label" style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: 'var(--text-white)' }}>
+                            <label className="settings-label" style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: 'var(--text-white)' }}>
                               API-Football (<a href="https://www.api-football.com/" target="_blank" rel="noopener noreferrer" style={{ color: '#00D285', textDecoration: 'underline' }}>https://www.api-football.com/</a>)
                             </label>
                             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -4967,15 +5067,15 @@ export default function App() {
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           {footballApiKey.trim() ? (
-                            <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 12, backgroundColor: 'rgba(0, 210, 133, 0.15)', color: '#00D285', fontWeight: 700 }}>
+                            <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 12, backgroundColor: 'rgba(0, 210, 133, 0.15)', color: '#00D285', fontWeight: 500 }}>
                               ● CUSTOM ADMIN KEY ACTIVE
                             </span>
                           ) : hasEnvFootballApiKey ? (
-                            <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 12, backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', fontWeight: 700 }}>
+                            <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 12, backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', fontWeight: 500 }}>
                               ● USING .ENV FALLBACK ({envFootballApiKeyMasked || 'FOOTBALL_API_KEY'})
                             </span>
                           ) : (
-                            <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', fontWeight: 700 }}>
+                            <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', fontWeight: 500 }}>
                               ○ NO KEY CONFIGURED
                             </span>
                           )}
@@ -5005,7 +5105,7 @@ export default function App() {
                             color: '#00D285',
                             borderRadius: 6,
                             fontSize: 12.5,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             cursor: isTestingFootballApi ? 'not-allowed' : 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -5026,7 +5126,7 @@ export default function App() {
                             color: '#60A5FA',
                             borderRadius: 6,
                             fontSize: 12.5,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             cursor: isSyncingMatches ? 'not-allowed' : 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -5039,7 +5139,10 @@ export default function App() {
                       </div>
 
                       <span style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 8, display: 'block', lineHeight: 1.5 }}>
-                        💡 <strong>Fallback logic:</strong> The system will prioritize the custom API key saved above. If left blank or cleared, it automatically falls back to the <code>FOOTBALL_API_KEY</code> defined in your server environment (<code>.env</code> file).
+                        💡 <strong>Where to find your key:</strong> Register and verify your email at <a href="https://dashboard.api-football.com/" target="_blank" rel="noopener noreferrer" style={{ color: '#00D285', textDecoration: 'underline' }}>https://dashboard.api-football.com/</a>, then copy the 32-character key under your API dashboard. (RapidAPI keys are also automatically detected and supported).
+                      </span>
+                      <span style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 4, display: 'block', lineHeight: 1.5 }}>
+                        💡 <strong>Fallback logic:</strong> The system prioritizes the key saved above. If left blank or cleared, it automatically uses the <code>FOOTBALL_API_KEY</code> defined in your server environment (<code>.env</code> file).
                       </span>
 
                       {footballApiStatus && (
@@ -5052,7 +5155,7 @@ export default function App() {
                           fontSize: 12.5,
                           color: footballApiStatus.success ? '#00D285' : '#FCA5A5'
                         }}>
-                          <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                          <div style={{ fontWeight: 600, marginBottom: 4 }}>
                             {footballApiStatus.success ? '✓ Verified Connection' : '✗ Verification Failed'}: {footballApiStatus.message}
                           </div>
                           {footballApiStatus.details && (
@@ -5070,7 +5173,7 @@ export default function App() {
                     <div className="settings-field">
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <label className="settings-label" style={{ margin: 0 }}>🏆 TheSportsDB API Key</label>
-                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 600 }}>thesportsdb.com</span>
+                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 500 }}>thesportsdb.com</span>
                       </div>
                       <input
                         type={showApiKeys ? 'text' : 'password'}
@@ -5087,7 +5190,7 @@ export default function App() {
                     <div className="settings-field">
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <label className="settings-label" style={{ margin: 0 }}>📊 Live Sports Odds API Key</label>
-                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 600 }}>the-odds-api.com</span>
+                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 500 }}>the-odds-api.com</span>
                       </div>
                       <input
                         type={showApiKeys ? 'text' : 'password'}
@@ -5104,7 +5207,7 @@ export default function App() {
                     <div className="settings-field">
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <label className="settings-label" style={{ margin: 0 }}>⚡ RapidAPI Key (Multi-Sport Data Hub)</label>
-                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 600 }}>rapidapi.com</span>
+                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 500 }}>rapidapi.com</span>
                       </div>
                       <input
                         type={showApiKeys ? 'text' : 'password'}
@@ -5121,7 +5224,7 @@ export default function App() {
                     <div className="settings-field" style={{ gridColumn: '1 / -1' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <label className="settings-label" style={{ margin: 0 }}>🤖 AI Settlement &amp; News Engine Key (Gemini / AI)</label>
-                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 600 }}>AI Market Resolver</span>
+                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 500 }}>AI Market Resolver</span>
                       </div>
                       <input
                         type={showApiKeys ? 'text' : 'password'}
@@ -5167,7 +5270,7 @@ export default function App() {
 
                     {/* Avatar picker circle selection list */}
                     <div className="form-group-wrap">
-                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 'bold', marginBottom: 12, display: 'block' }}>
+                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: '500', marginBottom: 12, display: 'block' }}>
                         Profile Avatar Icon
                       </label>
                       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -5206,7 +5309,7 @@ export default function App() {
                               cursor: 'pointer',
                               color: '#00D285',
                               fontSize: 10,
-                              fontWeight: 'bold'
+                              fontWeight: '500'
                             }}
                             onClick={() => setEditAvatar(`https://ui-avatars.com/api/?name=${editName}&background=00D285&color=000&bold=true`)}
                           >
@@ -5217,7 +5320,7 @@ export default function App() {
                     </div>
 
                     <div className="form-group-wrap">
-                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 'bold', marginBottom: 6, display: 'block' }}>
+                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: '500', marginBottom: 6, display: 'block' }}>
                         Full Name
                       </label>
                       <input
@@ -5231,7 +5334,7 @@ export default function App() {
                     </div>
 
                     <div className="form-group-wrap">
-                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 'bold', marginBottom: 6, display: 'block' }}>
+                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: '500', marginBottom: 6, display: 'block' }}>
                         Email Address Username
                       </label>
                       <input
@@ -5245,7 +5348,7 @@ export default function App() {
                     </div>
 
                     <div className="form-group-wrap">
-                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 'bold', marginBottom: 6, display: 'block' }}>
+                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: '500', marginBottom: 6, display: 'block' }}>
                         Admin Phone Route
                       </label>
                       <input
@@ -5259,7 +5362,7 @@ export default function App() {
                     </div>
 
                     <div className="form-group-wrap">
-                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: 'bold', marginBottom: 6, display: 'block' }}>
+                      <label style={{ fontSize: 12, color: '#94a3b8', fontWeight: '500', marginBottom: 6, display: 'block' }}>
                         Admin Platform Role
                       </label>
                       <input
@@ -5287,7 +5390,7 @@ export default function App() {
                   </p>
                   <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <div className="form-group-wrap">
-                      <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'bold', marginBottom: 4, display: 'block' }}>
+                      <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: '500', marginBottom: 4, display: 'block' }}>
                         Current Admin Password
                       </label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -5323,7 +5426,7 @@ export default function App() {
 
                     <div className="form-row-split">
                       <div className="form-group-wrap">
-                        <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'bold', marginBottom: 4, display: 'block' }}>
+                        <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: '500', marginBottom: 4, display: 'block' }}>
                           New Password
                         </label>
                         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -5359,7 +5462,7 @@ export default function App() {
                       </div>
 
                       <div className="form-group-wrap">
-                        <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: 'bold', marginBottom: 4, display: 'block' }}>
+                        <label style={{ fontSize: 11, color: '#94a3b8', fontWeight: '500', marginBottom: 4, display: 'block' }}>
                           Confirm New Password
                         </label>
                         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -5553,13 +5656,7 @@ export default function App() {
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     {[
                       { id: 'ALL', label: 'All Categories', icon: Layers },
-                      { id: 'Entertainment', label: 'Entertainment', icon: Film },
-                      { id: 'Politics', label: 'Politics', icon: Landmark },
-                      { id: 'Real Life Events', label: 'Real Life Events', icon: Globe },
-                      { id: 'Pop Culture', label: 'Pop Culture', icon: Flame },
-                      { id: 'European Football', label: 'European Football', icon: Trophy },
-                      { id: 'UFC & Boxing', label: 'UFC & Boxing', icon: Swords },
-                      { id: 'NBA Basketball', label: 'NBA Basketball', icon: CircleDot },
+                      ...APP_CATEGORIES.map(c => ({ id: c.id, label: c.label, icon: c.icon }))
                     ].map((cat) => {
                       const isActive = marketCategoryFilter === cat.id;
                       const IconComp = cat.icon;
@@ -5658,18 +5755,19 @@ export default function App() {
                         let catColor = '#3B82F6';
                         if (mkt.category === 'Entertainment') catColor = '#A855F7';
                         if (mkt.category === 'Politics') catColor = '#38BDF8';
-                        if (mkt.category === 'Real Life Events') catColor = '#F59E0B';
+                        if (mkt.category === 'Live Event Prediction' || mkt.category === 'Real Life Events') catColor = '#F59E0B';
                         if (mkt.category === 'Pop Culture') catColor = '#EC4899';
-                        if (mkt.category === 'European Football') catColor = '#00D285';
-                        if (mkt.category === 'UFC & Boxing') catColor = '#EF4444';
-                        if (mkt.category === 'NBA Basketball') catColor = '#F97316';
+                        if (mkt.category === 'Football' || mkt.category === 'European Football') catColor = '#00D285';
+                        if (mkt.category === 'Boxing') catColor = '#EF4444';
+                        if (mkt.category === 'UFC' || mkt.category === 'UFC & Boxing') catColor = '#E11D48';
+                        if (mkt.category === 'Basketball' || mkt.category === 'NBA Basketball') catColor = '#F97316';
 
                         return (
                           <tr key={mkt.id || mkt._id}>
                             {/* Question Title without messy wrapping */}
                             <td>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span className="market-question-title" style={{ fontWeight: '600', color: 'var(--text-white)', fontSize: 13 }}>
+                                <span className="market-question-title" style={{ fontWeight: '500', color: 'var(--text-white)', fontSize: 13 }}>
                                   {mkt.title || mkt.pair}
                                 </span>
                                 {mkt.rules && (
@@ -5685,7 +5783,7 @@ export default function App() {
                                       background: 'rgba(255, 255, 255, 0.08)',
                                       color: '#94A3B8',
                                       fontSize: 9.5,
-                                      fontWeight: '700',
+                                      fontWeight: '500',
                                       cursor: 'help',
                                       flexShrink: 0
                                     }}
@@ -5742,7 +5840,7 @@ export default function App() {
                                     padding: '3px 8px',
                                     borderRadius: 6,
                                     fontSize: 11,
-                                    fontWeight: 700,
+                                    fontWeight: 500,
                                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                     color: '#3B82F6',
                                     border: '1px solid rgba(59, 130, 246, 0.25)'
@@ -5760,7 +5858,7 @@ export default function App() {
                             {/* Pool Volume */}
                             <td>
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ color: '#00D285', fontWeight: '600', fontSize: 12.5 }}>
+                                <span style={{ color: '#00D285', fontWeight: '500', fontSize: 12.5 }}>
                                   ₦{(mkt.poolAmount || 0).toLocaleString()}
                                 </span>
                                 <span style={{ color: '#64748B', fontSize: 10.5 }}>
@@ -5911,7 +6009,7 @@ export default function App() {
                         return (
                           <tr key={match._id || match.id}>
                             <td>
-                              <div style={{ fontWeight: '600', color: 'var(--text-white)', fontSize: 13 }}>
+                              <div style={{ fontWeight: '500', color: 'var(--text-white)', fontSize: 13 }}>
                                 {match.homeTeam} vs {match.awayTeam}
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
@@ -5922,7 +6020,7 @@ export default function App() {
                             </td>
                             <td>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                <span style={{ fontSize: 10.5, fontWeight: '600', color: '#00D285' }}>
+                                <span style={{ fontSize: 10.5, fontWeight: '500', color: '#00D285' }}>
                                   {match.sport || 'Football'}
                                 </span>
                                 <span style={{ fontSize: 10.5, color: '#94A3B8' }}>
@@ -5934,7 +6032,7 @@ export default function App() {
                               {match.startTime ? new Date(match.startTime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Live'}
                             </td>
                             <td>
-                              <span style={{ color: '#00D285', fontWeight: '600', fontSize: 12.5 }}>
+                              <span style={{ color: '#00D285', fontWeight: '500', fontSize: 12.5 }}>
                                 ₦{(match.poolAmount || 0).toLocaleString()}
                               </span>
                             </td>
@@ -6059,7 +6157,7 @@ export default function App() {
                       padding: '3px 8px',
                       borderRadius: 6,
                       fontSize: 10,
-                      fontWeight: 700,
+                      fontWeight: 500,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -6084,7 +6182,7 @@ export default function App() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,210,133,0.08)', border: '1px solid rgba(0,210,133,0.2)', padding: '6px 14px', borderRadius: 6 }}>
                   <ShieldCheck size={14} color="#00D285" />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#00D285' }}>Authorized</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: '#00D285' }}>Authorized</span>
                 </div>
               </div>
               <div className="vault-transfer-form">
@@ -6140,7 +6238,7 @@ export default function App() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(236,72,153,0.1)', border: '1px solid rgba(236,72,153,0.3)', padding: '6px 14px', borderRadius: 8 }}>
                   <Gift size={14} color="#EC4899" />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#EC4899' }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: '#EC4899' }}>
                     Available Vault: ₦{(vaultBalances.promoReserve || 0).toLocaleString()}
                   </span>
                 </div>
@@ -6212,20 +6310,20 @@ export default function App() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
                   <div>
-                    <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Est. Recipients</span>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: '#e2e8f0' }}>
+                    <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 500 }}>Est. Recipients</span>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#e2e8f0' }}>
                       {airdropAudience === 'random' || airdropAudience === 'top_traders' ? (airdropCount || 0) : 'All Eligible'} Users
                     </div>
                   </div>
                   <div>
-                    <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Per User</span>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: '#00D285' }}>
+                    <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 500 }}>Per User</span>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#00D285' }}>
                       ₦{parseFloat(airdropAmount || 0).toLocaleString()}
                     </div>
                   </div>
                   <div>
-                    <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Total Budget Required</span>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: ((airdropAudience === 'random' || airdropAudience === 'top_traders') ? (parseInt(airdropCount) || 0) * (parseFloat(airdropAmount) || 0) : (parseFloat(airdropAmount) || 0)) > (vaultBalances.promoReserve || 0) ? '#EF4444' : '#3B82F6' }}>
+                    <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 500 }}>Total Budget Required</span>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: ((airdropAudience === 'random' || airdropAudience === 'top_traders') ? (parseInt(airdropCount) || 0) * (parseFloat(airdropAmount) || 0) : (parseFloat(airdropAmount) || 0)) > (vaultBalances.promoReserve || 0) ? '#EF4444' : '#3B82F6' }}>
                       ₦{((airdropAudience === 'random' || airdropAudience === 'top_traders') ? ((parseInt(airdropCount) || 0) * (parseFloat(airdropAmount) || 0)).toLocaleString() : 'Calculated on launch')}
                     </div>
                   </div>
@@ -6238,7 +6336,7 @@ export default function App() {
                   style={{
                     backgroundColor: '#00D285',
                     color: '#090d16',
-                    fontWeight: 800,
+                    fontWeight: 600,
                     padding: '12px 24px',
                     borderRadius: 8,
                     display: 'flex',
@@ -6290,7 +6388,7 @@ export default function App() {
                       <span>Refresh</span>
                     </button>
                   )}
-                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
                     50 per page
                   </span>
                 </div>
@@ -6326,7 +6424,7 @@ export default function App() {
                                   borderRadius: '50%',
                                   backgroundColor: 'rgba(0, 210, 133, 0.12)',
                                   color: '#00D285',
-                                  fontWeight: 700,
+                                  fontWeight: 500,
                                   fontSize: 11,
                                   display: 'flex',
                                   alignItems: 'center',
@@ -6336,13 +6434,13 @@ export default function App() {
                                   {(user.name || 'U').charAt(0).toUpperCase()}
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <span style={{ fontWeight: 600, color: 'var(--text-white)', fontSize: 12 }}>{user.name}</span>
+                                  <span style={{ fontWeight: 500, color: 'var(--text-white)', fontSize: 12 }}>{user.name}</span>
                                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{user.email}</span>
                                 </div>
                               </div>
                             </td>
-                            <td style={{ color: '#00D285', fontWeight: '700', fontSize: 12 }}>₦{(user.balance || 0).toLocaleString()}</td>
-                            <td style={{ color: 'var(--text-white)', fontWeight: '600', fontSize: 12 }}>{(user.stock || 0).toLocaleString()} Units</td>
+                            <td style={{ color: '#00D285', fontWeight: '500', fontSize: 12 }}>₦{(user.balance || 0).toLocaleString()}</td>
+                            <td style={{ color: 'var(--text-white)', fontWeight: '500', fontSize: 12 }}>{(user.stock || 0).toLocaleString()} Units</td>
                             <td>
                               <span className="status-badge-td" style={{
                                 backgroundColor: user.status === 'Healthy' ? 'rgba(0,210,133,0.08)' : user.status === 'Low Balance' ? 'rgba(245,158,11,0.08)' : user.status === 'Low Stock' ? 'rgba(59,130,246,0.08)' : 'rgba(239,68,68,0.08)',
@@ -6386,13 +6484,13 @@ export default function App() {
                       ) : (
                         paginatedAirdropHistory.map((item, idx) => (
                           <tr key={item._id || idx}>
-                            <td style={{ fontWeight: 600, color: 'var(--text-white)', fontSize: 12 }}>{item.campaignName}</td>
+                            <td style={{ fontWeight: 500, color: 'var(--text-white)', fontSize: 12 }}>{item.campaignName}</td>
                             <td>
                               <span style={{
                                 padding: '3px 8px',
                                 borderRadius: 12,
                                 fontSize: 10,
-                                fontWeight: 700,
+                                fontWeight: 500,
                                 backgroundColor: item.targetAudience === 'random' ? 'rgba(0,210,133,0.1)' : 'rgba(59,130,246,0.1)',
                                 color: item.targetAudience === 'random' ? '#00D285' : '#3B82F6',
                                 textTransform: 'uppercase'
@@ -6400,9 +6498,9 @@ export default function App() {
                                 {item.targetAudience?.replace('_', ' ')}
                               </span>
                             </td>
-                            <td style={{ color: '#00D285', fontWeight: 700, fontSize: 12 }}>₦{(item.amountPerUser || 0).toLocaleString()}</td>
-                            <td style={{ fontWeight: 600, fontSize: 12 }}>{item.recipientCount} traders</td>
-                            <td style={{ color: '#EC4899', fontWeight: 800, fontSize: 12 }}>₦{(item.totalDistributed || 0).toLocaleString()}</td>
+                            <td style={{ color: '#00D285', fontWeight: 500, fontSize: 12 }}>₦{(item.amountPerUser || 0).toLocaleString()}</td>
+                            <td style={{ fontWeight: 500, fontSize: 12 }}>{item.recipientCount} traders</td>
+                            <td style={{ color: '#EC4899', fontWeight: 600, fontSize: 12 }}>₦{(item.totalDistributed || 0).toLocaleString()}</td>
                             <td style={{ color: '#94a3b8', fontSize: 12 }}>{item.executedBy || 'Admin'}</td>
                             <td style={{ color: '#64748b', fontSize: 12, textAlign: 'right' }}>
                               {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}
@@ -6545,7 +6643,7 @@ export default function App() {
 
                 {/* Filter dropdown */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: '600' }}>Verification Status:</span>
+                  <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: '500' }}>Verification Status:</span>
                   <select
                     className="dropdown-select"
                     style={{ height: 34, padding: '0 12px', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-white)', borderRadius: 7, fontSize: 12 }}
@@ -6574,7 +6672,7 @@ export default function App() {
                         padding: '2px 8px',
                         borderRadius: 12,
                         fontSize: 11.5,
-                        fontWeight: 600,
+                        fontWeight: 500,
                         backgroundColor: 'rgba(0, 210, 133, 0.12)',
                         color: '#00D285',
                         border: '1px solid rgba(0, 210, 133, 0.25)'
@@ -6617,7 +6715,7 @@ export default function App() {
                                 {user.name?.charAt(0)?.toUpperCase() || 'U'}
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontWeight: '600', color: 'var(--text-white)', fontSize: 12.5 }}>
+                                <span style={{ fontWeight: '500', color: 'var(--text-white)', fontSize: 12.5 }}>
                                   {user.name}
                                 </span>
                                 {user.username && (
@@ -6644,7 +6742,7 @@ export default function App() {
                           </td>
 
                           {/* Naira Balance */}
-                          <td style={{ color: '#00D285', fontWeight: '600', fontSize: 12.5 }}>
+                          <td style={{ color: '#00D285', fontWeight: '500', fontSize: 12.5 }}>
                             ₦{(user.balance || 0).toLocaleString()}
                           </td>
 
@@ -6660,7 +6758,7 @@ export default function App() {
                                 color: user.status === 'APPROVED' ? '#00D285' :
                                   user.status === 'PENDING' ? '#F59E0B' : '#EF4444',
                                 fontSize: 9.5,
-                                fontWeight: '600',
+                                fontWeight: '500',
                                 padding: '3px 8px',
                                 borderRadius: 4
                               }}
@@ -6870,7 +6968,7 @@ export default function App() {
                     gap: 8,
                     padding: '8px 16px',
                     fontSize: 12,
-                    fontWeight: 700,
+                    fontWeight: 500,
                     opacity: isSavingReferral ? 0.7 : 1
                   }}
                 >
@@ -6882,13 +6980,13 @@ export default function App() {
               {/* Status Toggle Box */}
               <div className="referral-status-toggle-box">
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-white)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-white)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span>Referral Program System</span>
                     <span style={{
                       padding: '2px 8px',
                       borderRadius: 12,
                       fontSize: 10,
-                      fontWeight: 800,
+                      fontWeight: 600,
                       backgroundColor: editReferralEnabled ? 'rgba(0,210,133,0.12)' : 'rgba(239,68,68,0.12)',
                       color: editReferralEnabled ? '#00D285' : '#EF4444',
                       border: editReferralEnabled ? '1px solid rgba(0,210,133,0.3)' : '1px solid rgba(239,68,68,0.3)',
@@ -7034,7 +7132,7 @@ export default function App() {
                     <RefreshCw size={13} />
                     <span>Refresh</span>
                   </button>
-                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
                     25 per page
                   </span>
                 </div>
@@ -7083,7 +7181,7 @@ export default function App() {
                                     borderRadius: '50%',
                                     backgroundColor: 'rgba(245, 158, 11, 0.12)',
                                     color: '#F59E0B',
-                                    fontWeight: 700,
+                                    fontWeight: 500,
                                     fontSize: 11,
                                     display: 'flex',
                                     alignItems: 'center',
@@ -7093,7 +7191,7 @@ export default function App() {
                                     {(info.name || 'U').charAt(0).toUpperCase()}
                                   </div>
                                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontWeight: 600, color: 'var(--text-white)', fontSize: 12 }}>{info.name}</span>
+                                    <span style={{ fontWeight: 500, color: 'var(--text-white)', fontSize: 12 }}>{info.name}</span>
                                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{info.email || '—'}</span>
                                   </div>
                                 </div>
@@ -7102,12 +7200,12 @@ export default function App() {
                                 <span className="referral-code-pill">{info.code}</span>
                               </td>
                               <td>
-                                <span style={{ fontWeight: 700, color: '#00D285', fontSize: 12 }}>
+                                <span style={{ fontWeight: 500, color: '#00D285', fontSize: 12 }}>
                                   {info.count} traders
                                 </span>
                               </td>
                               <td>
-                                <span style={{ fontWeight: 800, color: '#F59E0B', fontSize: 12 }}>
+                                <span style={{ fontWeight: 600, color: '#F59E0B', fontSize: 12 }}>
                                   ₦{info.earnings.toLocaleString()}
                                 </span>
                               </td>
@@ -7159,7 +7257,7 @@ export default function App() {
                                     borderRadius: '50%',
                                     backgroundColor: 'rgba(168, 85, 247, 0.12)',
                                     color: '#A855F7',
-                                    fontWeight: 700,
+                                    fontWeight: 500,
                                     fontSize: 11,
                                     display: 'flex',
                                     alignItems: 'center',
@@ -7169,7 +7267,7 @@ export default function App() {
                                     {(info.name || 'T').charAt(0).toUpperCase()}
                                   </div>
                                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontWeight: 600, color: 'var(--text-white)', fontSize: 12 }}>{info.name}</span>
+                                    <span style={{ fontWeight: 500, color: 'var(--text-white)', fontSize: 12 }}>{info.name}</span>
                                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{info.email || '—'}</span>
                                   </div>
                                 </div>
@@ -7180,7 +7278,7 @@ export default function App() {
                                   padding: '3px 8px',
                                   borderRadius: 12,
                                   fontSize: 10,
-                                  fontWeight: 700,
+                                  fontWeight: 500,
                                   backgroundColor: 'rgba(56, 189, 248, 0.12)',
                                   color: '#38BDF8',
                                   border: '1px solid rgba(56, 189, 248, 0.25)',
@@ -7189,11 +7287,11 @@ export default function App() {
                                   {ws.platform || 'Social Share'}
                                 </span>
                               </td>
-                              <td style={{ color: 'var(--text-white)', fontWeight: 600, fontSize: 12, textTransform: 'uppercase' }}>
+                              <td style={{ color: 'var(--text-white)', fontWeight: 500, fontSize: 12, textTransform: 'uppercase' }}>
                                 {ws.tradeType || 'Standard Trade'}
                               </td>
                               <td>
-                                <span style={{ color: '#00D285', fontWeight: 800, fontSize: 12 }}>
+                                <span style={{ color: '#00D285', fontWeight: 600, fontSize: 12 }}>
                                   +₦{(ws.bonusAmount || 1000).toLocaleString()}
                                 </span>
                               </td>
@@ -7244,7 +7342,7 @@ export default function App() {
                                     borderRadius: '50%',
                                     backgroundColor: 'rgba(0, 210, 133, 0.12)',
                                     color: '#00D285',
-                                    fontWeight: 700,
+                                    fontWeight: 500,
                                     fontSize: 11,
                                     display: 'flex',
                                     alignItems: 'center',
@@ -7254,7 +7352,7 @@ export default function App() {
                                     {(refInfo.name || 'R').charAt(0).toUpperCase()}
                                   </div>
                                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontWeight: 600, color: 'var(--text-white)', fontSize: 12 }}>{refInfo.name}</span>
+                                    <span style={{ fontWeight: 500, color: 'var(--text-white)', fontSize: 12 }}>{refInfo.name}</span>
                                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{refInfo.email || '—'}</span>
                                   </div>
                                 </div>
@@ -7274,7 +7372,7 @@ export default function App() {
                                     borderRadius: '50%',
                                     backgroundColor: 'rgba(59, 130, 246, 0.12)',
                                     color: '#3B82F6',
-                                    fontWeight: 700,
+                                    fontWeight: 500,
                                     fontSize: 11,
                                     display: 'flex',
                                     alignItems: 'center',
@@ -7284,7 +7382,7 @@ export default function App() {
                                     {(feeInfo.name || 'M').charAt(0).toUpperCase()}
                                   </div>
                                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ fontWeight: 600, color: 'var(--text-white)', fontSize: 12 }}>{feeInfo.name}</span>
+                                    <span style={{ fontWeight: 500, color: 'var(--text-white)', fontSize: 12 }}>{feeInfo.name}</span>
                                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{feeInfo.email || '—'}</span>
                                   </div>
                                 </div>
@@ -7293,7 +7391,7 @@ export default function App() {
                               {/* Bonus Disbursed */}
                               <td>
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <span style={{ color: '#00D285', fontWeight: 700, fontSize: 12 }}>
+                                  <span style={{ color: '#00D285', fontWeight: 500, fontSize: 12 }}>
                                     ₦{(totalDisbursed || 2000).toLocaleString()}
                                   </span>
                                   <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
@@ -7471,7 +7569,7 @@ export default function App() {
           <div className="modal-content-card" style={{ maxWidth: 680, maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="modal-title-row">
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: '800', color: '#ffffff' }}>Set Manual Trade (Backdoor)</h2>
+                <h2 style={{ fontSize: 18, fontWeight: '600', color: '#ffffff' }}>Set Manual Trade (Backdoor)</h2>
                 <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
                   Configure prediction question, rules, and publishing status for live client markets.
                 </p>
@@ -7486,7 +7584,7 @@ export default function App() {
 
             {/* Quick Template Presets Bar */}
             <div style={{ margin: '14px 0', padding: 12, backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: 10, border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              <span style={{ fontSize: 11, fontWeight: '700', color: '#00D285', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              <span style={{ fontSize: 11, fontWeight: '500', color: '#00D285', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 ⚡ Quick Template Presets:
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
@@ -7508,7 +7606,7 @@ export default function App() {
                       padding: '4px 10px',
                       borderRadius: 14,
                       fontSize: 11,
-                      fontWeight: '600',
+                      fontWeight: '500',
                       backgroundColor: 'rgba(0, 210, 133, 0.08)',
                       border: '1px solid rgba(0, 210, 133, 0.25)',
                       color: '#00D285',
@@ -7526,48 +7624,77 @@ export default function App() {
                 {/* Category and Subcategory */}
                 <div className="form-row-split">
                   <div className="form-group-wrap">
-                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>Category</label>
+                    <label style={{ fontSize: 12, fontWeight: '500', color: '#cbd5e1' }}>Category</label>
                     <select
                       className="dropdown-select"
                       style={{ height: 42, width: '100%' }}
                       value={tradeCategory}
                       onChange={(e) => {
-                        setTradeCategory(e.target.value);
-                        if (e.target.value === 'Entertainment') setTradeSubcategory('Spotify & Music');
-                        else if (e.target.value === 'Politics') setTradeSubcategory('Policy & Economy');
-                        else if (e.target.value === 'Real Life Events') setTradeSubcategory('Space & Tech');
-                        else if (e.target.value === 'Pop Culture') setTradeSubcategory('Gaming & Media');
-                        else if (e.target.value === 'European Football') setTradeSubcategory('Premier League');
-                        else if (e.target.value === 'UFC & Boxing') setTradeSubcategory('UFC');
-                        else if (e.target.value === 'NBA Basketball') setTradeSubcategory('NBA');
+                        const newCat = e.target.value;
+                        setTradeCategory(newCat);
+                        const found = APP_CATEGORIES.find((c) => c.id === newCat);
+                        if (found && found.subcategories.length > 0) {
+                          setTradeSubcategory(found.subcategories[0]);
+                        }
                       }}
                     >
-                      <option value="Entertainment">🎭 Entertainment</option>
-                      <option value="Politics">🏛️ Politics</option>
-                      <option value="Real Life Events">🌍 Real Life Events</option>
-                      <option value="Pop Culture">🔥 Pop Culture</option>
-                      <option value="European Football">⚽ European Football</option>
-                      <option value="UFC & Boxing">🥊 UFC & Boxing</option>
-                      <option value="NBA Basketball">🏀 NBA Basketball</option>
+                      {APP_CATEGORIES.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.emoji} {cat.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
                   <div className="form-group-wrap">
-                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>Subcategory</label>
-                    <input
-                      type="text"
-                      className="form-input-text"
-                      placeholder="e.g. Spotify & Music, Movies, Grammys, Elections..."
+                    <label style={{ fontSize: 12, fontWeight: '500', color: '#cbd5e1' }}>
+                      Subcategory (Synchronized with App)
+                    </label>
+                    <select
+                      className="dropdown-select"
+                      style={{ height: 42, width: '100%' }}
                       value={tradeSubcategory}
                       onChange={(e) => setTradeSubcategory(e.target.value)}
                       required
-                    />
+                    >
+                      {(
+                        APP_CATEGORIES.find((c) => c.id === tradeCategory)?.subcategories || [
+                          'General',
+                        ]
+                      ).map((sub) => (
+                        <option key={sub} value={sub}>
+                          {sub}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                </div>
+
+                {/* Live App Sync Path Indicator */}
+                <div style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  backgroundColor: 'rgba(0, 210, 133, 0.08)',
+                  border: '1px solid rgba(0, 210, 133, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: 12,
+                  color: '#00D285',
+                  marginTop: -4
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckCircle size={14} color="#00D285" />
+                    <span><strong>App Tab Target:</strong> {tradeCategory} &rarr; {tradeSubcategory}</span>
+                  </div>
+                  <span style={{ fontSize: 10.5, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Verified Category
+                  </span>
                 </div>
 
                 {/* Trade Question / Title */}
                 <div className="form-group-wrap">
-                  <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>
+                  <label style={{ fontSize: 12, fontWeight: '500', color: '#cbd5e1' }}>
                     Trade Question / Market Title
                   </label>
                   <input
@@ -7582,7 +7709,7 @@ export default function App() {
 
                 {/* Market Format Selection */}
                 <div className="form-group-wrap">
-                  <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>Question Format</label>
+                  <label style={{ fontSize: 12, fontWeight: '500', color: '#cbd5e1' }}>Question Format</label>
                   <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
                     <button
                       type="button"
@@ -7592,7 +7719,7 @@ export default function App() {
                         padding: '8px 12px',
                         borderRadius: 8,
                         fontSize: 12,
-                        fontWeight: '700',
+                        fontWeight: '500',
                         cursor: 'pointer',
                         backgroundColor: tradeMarketType === 'YES_NO' ? 'rgba(0, 210, 133, 0.15)' : 'rgba(255, 255, 255, 0.05)',
                         border: tradeMarketType === 'YES_NO' ? '1px solid #00D285' : '1px solid rgba(255, 255, 255, 0.1)',
@@ -7609,7 +7736,7 @@ export default function App() {
                         padding: '8px 12px',
                         borderRadius: 8,
                         fontSize: 12,
-                        fontWeight: '700',
+                        fontWeight: '500',
                         cursor: 'pointer',
                         backgroundColor: tradeMarketType === 'MULTIPLE_CHOICE' ? 'rgba(0, 210, 133, 0.15)' : 'rgba(255, 255, 255, 0.05)',
                         border: tradeMarketType === 'MULTIPLE_CHOICE' ? '1px solid #00D285' : '1px solid rgba(255, 255, 255, 0.1)',
@@ -7625,7 +7752,7 @@ export default function App() {
                 {tradeMarketType === 'YES_NO' ? (
                   <div className="form-row-split">
                     <div className="form-group-wrap">
-                      <label style={{ fontSize: 12, fontWeight: '700', color: '#00D285' }}>YES Decimal Odds</label>
+                      <label style={{ fontSize: 12, fontWeight: '500', color: '#00D285' }}>YES Decimal Odds</label>
                       <input
                         type="number"
                         step="0.01"
@@ -7637,7 +7764,7 @@ export default function App() {
                       />
                     </div>
                     <div className="form-group-wrap">
-                      <label style={{ fontSize: 12, fontWeight: '700', color: '#EF4444' }}>NO Decimal Odds</label>
+                      <label style={{ fontSize: 12, fontWeight: '500', color: '#EF4444' }}>NO Decimal Odds</label>
                       <input
                         type="number"
                         step="0.01"
@@ -7652,7 +7779,7 @@ export default function App() {
                 ) : (
                   <div className="form-group-wrap">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>Options &amp; Odds</label>
+                      <label style={{ fontSize: 12, fontWeight: '500', color: '#cbd5e1' }}>Options &amp; Odds</label>
                       <button
                         type="button"
                         onClick={() =>
@@ -7666,7 +7793,7 @@ export default function App() {
                           border: 'none',
                           color: '#00D285',
                           fontSize: 12,
-                          fontWeight: '700',
+                          fontWeight: '500',
                           cursor: 'pointer',
                         }}
                       >
@@ -7718,7 +7845,7 @@ export default function App() {
 
                 {/* Rules & Resolution Description */}
                 <div className="form-group-wrap">
-                  <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>
+                  <label style={{ fontSize: 12, fontWeight: '500', color: '#cbd5e1' }}>
                     Rules &amp; Resolution Criteria (Settlement Conditions)
                   </label>
                   <textarea
@@ -7734,7 +7861,7 @@ export default function App() {
                 {/* Resolution Source & Pool */}
                 <div className="form-row-split">
                   <div className="form-group-wrap">
-                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>
+                    <label style={{ fontSize: 12, fontWeight: '500', color: '#cbd5e1' }}>
                       Resolution Source / Oracle
                     </label>
                     <input
@@ -7747,7 +7874,7 @@ export default function App() {
                   </div>
 
                   <div className="form-group-wrap">
-                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>
+                    <label style={{ fontSize: 12, fontWeight: '500', color: '#cbd5e1' }}>
                       Initial Seed Pool (₦)
                     </label>
                     <input
@@ -7763,7 +7890,7 @@ export default function App() {
                 {/* Trading Window & Publication Status */}
                 <div className="form-row-split" style={{ alignItems: 'center' }}>
                   <div className="form-group-wrap">
-                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>
+                    <label style={{ fontSize: 12, fontWeight: '500', color: '#cbd5e1' }}>
                       Trading Window (Hours until close)
                     </label>
                     <input
@@ -7776,7 +7903,7 @@ export default function App() {
                   </div>
 
                   <div className="form-group-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <label style={{ fontSize: 12, fontWeight: '700', color: '#cbd5e1' }}>Publication Mode</label>
+                    <label style={{ fontSize: 12, fontWeight: '500', color: '#cbd5e1' }}>Publication Mode</label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: tradePublishNow ? '#00D285' : '#F59E0B' }}>
                       <input
                         type="checkbox"
@@ -7788,6 +7915,9 @@ export default function App() {
                         {tradePublishNow ? 'Publish Immediately (Live in App)' : 'Save as Backdoor Draft (Private)'}
                       </span>
                     </label>
+                    <span style={{ fontSize: 11, color: tradePublishNow ? '#00D285' : '#F59E0B' }}>
+                      {tradePublishNow ? '✓ Market will immediately appear on the User App under ' + tradeCategory : '⚠️ Private DRAFT: hidden from the User App until published'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -7815,7 +7945,7 @@ export default function App() {
           <div className="modal-content-card" style={{ maxWidth: 480 }}>
             <div className="modal-title-row">
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: '800', color: '#ffffff' }}>Settle Trade &amp; Payout Winners</h2>
+                <h2 style={{ fontSize: 18, fontWeight: '600', color: '#ffffff' }}>Settle Trade &amp; Payout Winners</h2>
                 <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
                   Official market resolution and automated winnings distribution.
                 </p>
@@ -7826,10 +7956,10 @@ export default function App() {
             </div>
 
             <div style={{ margin: '16px 0', padding: 14, backgroundColor: 'rgba(255, 255, 255, 0.04)', borderRadius: 10 }}>
-              <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: '700' }}>
+              <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: '500' }}>
                 {resolvingMarket.category} • {resolvingMarket.subcategory}
               </span>
-              <h3 style={{ color: '#ffffff', fontSize: 14, marginTop: 4, fontWeight: '700', lineHeight: 1.4 }}>
+              <h3 style={{ color: '#ffffff', fontSize: 14, marginTop: 4, fontWeight: 600, lineHeight: 1.4 }}>
                 {resolvingMarket.title}
               </h3>
               {resolvingMarket.rules && (
@@ -7840,7 +7970,7 @@ export default function App() {
             </div>
 
             <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 13, fontWeight: '700', color: '#ffffff', display: 'block', marginBottom: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: '500', color: '#ffffff', display: 'block', marginBottom: 8 }}>
                 Select Declared Winning Outcome:
               </label>
 
@@ -7854,7 +7984,7 @@ export default function App() {
                       padding: '14px',
                       borderRadius: 10,
                       fontSize: 16,
-                      fontWeight: '800',
+                      fontWeight: '600',
                       cursor: 'pointer',
                       backgroundColor: selectedWinningOption.toLowerCase() === 'yes' ? '#00D285' : 'rgba(0, 210, 133, 0.1)',
                       color: selectedWinningOption.toLowerCase() === 'yes' ? '#000000' : '#00D285',
@@ -7872,7 +8002,7 @@ export default function App() {
                       padding: '14px',
                       borderRadius: 10,
                       fontSize: 16,
-                      fontWeight: '800',
+                      fontWeight: '600',
                       cursor: 'pointer',
                       backgroundColor: selectedWinningOption.toLowerCase() === 'no' ? '#EF4444' : 'rgba(239, 68, 68, 0.1)',
                       color: selectedWinningOption.toLowerCase() === 'no' ? '#ffffff' : '#EF4444',
@@ -7896,7 +8026,7 @@ export default function App() {
                           padding: '10px 14px',
                           borderRadius: 8,
                           fontSize: 13,
-                          fontWeight: '700',
+                          fontWeight: '500',
                           textAlign: 'left',
                           cursor: 'pointer',
                           backgroundColor: isSelected ? '#00D285' : 'rgba(255, 255, 255, 0.05)',
@@ -7913,7 +8043,7 @@ export default function App() {
             </div>
 
             <div style={{ padding: 10, backgroundColor: 'rgba(245, 158, 11, 0.1)', borderRadius: 8, border: '1px solid rgba(245, 158, 11, 0.25)', marginBottom: 18 }}>
-              <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: '600', lineHeight: 1.4 }}>
+              <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: '500', lineHeight: 1.4 }}>
                 ⚠️ Warning: Executing settlement will credit wallet balances of all winning users, mark losing bets as LOST, and send real-time in-app notifications.
               </span>
             </div>
@@ -7930,7 +8060,7 @@ export default function App() {
                 type="button"
                 className="btn-primary"
                 onClick={handleConfirmResolve}
-                style={{ backgroundColor: '#00D285', color: '#000000', fontWeight: '800' }}
+                style={{ backgroundColor: '#00D285', color: '#000000', fontWeight: '600' }}
               >
                 Confirm &amp; Pay Out Winners
               </button>
@@ -7964,13 +8094,13 @@ export default function App() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 24,
-                fontWeight: '700',
+                fontWeight: '500',
                 marginBottom: 10,
                 border: '2px solid rgba(255, 255, 255, 0.15)'
               }}>
                 {selectedKycUser.name?.charAt(0)?.toUpperCase() || 'U'}
               </div>
-              <h3 style={{ fontSize: 17, color: '#ffffff', fontWeight: '700', margin: '0 0 3px 0' }}>{selectedKycUser.name}</h3>
+              <h3 style={{ fontSize: 17, color: '#ffffff', fontWeight: 600, margin: '0 0 3px 0' }}>{selectedKycUser.name}</h3>
               {selectedKycUser.username && (
                 <p style={{ fontSize: 12, color: 'var(--color-primary)', margin: '0 0 4px 0' }}>@{selectedKycUser.username}</p>
               )}
@@ -7987,7 +8117,7 @@ export default function App() {
                     color: selectedKycUser.status === 'APPROVED' ? '#00D285' :
                       selectedKycUser.status === 'PENDING' ? '#F59E0B' : '#EF4444',
                     fontSize: 10.5,
-                    fontWeight: '600',
+                    fontWeight: '500',
                     padding: '3px 10px',
                     borderRadius: 5
                   }}
@@ -7997,7 +8127,7 @@ export default function App() {
                 <span
                   style={{
                     fontSize: 10,
-                    fontWeight: '700',
+                    fontWeight: '500',
                     padding: '3px 8px',
                     borderRadius: 5,
                     backgroundColor: 'rgba(255, 255, 255, 0.06)',
@@ -8019,7 +8149,7 @@ export default function App() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
                 <span style={{ color: '#64748b' }}>Wallet Balance:</span>
-                <span style={{ color: '#00D285', fontWeight: '700' }}>₦{(selectedKycUser.balance || 0).toLocaleString()}</span>
+                <span style={{ color: '#00D285', fontWeight: '500' }}>₦{(selectedKycUser.balance || 0).toLocaleString()}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
                 <span style={{ color: '#64748b' }}>Identification Doc:</span>
@@ -8036,7 +8166,7 @@ export default function App() {
               {selectedKycUser.referralCode && selectedKycUser.referralCode !== 'N/A' && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
                   <span style={{ color: '#64748b' }}>Referral Code:</span>
-                  <span style={{ color: '#A855F7', fontWeight: '600', fontFamily: 'monospace' }}>{selectedKycUser.referralCode}</span>
+                  <span style={{ color: '#A855F7', fontWeight: '500', fontFamily: 'monospace' }}>{selectedKycUser.referralCode}</span>
                 </div>
               )}
               {selectedKycUser.virtualAccount?.accountNumber && (
@@ -8172,7 +8302,7 @@ export default function App() {
             color: '#f8fafc'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 'bold', color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <PlusCircle size={20} color="#00D285" />
                 Credit User Wallet
               </h3>
@@ -8185,16 +8315,16 @@ export default function App() {
             </div>
 
             <div style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)', border: '1px solid #1e293b', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 'bold', color: '#f8fafc' }}>{creditTargetUser.name}</div>
+              <div style={{ fontSize: 14, fontWeight: '500', color: '#f8fafc' }}>{creditTargetUser.name}</div>
               <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{creditTargetUser.email} • {creditTargetUser.phone}</div>
-              <div style={{ fontSize: 13, color: '#00D285', fontWeight: 'bold', marginTop: 6 }}>
+              <div style={{ fontSize: 13, color: '#00D285', fontWeight: 600, marginTop: 6 }}>
                 Current Balance: ₦{(creditTargetUser.balance || 0).toLocaleString()}
               </div>
             </div>
 
             <form onSubmit={handleExecuteCredit}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#cbd5e1', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: '500', color: '#cbd5e1', marginBottom: 6 }}>
                   Amount to Credit (₦)
                 </label>
                 <input
@@ -8213,7 +8343,7 @@ export default function App() {
                     padding: '10px 14px',
                     color: '#ffffff',
                     fontSize: 15,
-                    fontWeight: 'bold',
+                    fontWeight: '500',
                     outline: 'none'
                   }}
                 />
@@ -8232,7 +8362,7 @@ export default function App() {
                         borderRadius: 4,
                         padding: '4px 8px',
                         fontSize: 11,
-                        fontWeight: 'bold',
+                        fontWeight: '600',
                         cursor: 'pointer'
                       }}
                     >
@@ -8243,7 +8373,7 @@ export default function App() {
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#cbd5e1', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: '500', color: '#cbd5e1', marginBottom: 6 }}>
                   Credit Note / Description (Optional)
                 </label>
                 <input
@@ -8275,7 +8405,7 @@ export default function App() {
                     borderRadius: 6,
                     padding: '10px 18px',
                     fontSize: 13,
-                    fontWeight: 'bold',
+                    fontWeight: '500',
                     cursor: 'pointer'
                   }}
                 >
@@ -8291,7 +8421,7 @@ export default function App() {
                     borderRadius: 6,
                     padding: '10px 20px',
                     fontSize: 13,
-                    fontWeight: 'bold',
+                    fontWeight: '600',
                     cursor: 'pointer',
                     opacity: isSubmittingCredit ? 0.7 : 1,
                     display: 'flex',
@@ -8331,7 +8461,7 @@ export default function App() {
             color: '#f8fafc'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 'bold', color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Gift size={20} color="#EC4899" />
                 Deposit to Promo Treasury Vault
               </h3>
@@ -8345,7 +8475,7 @@ export default function App() {
 
             <div style={{ backgroundColor: 'rgba(236, 72, 153, 0.08)', border: '1px solid rgba(236, 72, 153, 0.25)', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
               <div style={{ fontSize: 12, color: '#94a3b8' }}>Current Promo Liquidity Reserve:</div>
-              <div style={{ fontSize: 20, color: '#EC4899', fontWeight: 800, marginTop: 4 }}>
+              <div style={{ fontSize: 20, color: '#EC4899', fontWeight: 600, marginTop: 4 }}>
                 ₦{(vaultBalances.promoReserve || 0).toLocaleString()}
               </div>
               <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
@@ -8355,7 +8485,7 @@ export default function App() {
 
             <form onSubmit={handleDepositPromo}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#cbd5e1', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: '500', color: '#cbd5e1', marginBottom: 6 }}>
                   Deposit Amount (₦)
                 </label>
                 <input
@@ -8374,7 +8504,7 @@ export default function App() {
                     padding: '10px 14px',
                     color: '#ffffff',
                     fontSize: 15,
-                    fontWeight: 'bold',
+                    fontWeight: '500',
                     outline: 'none',
                     boxSizing: 'border-box'
                   }}
@@ -8382,7 +8512,7 @@ export default function App() {
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 'bold', color: '#cbd5e1', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: '500', color: '#cbd5e1', marginBottom: 6 }}>
                   Reference / Campaign Note
                 </label>
                 <input
@@ -8430,7 +8560,7 @@ export default function App() {
                     borderRadius: 6,
                     padding: '10px 20px',
                     fontSize: 13,
-                    fontWeight: 'bold',
+                    fontWeight: '600',
                     cursor: 'pointer',
                     opacity: isDepositingPromo ? 0.7 : 1,
                     display: 'flex',
@@ -8483,7 +8613,7 @@ export default function App() {
                 {confirmModal.type === 'danger' ? <Trash2 size={22} /> : <AlertTriangle size={22} />}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-white)', margin: '0 0 6px 0', lineHeight: 1.3 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-white)', margin: '0 0 6px 0', lineHeight: 1.3 }}>
                   {confirmModal.title}
                 </h3>
                 <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0, lineHeight: 1.55 }}>
@@ -8501,7 +8631,7 @@ export default function App() {
                   padding: '9px 16px',
                   borderRadius: 8,
                   fontSize: 12.5,
-                  fontWeight: 600,
+                  fontWeight: 500,
                   cursor: 'pointer',
                   backgroundColor: 'var(--bg-primary)',
                   color: 'var(--text-light)',
@@ -8530,7 +8660,7 @@ export default function App() {
                   padding: '9px 18px',
                   borderRadius: 8,
                   fontSize: 12.5,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   cursor: confirmModal.isProcessing ? 'not-allowed' : 'pointer',
                   backgroundColor: confirmModal.type === 'danger' ? '#EF4444' : '#00D285',
                   color: '#ffffff',
