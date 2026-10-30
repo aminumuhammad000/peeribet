@@ -383,6 +383,11 @@ export default function App() {
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [isSavingApis, setIsSavingApis] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState(false);
+  const [hasEnvFootballApiKey, setHasEnvFootballApiKey] = useState(false);
+  const [envFootballApiKeyMasked, setEnvFootballApiKeyMasked] = useState('');
+  const [isTestingFootballApi, setIsTestingFootballApi] = useState(false);
+  const [footballApiStatus, setFootballApiStatus] = useState(null);
+  const [isSyncingMatches, setIsSyncingMatches] = useState(false);
 
   // Portfolio vault reserve states
   const [vaultBalances, setVaultBalances] = useState({
@@ -766,6 +771,8 @@ export default function App() {
         setOddsApiKey(data.oddsApiKey || '');
         setRapidApiKey(data.rapidApiKey || '');
         setGeminiApiKey(data.geminiApiKey || '');
+        setHasEnvFootballApiKey(Boolean(data.hasEnvFootballApiKey));
+        setEnvFootballApiKeyMasked(data.envFootballApiKeyMasked || '');
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -1193,19 +1200,57 @@ export default function App() {
     if (e) e.preventDefault();
     setIsSavingApis(true);
     try {
-      await api.post('/admin/settings', {
-        footballApiKey,
-        theSportsDbApiKey,
-        oddsApiKey,
-        rapidApiKey,
-        geminiApiKey,
+      const res = await api.post('/admin/settings', {
+        footballApiKey: footballApiKey.trim(),
+        theSportsDbApiKey: theSportsDbApiKey.trim(),
+        oddsApiKey: oddsApiKey.trim(),
+        rapidApiKey: rapidApiKey.trim(),
+        geminiApiKey: geminiApiKey.trim(),
       });
+      if (res.data) {
+        setHasEnvFootballApiKey(Boolean(res.data.hasEnvFootballApiKey));
+        setEnvFootballApiKeyMasked(res.data.envFootballApiKeyMasked || '');
+      }
       showToast('External sports & data API credentials updated successfully!', 'success');
       logSecurityEvent('info', 'Sports and External API keys updated', `Authorized by ${adminName}`, 'key');
     } catch (error) {
       showToast('Failed to save API credentials.', 'error');
     } finally {
       setIsSavingApis(false);
+    }
+  };
+
+  // Test API-Football connection & key validity
+  const handleTestFootballApi = async () => {
+    setIsTestingFootballApi(true);
+    setFootballApiStatus(null);
+    try {
+      const res = await api.post('/admin/settings/test-football-api', {
+        apiKey: footballApiKey.trim(),
+      });
+      setFootballApiStatus(res.data);
+      showToast(res.data.message || 'API-Football verified successfully!', 'success');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to verify API-Football key.';
+      setFootballApiStatus({ success: false, message: msg });
+      showToast(msg, 'error');
+    } finally {
+      setIsTestingFootballApi(false);
+    }
+  };
+
+  // Trigger immediate match & fixture synchronization
+  const handleSyncMatchesNow = async () => {
+    setIsSyncingMatches(true);
+    try {
+      const res = await api.post('/matches/sync');
+      showToast(res.data?.message || 'Football fixtures synchronized successfully!', 'success');
+      logSecurityEvent('info', 'Live football fixtures synced from provider', `Authorized by ${adminName}`, 'refresh-cw');
+      fetchMatches();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to sync fixtures from provider.', 'error');
+    } finally {
+      setIsSyncingMatches(false);
     }
   };
 
@@ -4905,21 +4950,121 @@ export default function App() {
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 24 }}>
-                    <div className="settings-field">
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <label className="settings-label" style={{ margin: 0 }}>⚽ Football API Key (API-Sports / API-Football)</label>
-                        <span style={{ fontSize: 10, color: '#00D285', fontWeight: 600 }}>v3.football.api-sports.io</span>
+                    {/* API-Football (https://www.api-football.com/) Configuration with .env Fallback */}
+                    <div className="settings-field" style={{ gridColumn: '1 / -1', border: '1px solid rgba(0, 210, 133, 0.25)', borderRadius: 10, padding: 18, backgroundColor: 'rgba(0, 210, 133, 0.03)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 18 }}>⚽</span>
+                          <div>
+                            <label className="settings-label" style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: 'var(--text-white)' }}>
+                              API-Football (<a href="https://www.api-football.com/" target="_blank" rel="noopener noreferrer" style={{ color: '#00D285', textDecoration: 'underline' }}>https://www.api-football.com/</a>)
+                            </label>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              API-Sports Direct Endpoint: <code>https://v3.football.api-sports.io</code> (header: <code>x-apisports-key</code>)
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {footballApiKey.trim() ? (
+                            <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 12, backgroundColor: 'rgba(0, 210, 133, 0.15)', color: '#00D285', fontWeight: 700 }}>
+                              ● CUSTOM ADMIN KEY ACTIVE
+                            </span>
+                          ) : hasEnvFootballApiKey ? (
+                            <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 12, backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', fontWeight: 700 }}>
+                              ● USING .ENV FALLBACK ({envFootballApiKeyMasked || 'FOOTBALL_API_KEY'})
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', fontWeight: 700 }}>
+                              ○ NO KEY CONFIGURED
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <input
-                        type={showApiKeys ? 'text' : 'password'}
-                        className="vault-input"
-                        placeholder="e.g. 7f8a9b2c3d4e5f6..."
-                        value={footballApiKey}
-                        onChange={(e) => setFootballApiKey(e.target.value)}
-                      />
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                        Used for live football fixture sync, scores, lineups, and in-play stats. Header: <code>x-apisports-key</code>.
+
+                      <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+                        <input
+                          type={showApiKeys ? 'text' : 'password'}
+                          className="vault-input"
+                          style={{ flex: '1 1 300px' }}
+                          placeholder={hasEnvFootballApiKey ? `Leave blank to use .env fallback (${envFootballApiKeyMasked}) or enter custom key...` : "Enter your API key from https://www.api-football.com/..."}
+                          value={footballApiKey}
+                          onChange={(e) => {
+                            setFootballApiKey(e.target.value);
+                            setFootballApiStatus(null);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleTestFootballApi}
+                          disabled={isTestingFootballApi}
+                          style={{
+                            padding: '10px 18px',
+                            backgroundColor: 'rgba(0, 210, 133, 0.12)',
+                            border: '1px solid #00D285',
+                            color: '#00D285',
+                            borderRadius: 6,
+                            fontSize: 12.5,
+                            fontWeight: 700,
+                            cursor: isTestingFootballApi ? 'not-allowed' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6
+                          }}
+                        >
+                          <Activity size={14} />
+                          <span>{isTestingFootballApi ? 'Testing...' : 'Test Connection'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSyncMatchesNow}
+                          disabled={isSyncingMatches}
+                          style={{
+                            padding: '10px 18px',
+                            backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                            border: '1px solid #3B82F6',
+                            color: '#60A5FA',
+                            borderRadius: 6,
+                            fontSize: 12.5,
+                            fontWeight: 700,
+                            cursor: isSyncingMatches ? 'not-allowed' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6
+                          }}
+                        >
+                          <RefreshCw size={14} className={isSyncingMatches ? 'animate-spin' : ''} />
+                          <span>{isSyncingMatches ? 'Syncing...' : 'Sync Matches Now'}</span>
+                        </button>
+                      </div>
+
+                      <span style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 8, display: 'block', lineHeight: 1.5 }}>
+                        💡 <strong>Fallback logic:</strong> The system will prioritize the custom API key saved above. If left blank or cleared, it automatically falls back to the <code>FOOTBALL_API_KEY</code> defined in your server environment (<code>.env</code> file).
                       </span>
+
+                      {footballApiStatus && (
+                        <div style={{
+                          marginTop: 12,
+                          padding: '12px 16px',
+                          borderRadius: 8,
+                          backgroundColor: footballApiStatus.success ? 'rgba(0, 210, 133, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                          border: `1px solid ${footballApiStatus.success ? '#00D285' : '#EF4444'}`,
+                          fontSize: 12.5,
+                          color: footballApiStatus.success ? '#00D285' : '#FCA5A5'
+                        }}>
+                          <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                            {footballApiStatus.success ? '✓ Verified Connection' : '✗ Verification Failed'}: {footballApiStatus.message}
+                          </div>
+                          {footballApiStatus.details && (
+                            <div style={{ fontSize: 11.5, color: 'var(--text-white)', marginTop: 4, lineHeight: 1.6 }}>
+                              Account: <strong>{footballApiStatus.details.accountName}</strong> ({footballApiStatus.details.email}) &nbsp;|&nbsp; 
+                              Subscription Plan: <strong>{footballApiStatus.details.plan}</strong> &nbsp;|&nbsp; 
+                              Requests Today: <strong>{footballApiStatus.details.requestsToday} / {footballApiStatus.details.requestsLimit}</strong> &nbsp;|&nbsp; 
+                              Active Key Source: <em>{footballApiStatus.source}</em>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="settings-field">

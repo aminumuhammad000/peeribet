@@ -1040,22 +1040,24 @@ export default function AdminMarketControlScreen() {
                     Configure API keys for live football fixture synchronization, real-time match scores, bookmaker odds, and prediction oracle feeds.
                   </Text>
 
-                  {/* Football API (API-Sports) */}
+                  {/* API-Football (https://www.api-football.com/) */}
                   <View style={styles.inputGroup}>
                     <View style={styles.labelRowWithTag}>
-                      <Text style={styles.inputLabel}>⚽ FOOTBALL API KEY (API-SPORTS)</Text>
+                      <Text style={styles.inputLabel}>⚽ API-FOOTBALL KEY (https://www.api-football.com/)</Text>
                       <Text style={styles.apiTag}>v3.football.api-sports.io</Text>
                     </View>
                     <TextInput
                       style={styles.numberInput}
                       secureTextEntry={!showSecretKeys}
-                      placeholder="e.g. 7f8a9b2c3d4e5f6..."
+                      placeholder="e.g. 7f8a9b2c3d4e5f6... (or leave blank to use .env)"
                       placeholderTextColor="#64748B"
                       value={footballApiKey}
                       onChangeText={setFootballApiKey}
                       autoCapitalize="none"
                     />
-                    <Text style={styles.inputHint}>Used for live fixtures, score updates, lineups, and in-play event tracking.</Text>
+                    <Text style={styles.inputHint}>
+                      Primary key for live fixtures, score updates, and lineups. Prioritized over FOOTBALL_API_KEY from server .env (used as fallback).
+                    </Text>
                   </View>
 
                   {/* TheSportsDB */}

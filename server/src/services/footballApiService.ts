@@ -12,8 +12,15 @@ export const getFootballApiKey = async (): Promise<string> => {
     if (settings?.footballApiKey && settings.footballApiKey.trim()) {
       return settings.footballApiKey.trim();
     }
-  } catch (err) {}
-  return process.env.FOOTBALL_API_KEY || 'XxXxXxXxXxXxXxXxXxXxXxXx';
+  } catch (err) {
+    console.error('Error reading footballApiKey from settings:', err);
+  }
+  return (
+    process.env.FOOTBALL_API_KEY?.trim() ||
+    process.env.API_FOOTBALL_KEY?.trim() ||
+    process.env.APISPORTS_KEY?.trim() ||
+    ''
+  );
 };
 
 const apiClient = axios.create({

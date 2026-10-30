@@ -42,7 +42,8 @@ import {
   deleteUser,
   getPendingKyc,
   triggerSettlement,
-  bootstrapAdmin
+  bootstrapAdmin,
+  testFootballApi
 } from '../controllers/adminController';
 
 
@@ -72,6 +73,7 @@ router.post('/settlement/trigger', triggerSettlement);
 
 router.get('/settings', getSettings);
 router.post('/settings', updateSettings);
+router.post('/settings/test-football-api', testFootballApi);
 
 router.get('/markets', getMarkets);
 router.post('/markets', createMarket);

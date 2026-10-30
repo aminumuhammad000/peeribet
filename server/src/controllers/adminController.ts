@@ -13,6 +13,7 @@ import P2POrder from '../models/P2POrder';
 import PoolContract from '../models/PoolContract';
 import Notification from '../models/Notification';
 import bcrypt from 'bcryptjs';
+import axios from 'axios';
 import { createNotification } from '../services/notificationService';
 import { getIO } from '../services/socketService';
 
@@ -353,7 +354,11 @@ export const getSettings = async (req: Request, res: Response) => {
       settings.activePaymentGateway = 'vtstack';
       await settings.save();
     }
-    res.json(settings);
+    const envFootballKey = (process.env.FOOTBALL_API_KEY || process.env.API_FOOTBALL_KEY || process.env.APISPORTS_KEY || '').trim();
+    const settingsObj: any = settings.toObject();
+    settingsObj.hasEnvFootballApiKey = !!envFootballKey;
+    settingsObj.envFootballApiKeyMasked = envFootballKey ? `${envFootballKey.slice(0, 4)}••••${envFootballKey.slice(-4)}` : '';
+    res.json(settingsObj);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -366,21 +371,12 @@ export const updateSettings = async (req: Request, res: Response) => {
       settlementMode, 
       complianceThreshold,
       activePaymentGateway,
-      paystackPublicKey,
-      paystackSecretKey,
       flutterwavePublicKey,
       flutterwaveSecretKey,
       flutterwaveSecretHash,
       vtstackApiKey,
       vtstackPayoutKey,
       vtstackWebhookSecret,
-      monnifyApiKey,
-      monnifySecretKey,
-      monnifyContractCode,
-      manualBankName,
-      manualAccountNumber,
-      manualAccountName,
-      manualInstructions,
       gatewayMode,
       autoWithdrawalApproval,
       maintenanceMode,
@@ -401,34 +397,97 @@ export const updateSettings = async (req: Request, res: Response) => {
       // Restrict payment gateway strictly to vtstack and flutterwave
       settings.activePaymentGateway = activePaymentGateway === 'flutterwave' ? 'flutterwave' : 'vtstack';
     }
-    if (paystackPublicKey !== undefined) settings.paystackPublicKey = paystackPublicKey;
-    if (paystackSecretKey !== undefined) settings.paystackSecretKey = paystackSecretKey;
     if (flutterwavePublicKey !== undefined) settings.flutterwavePublicKey = flutterwavePublicKey;
     if (flutterwaveSecretKey !== undefined) settings.flutterwaveSecretKey = flutterwaveSecretKey;
     if (flutterwaveSecretHash !== undefined) settings.flutterwaveSecretHash = flutterwaveSecretHash;
     if (vtstackApiKey !== undefined) settings.vtstackApiKey = vtstackApiKey;
     if (vtstackPayoutKey !== undefined) settings.vtstackPayoutKey = vtstackPayoutKey;
     if (vtstackWebhookSecret !== undefined) settings.vtstackWebhookSecret = vtstackWebhookSecret;
-    if (monnifyApiKey !== undefined) settings.monnifyApiKey = monnifyApiKey;
-    if (monnifySecretKey !== undefined) settings.monnifySecretKey = monnifySecretKey;
-    if (monnifyContractCode !== undefined) settings.monnifyContractCode = monnifyContractCode;
-    if (manualBankName !== undefined) settings.manualBankName = manualBankName;
-    if (manualAccountNumber !== undefined) settings.manualAccountNumber = manualAccountNumber;
-    if (manualAccountName !== undefined) settings.manualAccountName = manualAccountName;
-    if (manualInstructions !== undefined) settings.manualInstructions = manualInstructions;
     if (gatewayMode !== undefined) settings.gatewayMode = gatewayMode;
     if (autoWithdrawalApproval !== undefined) settings.autoWithdrawalApproval = autoWithdrawalApproval;
     if (maintenanceMode !== undefined) settings.maintenanceMode = maintenanceMode;
-    if (footballApiKey !== undefined) settings.footballApiKey = footballApiKey;
+    if (footballApiKey !== undefined) settings.footballApiKey = footballApiKey.trim();
     if (theSportsDbApiKey !== undefined) settings.theSportsDbApiKey = theSportsDbApiKey;
     if (oddsApiKey !== undefined) settings.oddsApiKey = oddsApiKey;
     if (rapidApiKey !== undefined) settings.rapidApiKey = rapidApiKey;
     if (geminiApiKey !== undefined) settings.geminiApiKey = geminiApiKey;
 
     await settings.save();
-    res.json(settings);
+    
+    const envFootballKey = (process.env.FOOTBALL_API_KEY || process.env.API_FOOTBALL_KEY || process.env.APISPORTS_KEY || '').trim();
+    const settingsObj: any = settings.toObject();
+    settingsObj.hasEnvFootballApiKey = !!envFootballKey;
+    settingsObj.envFootballApiKeyMasked = envFootballKey ? `${envFootballKey.slice(0, 4)}••••${envFootballKey.slice(-4)}` : '';
+    res.json(settingsObj);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+export const testFootballApi = async (req: Request, res: Response) => {
+  try {
+    const { apiKey } = req.body;
+    let keyToTest = (apiKey || '').trim();
+    let source = 'Provided in test request';
+
+    if (!keyToTest) {
+      const settings = await SystemSetting.findOne();
+      if (settings?.footballApiKey && settings.footballApiKey.trim()) {
+        keyToTest = settings.footballApiKey.trim();
+        source = 'Platform Settings (Custom configured)';
+      } else {
+        keyToTest = (process.env.FOOTBALL_API_KEY || process.env.API_FOOTBALL_KEY || process.env.APISPORTS_KEY || '').trim();
+        source = 'Server .env fallback (FOOTBALL_API_KEY)';
+      }
+    }
+
+    if (!keyToTest) {
+      return res.status(400).json({
+        success: false,
+        message: 'No API key provided, configured in Platform Settings, or found in server .env fallback.'
+      });
+    }
+
+    const response = await axios.get('https://v3.football.api-sports.io/status', {
+      headers: {
+        'x-apisports-key': keyToTest,
+      },
+      timeout: 10000,
+    });
+
+    const data = response.data;
+    if (data.errors && Object.keys(data.errors).length > 0) {
+      const errorMsg = typeof data.errors === 'string' ? data.errors : Object.values(data.errors).join(', ');
+      return res.status(400).json({
+        success: false,
+        source,
+        message: `API-Football rejected key: ${errorMsg}`
+      });
+    }
+
+    const account = data.response?.account;
+    const subscription = data.response?.subscription;
+    const requests = data.response?.requests;
+
+    res.json({
+      success: true,
+      source,
+      message: 'API-Football (https://www.api-football.com/) connected successfully!',
+      details: {
+        accountName: account ? `${account.firstname || ''} ${account.lastname || ''}`.trim() : 'Account verified',
+        email: account?.email || 'N/A',
+        plan: subscription?.plan || 'Free',
+        active: subscription?.active !== false,
+        requestsToday: requests?.current ?? 0,
+        requestsLimit: requests?.limit_day ?? 100,
+      }
+    });
+  } catch (error: any) {
+    const msg = error.response?.data?.message || error.message || 'Failed to connect to API-Football';
+    res.status(500).json({
+      success: false,
+      message: msg
+    });
   }
 };
 

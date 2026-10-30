@@ -5,21 +5,12 @@ export interface ISystemSetting extends Document {
   settlementMode: 'AUTOMATED' | 'DELAYED' | 'MANUAL';
   complianceThreshold: number;
   activePaymentGateway: 'vtstack' | 'flutterwave';
-  paystackPublicKey?: string;
-  paystackSecretKey?: string;
   flutterwavePublicKey?: string;
   flutterwaveSecretKey?: string;
   flutterwaveSecretHash?: string;
   vtstackApiKey?: string;
   vtstackPayoutKey?: string;
   vtstackWebhookSecret?: string;
-  monnifyApiKey?: string;
-  monnifySecretKey?: string;
-  monnifyContractCode?: string;
-  manualBankName?: string;
-  manualAccountNumber?: string;
-  manualAccountName?: string;
-  manualInstructions?: string;
   gatewayMode: 'TEST' | 'LIVE';
   autoWithdrawalApproval: boolean;
   maintenanceMode?: boolean;
@@ -53,21 +44,12 @@ const systemSettingSchema = new Schema(
       enum: ['vtstack', 'flutterwave'], 
       default: 'vtstack' 
     },
-    paystackPublicKey: { type: String, default: '' },
-    paystackSecretKey: { type: String, default: '' },
     flutterwavePublicKey: { type: String, default: '' },
     flutterwaveSecretKey: { type: String, default: '' },
     flutterwaveSecretHash: { type: String, default: 'peeritrade_flw_secret' },
     vtstackApiKey: { type: String, default: '' },
     vtstackPayoutKey: { type: String, default: '' },
     vtstackWebhookSecret: { type: String, default: '' },
-    monnifyApiKey: { type: String, default: '' },
-    monnifySecretKey: { type: String, default: '' },
-    monnifyContractCode: { type: String, default: '' },
-    manualBankName: { type: String, default: '' },
-    manualAccountNumber: { type: String, default: '' },
-    manualAccountName: { type: String, default: '' },
-    manualInstructions: { type: String, default: '' },
     gatewayMode: { type: String, enum: ['TEST', 'LIVE'], default: 'TEST' },
     autoWithdrawalApproval: { type: Boolean, default: true },
     maintenanceMode: { type: Boolean, default: false },
