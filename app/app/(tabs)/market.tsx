@@ -193,7 +193,8 @@ export default function MarketScreen() {
     setLoading(true);
     await Promise.all([
       fetchUser(),
-      isCurrentSports ? fetchMatches(selectedCategory) : fetchPredictionMarkets(selectedCategory, selectedSubcategory, searchQuery),
+      fetchPredictionMarkets(selectedCategory, selectedSubcategory, searchQuery),
+      isCurrentSports ? fetchMatches(selectedCategory) : Promise.resolve(),
     ]);
     setLoading(false);
   }, [selectedCategory, selectedSubcategory, searchQuery, isCurrentSports]);
@@ -205,10 +206,8 @@ export default function MarketScreen() {
   }, [selectedCategory]);
 
   useEffect(() => {
-    if (!isCurrentSports) {
-      fetchPredictionMarkets(selectedCategory, selectedSubcategory, searchQuery);
-    }
-  }, [selectedSubcategory, searchQuery]);
+    fetchPredictionMarkets(selectedCategory, selectedSubcategory, searchQuery);
+  }, [selectedCategory, selectedSubcategory, searchQuery]);
 
   // WebSocket Updates
   useEffect(() => {
@@ -216,10 +215,8 @@ export default function MarketScreen() {
     const onMatchesUpdated = () => {
       if (isCurrentSports) fetchMatches(selectedCategory);
     };
-    const onMarketUpdated = (payload: any) => {
-      if (!isCurrentSports) {
-        fetchPredictionMarkets(selectedCategory, selectedSubcategory, searchQuery);
-      }
+    const onMarketUpdated = () => {
+      fetchPredictionMarkets(selectedCategory, selectedSubcategory, searchQuery);
     };
 
     socket.on('matches_updated', onMatchesUpdated);
@@ -287,6 +284,171 @@ export default function MarketScreen() {
           : 'Active',
       },
     });
+  };
+
+  const renderPredictionMarketCard = (market: any) => {
+    const isMultiChoice =
+      market.marketType === 'MULTIPLE_CHOICE' ||
+      (market.options && market.options.length > 2) ||
+      (market.options &&
+        market.options.length >= 2 &&
+        !market.options.some((o: any) => o.label?.toUpperCase() === 'YES'));
+
+    const yesOption = market.options?.find(
+      (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
+    ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
+    const noOption = market.options?.find(
+      (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
+    ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
+
+    const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
+    const noOdds = market.noOdds || noOption?.odds || 1.95;
+
+    const isWholeMarketLocked = Boolean(
+      (market.isLocked || market.status === 'SUSPENDED') &&
+      (!market.lockedContracts || market.lockedContracts.length === 0)
+    );
+    const isYesLocked = isWholeMarketLocked || (yesOdds && yesOdds <= 1.43) || Boolean(
+      market.lockedContracts?.some((c: string) => c.toUpperCase() === 'YES' || (yesOption.id && c.toUpperCase() === String(yesOption.id).toUpperCase())) ||
+      yesOption.isLocked
+    );
+    const isNoLocked = isWholeMarketLocked || (noOdds && noOdds <= 1.43) || Boolean(
+      market.lockedContracts?.some((c: string) => c.toUpperCase() === 'NO' || (noOption.id && c.toUpperCase() === String(noOption.id).toUpperCase())) ||
+      noOption.isLocked
+    );
+    const isAllLocked = isMultiChoice
+      ? isWholeMarketLocked || (market.options && market.options.every((opt: any) =>
+          isWholeMarketLocked || opt.isLocked || (opt.odds && opt.odds <= 1.43) ||
+          Boolean(market.lockedContracts?.some((c: string) => c.toUpperCase() === String(opt.label || opt.id).toUpperCase()))
+        ))
+      : isYesLocked && isNoLocked;
+    const isMarketAdminLocked = isAllLocked || Boolean(market.lockedContracts?.length > 0);
+
+    return (
+      <View key={market._id} style={styles.richMarketCard}>
+        {/* Admin Lock / Unlock Control Strip */}
+        {user?.role === 'admin' && (
+          <View style={styles.adminControlStrip}>
+            <ShieldAlert size={14} color={isAllLocked ? '#EF4444' : '#00D285'} />
+            <Text style={styles.adminControlText}>
+              Admin: {isAllLocked ? 'All Contracts Locked' : market.lockedContracts?.length > 0 ? `Locked: ${market.lockedContracts.join(', ')}` : 'Active Market'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => handleToggleAdminMarketLock(market._id, isMarketAdminLocked)}
+              style={[styles.adminLockBtnSmall, isMarketAdminLocked ? styles.adminUnlockBtnSmall : styles.adminLockBtnActive]}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.adminLockBtnText}>
+                {isMarketAdminLocked ? 'Unlock All' : 'Lock All'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Top Row: Subcategory & Info Icon & Status */}
+        <View style={styles.cardTopRow}>
+          <View style={styles.cardCategoryGroup}>
+            <Text style={styles.cardCategoryBadge}>
+              {(market.subcategory || market.category || selectedCategory || 'REAL LIFE EVENTS').toUpperCase()}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setSelectedInfoContract(getContractDetailInfo(market, false))}
+              style={styles.infoIconButton}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Info size={13} color="#00D285" />
+            </TouchableOpacity>
+          </View>
+          {isAllLocked ? (
+            <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+              <Lock size={11} color="#EF4444" />
+              <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
+            </View>
+          ) : (
+            <View style={styles.closingBadge}>
+              <Clock size={11} color="#64748B" />
+              <Text style={styles.closingBadgeText}>
+                {market.closingDate
+                  ? `Closes ${new Date(market.closingDate).toLocaleDateString([], {
+                      month: 'short',
+                      day: 'numeric',
+                    })}`
+                  : 'Closes Soon'}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Question Title with compact sleek styling */}
+        <Text style={styles.marketTitleText}>{market.title}</Text>
+
+        {/* Outcomes & Trade Buttons */}
+        {isMultiChoice ? (
+          <View style={styles.multiChoiceGrid}>
+            {(market.options || []).map((opt: any, optIdx: number) => {
+              const optOdds = opt.odds || 2.0;
+              const optLocked = isWholeMarketLocked || opt.isLocked || (optOdds && optOdds <= 1.43) ||
+                Boolean(market.lockedContracts?.some((c: string) => c.toUpperCase() === String(opt.label || opt.id).toUpperCase()));
+              return (
+                <TouchableOpacity
+                  key={opt.id || `${opt.label}_${optIdx}`}
+                  style={[styles.multiChoiceCard, optLocked && { opacity: 0.5 }]}
+                  activeOpacity={0.8}
+                  disabled={optLocked}
+                  onPress={() => handleOpenTrade(market, opt)}
+                >
+                  <Text style={styles.multiChoiceLabel} numberOfLines={1}>{opt.label}</Text>
+                  <Text style={styles.multiChoiceOdds}>{optLocked ? 'Locked' : `${Number(optOdds).toFixed(2)}x`}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.binaryChoiceRow}>
+            <TouchableOpacity
+              style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
+              activeOpacity={0.8}
+              disabled={isYesLocked}
+              onPress={() => handleOpenTrade(market, yesOption)}
+            >
+              <Text style={styles.binaryOptionLabelYes}>YES</Text>
+              <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
+              activeOpacity={0.8}
+              disabled={isNoLocked}
+              onPress={() => handleOpenTrade(market, noOption)}
+            >
+              <Text style={styles.binaryOptionLabelNo}>NO</Text>
+              <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Card Footer: Total Volume & Trade Outcome Button */}
+        <View style={styles.cardFooterRow}>
+          <View>
+            <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
+            <Text style={styles.cardPoolValue}>
+              ₦{(market.poolAmount || 2500000).toLocaleString()}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => handleOpenTrade(market, isMultiChoice ? market.options?.[0] : (isYesLocked && !isNoLocked ? noOption : yesOption))}
+            style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
+            activeOpacity={0.8}
+            disabled={isAllLocked}
+          >
+            <Text style={styles.quickTradePillText}>
+              {isAllLocked ? 'Locked' : isMultiChoice ? 'Trade Option' : 'Trade YES / NO'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   };
 
   // Filter Sports Matches by Search
@@ -593,18 +755,38 @@ export default function MarketScreen() {
               <ActivityIndicator size="large" color={Colors.dark.primary} />
               <Text style={styles.loadingText}>Loading markets...</Text>
             </View>
-          ) : isCurrentSports ? (
-            /* ==================== SPORTS MATCH CARDS ==================== */
-            filteredMatches.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Flame size={28} color="#64748B" style={{ marginBottom: 8 }} />
-                <Text style={styles.emptyTitle}>No matches scheduled</Text>
-                <Text style={styles.emptySubtitle}>
-                  No active fixtures found for {selectedCategory}. Check back shortly for updated fixtures.
-                </Text>
-              </View>
-            ) : (
-              filteredMatches.map((match) => {
+          ) : (
+            <>
+              {/* Backdoor & Outright Prediction Markets in this Category */}
+              {predictionMarkets.length > 0 && (
+                <View style={{ marginBottom: isCurrentSports ? 16 : 0 }}>
+                  {isCurrentSports && (
+                    <View style={styles.sportsSectionHeader}>
+                      <Text style={styles.sportsSectionTitle}>🏆 Outrights &amp; Prediction Markets ({predictionMarkets.length})</Text>
+                    </View>
+                  )}
+                  {predictionMarkets.map(renderPredictionMarketCard)}
+                </View>
+              )}
+
+              {/* Sports Fixtures */}
+              {isCurrentSports ? (
+                filteredMatches.length === 0 && predictionMarkets.length === 0 ? (
+                  <View style={styles.emptyCard}>
+                    <Flame size={28} color="#64748B" style={{ marginBottom: 8 }} />
+                    <Text style={styles.emptyTitle}>No matches scheduled</Text>
+                    <Text style={styles.emptySubtitle}>
+                      No active fixtures found for {selectedCategory}. Check back shortly for updated fixtures.
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    {predictionMarkets.length > 0 && filteredMatches.length > 0 && (
+                      <View style={styles.sportsSectionHeader}>
+                        <Text style={styles.sportsSectionTitle}>⚽ Match Fixtures &amp; Live Contracts</Text>
+                      </View>
+                    )}
+                    {filteredMatches.map((match) => {
                 const isLive = match.status === 'LIVE';
                 const isSuspended = match.status === 'SUSPENDED';
                 const isMatchAdminLocked = Boolean(match.isLocked || match.isOverpowered || isSuspended);
@@ -889,151 +1071,24 @@ export default function MarketScreen() {
                     </View>
                   </TouchableOpacity>
                 );
-              })
-            )
-          ) : (
-            /* ==================== PREDICTION MARKET CARDS ==================== */
-            predictionMarkets.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Sparkles size={28} color="#64748B" style={{ marginBottom: 8 }} />
-                <Text style={styles.emptyTitle}>No prediction trades yet</Text>
-                <Text style={styles.emptySubtitle}>
-                  There are currently no active backdoor prediction trades in {selectedCategory}
-                  {selectedSubcategory !== 'All' ? ` (${selectedSubcategory})` : ''}. Admins publish new trades regularly!
-                </Text>
-              </View>
-            ) : (
-              predictionMarkets.map((market) => {
-                const yesOption = market.options?.find(
-                  (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
-                ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
-                const noOption = market.options?.find(
-                  (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
-                ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
-
-                const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
-                const noOdds = market.noOdds || noOption?.odds || 1.95;
-
-                const isWholeMarketLocked = Boolean(
-                  (market.isLocked || market.status === 'SUSPENDED') &&
-                  (!market.lockedContracts || market.lockedContracts.length === 0)
-                );
-                const isYesLocked = isWholeMarketLocked || (yesOdds && yesOdds <= 1.43) || Boolean(
-                  market.lockedContracts?.some((c: string) => c.toUpperCase() === 'YES' || (yesOption.id && c.toUpperCase() === String(yesOption.id).toUpperCase())) ||
-                  yesOption.isLocked
-                );
-                const isNoLocked = isWholeMarketLocked || (noOdds && noOdds <= 1.43) || Boolean(
-                  market.lockedContracts?.some((c: string) => c.toUpperCase() === 'NO' || (noOption.id && c.toUpperCase() === String(noOption.id).toUpperCase())) ||
-                  noOption.isLocked
-                );
-                const isAllLocked = isYesLocked && isNoLocked;
-                const isMarketAdminLocked = isAllLocked || Boolean(market.lockedContracts?.length > 0);
-
-                return (
-                  <View key={market._id} style={styles.richMarketCard}>
-                    {/* Admin Lock / Unlock Control Strip */}
-                    {user?.role === 'admin' && (
-                      <View style={styles.adminControlStrip}>
-                        <ShieldAlert size={14} color={isAllLocked ? '#EF4444' : '#00D285'} />
-                        <Text style={styles.adminControlText}>
-                          Admin: {isAllLocked ? 'All Contracts Locked' : market.lockedContracts?.length > 0 ? `Locked: ${market.lockedContracts.join(', ')}` : 'Active Market'}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() => handleToggleAdminMarketLock(market._id, isMarketAdminLocked)}
-                          style={[styles.adminLockBtnSmall, isMarketAdminLocked ? styles.adminUnlockBtnSmall : styles.adminLockBtnActive]}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.adminLockBtnText}>
-                            {isMarketAdminLocked ? 'Unlock All' : 'Lock All'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-
-                    {/* Top Row: Subcategory & Info Icon & Status */}
-                    <View style={styles.cardTopRow}>
-                      <View style={styles.cardCategoryGroup}>
-                        <Text style={styles.cardCategoryBadge}>
-                          {(market.subcategory || selectedCategory || 'REAL LIFE EVENTS').toUpperCase()}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() => setSelectedInfoContract(getContractDetailInfo(market, false))}
-                          style={styles.infoIconButton}
-                          activeOpacity={0.7}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Info size={13} color="#00D285" />
-                        </TouchableOpacity>
-                      </View>
-                      {isAllLocked ? (
-                        <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
-                          <Lock size={11} color="#EF4444" />
-                          <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
-                        </View>
-                      ) : (
-                        <View style={styles.closingBadge}>
-                          <Clock size={11} color="#64748B" />
-                          <Text style={styles.closingBadgeText}>
-                            {market.closingDate
-                              ? `Closes ${new Date(market.closingDate).toLocaleDateString([], {
-                                  month: 'short',
-                                  day: 'numeric',
-                                })}`
-                              : 'Closes Soon'}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-
-                    {/* Question Title with compact sleek styling */}
-                    <Text style={styles.marketTitleText}>{market.title}</Text>
-
-                    {/* Outcomes & Trade Buttons (Clean YES / NO layout matching Home Page) */}
-                    <View style={styles.binaryChoiceRow}>
-                      <TouchableOpacity
-                        style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
-                        activeOpacity={0.8}
-                        disabled={isYesLocked}
-                        onPress={() => handleOpenTrade(market, yesOption)}
-                      >
-                        <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                        <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
-                        activeOpacity={0.8}
-                        disabled={isNoLocked}
-                        onPress={() => handleOpenTrade(market, noOption)}
-                      >
-                        <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                        <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Card Footer: Total Volume & Trade Outcome Button */}
-                    <View style={styles.cardFooterRow}>
-                      <View>
-                        <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
-                        <Text style={styles.cardPoolValue}>
-                          ₦{(market.poolAmount || 2500000).toLocaleString()}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => handleOpenTrade(market, isYesLocked && !isNoLocked ? noOption : yesOption)}
-                        style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
-                        activeOpacity={0.8}
-                        disabled={isAllLocked}
-                      >
-                        <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade YES / NO'}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })
-            )
-          )}
-        </ScrollView>
+              })}
+            </>
+          )
+        ) : (
+          predictionMarkets.length === 0 && (
+            <View style={styles.emptyCard}>
+              <Sparkles size={28} color="#64748B" style={{ marginBottom: 8 }} />
+              <Text style={styles.emptyTitle}>No prediction trades yet</Text>
+              <Text style={styles.emptySubtitle}>
+                There are currently no active backdoor prediction trades in {selectedCategory}
+                {selectedSubcategory !== 'All' ? ` (${selectedSubcategory})` : ''}. Admins publish new trades regularly!
+              </Text>
+            </View>
+          )
+        )}
+      </>
+    )}
+  </ScrollView>
 
         {/* Contract Info / Specification Modal */}
         <Modal
@@ -2325,6 +2380,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginBottom: 10,
+  },
+  sportsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  sportsSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#E2E8F0',
+    letterSpacing: 0.2,
+  },
+  multiChoiceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  multiChoiceCard: {
+    width: '48%',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  multiChoiceLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    flex: 1,
+    marginRight: 4,
+  },
+  multiChoiceOdds: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#00D285',
   },
   binaryOptionBtn: {
     flex: 1,

@@ -322,6 +322,7 @@ export default function App() {
   const [markets, setMarkets] = useState([]);
   const [matches, setMatches] = useState([]);
   const [marketSubTab, setMarketSubTab] = useState('markets'); // 'markets' | 'sports'
+  const [dashboardTradeTab, setDashboardTradeTab] = useState('markets'); // 'markets' | 'p2p'
   const [marketCategoryFilter, setMarketCategoryFilter] = useState('ALL');
   const [marketStatusFilter, setMarketStatusFilter] = useState('ALL');
   const [marketSearchText, setMarketSearchText] = useState('');
@@ -628,6 +629,7 @@ export default function App() {
     if (isLoggedIn && (activeTab === 'users' || activeTab === 'dashboard')) {
       fetchUsers();
       fetchDashboardStats(dateRange);
+      fetchMarkets();
     }
   }, [activeTab, isLoggedIn]);
 
@@ -3197,51 +3199,350 @@ export default function App() {
             <section className="recent-trades-card">
               <div className="table-filter-row">
                 <div>
-                  <h3 className="card-heading">Recent Market Trades</h3>
-                  <p className="card-subheading">Real-time settlement activity across all regions</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <h3 className="card-heading" style={{ margin: 0 }}>Recent Market Trades</h3>
+                    <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 3, gap: 4 }}>
+                      <button
+                        type="button"
+                        onClick={() => setDashboardTradeTab('markets')}
+                        style={{
+                          background: dashboardTradeTab === 'markets' ? '#00D285' : 'transparent',
+                          color: dashboardTradeTab === 'markets' ? '#000000' : '#94A3B8',
+                          border: 'none',
+                          borderRadius: 6,
+                          padding: '5px 12px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <TrendingUp size={13} />
+                        <span>Prediction Markets ({markets.length})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDashboardTradeTab('p2p')}
+                        style={{
+                          background: dashboardTradeTab === 'p2p' ? '#00D285' : 'transparent',
+                          color: dashboardTradeTab === 'p2p' ? '#000000' : '#94A3B8',
+                          border: 'none',
+                          borderRadius: 6,
+                          padding: '5px 12px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <ArrowLeftRight size={13} />
+                        <span>P2P Escrow Trades ({trades.length})</span>
+                      </button>
+                    </div>
+                  </div>
+                  <p className="card-subheading" style={{ marginTop: 4 }}>
+                    {dashboardTradeTab === 'markets'
+                      ? 'Admin backdoor trades, prediction pools, and candidate outrights'
+                      : 'Real-time settlement activity across all regions'}
+                  </p>
                 </div>
+
                 <div className="filter-controls-right">
-                  <button
-                    className="export-btn"
-                    onClick={() => {
-                      setActiveTab('transactions');
-                      setCurrentPage(1);
-                    }}
-                    title="View all transactions in full table"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                  >
-                    <ArrowLeftRight size={14} />
-                    <span>View All</span>
-                  </button>
-                  <select
-                    className="dropdown-select"
-                    value={statusFilter}
-                    onChange={(e) => {
-                      setStatusFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    id="table-status-select"
-                  >
-                    <option value="ALL">All Statuses</option>
-                    <option value="SETTLED">Settled</option>
-                    <option value="BLOCKED">Blocked</option>
-                  </select>
-                  <button
-                    className="filter-btn"
-                    onClick={() => {
-                      setStatusFilter('ALL');
-                      setSearchQuery('');
-                      setCurrentPage(1);
-                    }}
-                    title="Reset Filter"
-                  >
-                    <RefreshCw size={14} />
-                  </button>
+                  {dashboardTradeTab === 'markets' ? (
+                    <>
+                      <button
+                        className="btn-primary"
+                        onClick={() => {
+                          resetTradeForm();
+                          setIsMarketModalOpen(true);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', fontSize: 12 }}
+                      >
+                        <Plus size={14} />
+                        <span>Set Manual Trade</span>
+                      </button>
+                      <button
+                        className="export-btn"
+                        onClick={() => setActiveTab('markets')}
+                        title="Manage all markets in dedicated tab"
+                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                      >
+                        <Layers size={14} />
+                        <span>Live Markets</span>
+                      </button>
+                      <button
+                        className="filter-btn"
+                        onClick={fetchMarkets}
+                        title="Refresh Markets"
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="export-btn"
+                        onClick={() => {
+                          setActiveTab('transactions');
+                          setCurrentPage(1);
+                        }}
+                        title="View all transactions in full table"
+                        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                      >
+                        <ArrowLeftRight size={14} />
+                        <span>View All</span>
+                      </button>
+                      <select
+                        className="dropdown-select"
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        id="table-status-select"
+                      >
+                        <option value="ALL">All Statuses</option>
+                        <option value="SETTLED">Settled</option>
+                        <option value="BLOCKED">Blocked</option>
+                      </select>
+                      <button
+                        className="filter-btn"
+                        onClick={() => {
+                          setStatusFilter('ALL');
+                          setSearchQuery('');
+                          setCurrentPage(1);
+                        }}
+                        title="Reset Filter"
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* Data Table */}
-              <div className="trades-table-container">
+              {dashboardTradeTab === 'markets' ? (
+                <>
+                  <div className="trades-table-container">
+                    <table className="trades-table">
+                      <thead>
+                        <tr>
+                          <th style={{ minWidth: 240 }}>Market / Question</th>
+                          <th style={{ minWidth: 130 }}>Category</th>
+                          <th style={{ minWidth: 160 }}>Outcomes &amp; Odds</th>
+                          <th style={{ minWidth: 100 }}>Pool Vol</th>
+                          <th style={{ minWidth: 95 }}>Status</th>
+                          <th style={{ minWidth: 110 }}>Closing Date</th>
+                          <th style={{ textAlign: 'right', minWidth: 130 }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {markets.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} style={{ textAlign: 'center', padding: '36px 12px', color: '#64748B' }}>
+                              No prediction markets created yet. Click <strong>"Set Manual Trade"</strong> to publish one!
+                            </td>
+                          </tr>
+                        ) : (
+                          markets.slice(0, 15).map((mkt) => {
+                            const isDraft = mkt.status === 'DRAFT';
+                            const isActive = mkt.status === 'ACTIVE';
+                            const isResolved = mkt.status === 'RESOLVED';
+                            const isVoided = mkt.status === 'VOIDED';
+
+                            let catColor = '#3B82F6';
+                            if (mkt.category === 'Entertainment') catColor = '#A855F7';
+                            if (mkt.category === 'Politics') catColor = '#38BDF8';
+                            if (mkt.category === 'Live Event Prediction' || mkt.category === 'Real Life Events') catColor = '#F59E0B';
+                            if (mkt.category === 'Pop Culture') catColor = '#EC4899';
+                            if (mkt.category === 'Football' || mkt.category === 'European Football') catColor = '#00D285';
+                            if (mkt.category === 'Boxing') catColor = '#EF4444';
+                            if (mkt.category === 'UFC' || mkt.category === 'UFC & Boxing') catColor = '#E11D48';
+                            if (mkt.category === 'Basketball' || mkt.category === 'NBA Basketball') catColor = '#F97316';
+
+                            return (
+                              <tr key={mkt.id || mkt._id}>
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ fontWeight: '500', color: 'var(--text-white)', fontSize: 13 }}>
+                                      {mkt.title || mkt.pair}
+                                    </span>
+                                    {mkt.rules && (
+                                      <span
+                                        title={`Rules: ${mkt.rules}`}
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          width: 15,
+                                          height: 15,
+                                          borderRadius: '50%',
+                                          background: 'rgba(255, 255, 255, 0.08)',
+                                          color: '#94A3B8',
+                                          fontSize: 9.5,
+                                          cursor: 'help',
+                                          flexShrink: 0
+                                        }}
+                                      >
+                                        i
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
+                                    <span
+                                      className="market-cat-badge"
+                                      style={{
+                                        color: catColor,
+                                        backgroundColor: `${catColor}15`,
+                                        border: `1px solid ${catColor}35`,
+                                      }}
+                                    >
+                                      {mkt.category || 'General'}
+                                    </span>
+                                    {mkt.subcategory && (
+                                      <span style={{ fontSize: 10.5, color: '#94A3B8' }}>
+                                        {mkt.subcategory}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td>
+                                  {mkt.marketType === 'YES_NO' || (!mkt.marketType && mkt.options?.length === 2) ? (
+                                    <div style={{ display: 'flex', gap: 5 }}>
+                                      {mkt.options?.map((opt, optIdx) => (
+                                        <span
+                                          key={opt._id || `${opt.id || 'opt'}_${optIdx}`}
+                                          className={`market-odds-pill ${(opt.id || opt.label || '').toLowerCase() === 'yes' ? 'yes' : 'no'}`}
+                                        >
+                                          {opt.label}: {Number(opt.odds || 1.9).toFixed(2)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div
+                                      title={mkt.options?.map(o => `${o.label} (${Number(o.odds || 2).toFixed(2)})`).join(', ')}
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'help' }}
+                                    >
+                                      <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        padding: '3px 8px',
+                                        borderRadius: 6,
+                                        background: 'rgba(59, 130, 246, 0.12)',
+                                        color: '#60A5FA',
+                                        fontSize: 11,
+                                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                                      }}>
+                                        <Sparkles size={11} />
+                                        <span>{mkt.options?.length || 0} Options</span>
+                                      </span>
+                                      <span style={{ fontSize: 11, color: '#94A3B8' }}>
+                                        {mkt.options?.slice(0, 2).map(o => o.label).join(', ')}{mkt.options?.length > 2 ? '...' : ''}
+                                      </span>
+                                    </div>
+                                  )}
+                                </td>
+                                <td style={{ fontWeight: '500', color: '#00D285', fontSize: 12 }}>
+                                  ₦{(mkt.poolAmount || 0).toLocaleString()}
+                                </td>
+                                <td>
+                                  {mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED' ? (
+                                    <span className="market-status-pill locked">
+                                      <Lock size={10} style={{ marginRight: 3 }} />
+                                      <span>LOCKED</span>
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className={`market-status-pill ${
+                                        isDraft ? 'draft' : isActive ? 'active' : isResolved ? 'resolved' : 'voided'
+                                      }`}
+                                    >
+                                      {isDraft ? 'DRAFT' : isActive ? 'PUBLISHED' : isResolved ? 'RESOLVED' : mkt.status}
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={{ color: '#94A3B8', fontSize: 11, whiteSpace: 'nowrap' }}>
+                                  {mkt.closingDate
+                                    ? new Date(mkt.closingDate).toLocaleDateString([], {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
+                                    : 'Open'}
+                                </td>
+                                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                  <div className="market-actions-group" style={{ justifyContent: 'flex-end' }}>
+                                    {!isResolved && !isVoided && (
+                                      <button
+                                        type="button"
+                                        className={`market-action-btn ${
+                                          (mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED') ? 'unlock' : 'lock'
+                                        }`}
+                                        onClick={() => handleToggleMarketLock(mkt.id || mkt._id, Boolean(mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED'))}
+                                        title={(mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED') ? 'Unlock market' : 'Lock market'}
+                                      >
+                                        {(mkt.isLocked || mkt.isOverpowered || mkt.status === 'SUSPENDED') ? (
+                                          <Unlock size={13} />
+                                        ) : (
+                                          <Lock size={13} />
+                                        )}
+                                      </button>
+                                    )}
+                                    {!isResolved && !isVoided && (
+                                      <button
+                                        type="button"
+                                        className="market-action-btn resolve"
+                                        onClick={() => handleOpenResolveModal(mkt)}
+                                        title="Resolve & Payout"
+                                      >
+                                        <CheckCircle size={13} />
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      className="market-action-btn delete"
+                                      onClick={() => handleDeleteMarket(mkt.id || mkt._id, mkt.title)}
+                                      title="Delete Market"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Prediction Markets footer */}
+                  <div className="table-pagination-row">
+                    <span className="pagination-info">
+                      Showing {Math.min(15, markets.length)} of {markets.length} prediction markets
+                    </span>
+                    <button
+                      className="export-btn"
+                      onClick={() => setActiveTab('markets')}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '5px 12px' }}
+                    >
+                      <span>View &amp; Manage All ({markets.length}) in Markets Tab</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="trades-table-container">
                 <table className="trades-table">
                   <thead>
                     <tr>
@@ -3422,6 +3723,8 @@ export default function App() {
                   </button>
                 </div>
               </div>
+                </>
+              )}
             </section>
           </main>
         ) : activeTab === 'transactions' ? (

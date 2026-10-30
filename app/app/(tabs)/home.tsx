@@ -122,6 +122,8 @@ export default function HomeScreen() {
   const [politicsMarkets, setPoliticsMarkets] = useState<any[]>([]);
   const [liveEventMarkets, setLiveEventMarkets] = useState<any[]>([]);
   const [entertainmentMarkets, setEntertainmentMarkets] = useState<any[]>([]);
+  const [sportsPredictionMarkets, setSportsPredictionMarkets] = useState<any[]>([]);
+  const [otherPredictionMarkets, setOtherPredictionMarkets] = useState<any[]>([]);
 
   // Category view all toggles
   const [expandedSports, setExpandedSports] = useState(false);
@@ -131,6 +133,8 @@ export default function HomeScreen() {
   const [expandedPolitics, setExpandedPolitics] = useState(false);
   const [expandedLiveEvent, setExpandedLiveEvent] = useState(false);
   const [expandedEntertainment, setExpandedEntertainment] = useState(false);
+  const [expandedSportsPredictions, setExpandedSportsPredictions] = useState(false);
+  const [expandedOtherPredictions, setExpandedOtherPredictions] = useState(false);
 
   // Quick Trade Modal
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
@@ -182,6 +186,20 @@ export default function HomeScreen() {
         /spotify|music|grammy|movie|awards/i.test(m.subcategory || '')
       );
       setEntertainmentMarkets(ent);
+
+      const sportsMkts = allMarkets.filter((m: any) =>
+        /football|soccer|ballon|premier|laliga|serie a|champions|boxing|ufc|nba|basketball|sport/i.test(m.category || '') ||
+        /football|soccer|ballon|premier|laliga|serie a|champions|boxing|ufc|nba|basketball|sport/i.test(m.subcategory || '')
+      );
+      setSportsPredictionMarkets(sportsMkts);
+
+      const otherMkts = allMarkets.filter((m: any) =>
+        !pol.some((p: any) => p._id === m._id) &&
+        !live.some((l: any) => l._id === m._id) &&
+        !ent.some((e: any) => e._id === m._id) &&
+        !sportsMkts.some((s: any) => s._id === m._id)
+      );
+      setOtherPredictionMarkets(otherMkts);
     } catch (error) {
       console.error('Error fetching home screen data:', error);
     }
@@ -191,12 +209,16 @@ export default function HomeScreen() {
     fetchData();
 
     const socket = getSocket();
-    socket.on('matches_updated', () => {
+    const handleUpdate = () => {
       fetchData();
-    });
+    };
+
+    socket.on('matches_updated', handleUpdate);
+    socket.on('market_updated', handleUpdate);
 
     return () => {
-      socket.off('matches_updated');
+      socket.off('matches_updated', handleUpdate);
+      socket.off('market_updated', handleUpdate);
     };
   }, [fetchData]);
 
@@ -411,17 +433,152 @@ export default function HomeScreen() {
   const filteredPolitics = filterBySearch(politicsMarkets, false);
   const filteredLiveEvents = filterBySearch(liveEventMarkets, false);
   const filteredEntertainment = filterBySearch(entertainmentMarkets, false);
+  const filteredSportsPredictions = filterBySearch(sportsPredictionMarkets, false);
+  const filteredOtherPredictions = filterBySearch(otherPredictionMarkets, false);
 
-  const CARDS_PER_CATEGORY = 3;
+  const CARDS_PER_CATEGORY = 6;
 
   const hasAnyVisibleCards =
-    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'FOOTBALL') && filteredSports.length > 0) ||
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'FOOTBALL') && (filteredSports.length > 0 || filteredSportsPredictions.length > 0)) ||
     ((activeCategoryTab === 'ALL' || activeCategoryTab === 'POLITICS') && filteredPolitics.length > 0) ||
     ((activeCategoryTab === 'ALL' || activeCategoryTab === 'LIVE_EVENT') && filteredLiveEvents.length > 0) ||
     ((activeCategoryTab === 'ALL' || activeCategoryTab === 'BOXING') && filteredBoxing.length > 0) ||
     ((activeCategoryTab === 'ALL' || activeCategoryTab === 'UFC') && filteredUFC.length > 0) ||
     ((activeCategoryTab === 'ALL' || activeCategoryTab === 'BASKETBALL') && filteredBasketball.length > 0) ||
-    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'ENTERTAINMENT') && filteredEntertainment.length > 0);
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'ENTERTAINMENT') && filteredEntertainment.length > 0) ||
+    (activeCategoryTab === 'ALL' && filteredOtherPredictions.length > 0);
+
+  const renderMarketPredictionCard = (market: any) => {
+    const isMultiChoice =
+      market.marketType === 'MULTIPLE_CHOICE' ||
+      (market.options && market.options.length > 2) ||
+      (market.options &&
+        market.options.length >= 2 &&
+        !market.options.some((o: any) => o.label?.toUpperCase() === 'YES'));
+
+    const yesOption = market.options?.find(
+      (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
+    ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
+    const noOption = market.options?.find(
+      (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
+    ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
+    const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
+    const noOdds = market.noOdds || noOption?.odds || 1.95;
+    const isYesLocked = isContractLocked(market, 'YES', yesOdds);
+    const isNoLocked = isContractLocked(market, 'NO', noOdds);
+    const isAllLocked = isMultiChoice
+      ? market.isLocked || market.status === 'SUSPENDED' || (market.options && market.options.every((opt: any) => isContractLocked(market, opt.label, opt.odds)))
+      : isYesLocked && isNoLocked;
+
+    return (
+      <View key={market._id || market.id} style={styles.richMarketCard}>
+        <View style={styles.cardTopRow}>
+          <View style={styles.cardCategoryGroup}>
+            <Text style={styles.cardCategoryBadge}>
+              {(market.subcategory || market.category || 'PREDICTION').toUpperCase()}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setSelectedInfoContract(getContractDetailInfo(market, false))}
+              style={styles.infoIconButton}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Info size={13} color="#00D285" />
+            </TouchableOpacity>
+          </View>
+          {isAllLocked ? (
+            <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
+              <Lock size={11} color="#EF4444" />
+              <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
+            </View>
+          ) : (
+            <View style={styles.closingBadge}>
+              <Clock size={11} color="#64748B" />
+              <Text style={styles.closingBadgeText}>
+                {market.closingDate
+                  ? `Closes ${new Date(market.closingDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+                  : 'Active'}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <Text style={styles.marketTitleText}>{market.title}</Text>
+
+        {/* Outcomes & Trade Buttons */}
+        {isMultiChoice ? (
+          <View style={styles.multiChoiceGrid}>
+            {(market.options || []).map((opt: any, optIdx: number) => {
+              const optOdds = opt.odds || 2.0;
+              const optLocked = isContractLocked(market, opt.label, optOdds);
+              return (
+                <TouchableOpacity
+                  key={opt.id || `${opt.label}_${optIdx}`}
+                  style={[styles.multiChoiceCard, optLocked && { opacity: 0.5 }]}
+                  activeOpacity={0.8}
+                  disabled={optLocked}
+                  onPress={() => handleOpenTradeModal(market, opt)}
+                >
+                  <Text style={styles.multiChoiceLabel} numberOfLines={1}>
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.multiChoiceOdds}>
+                    {optLocked ? 'Locked' : `${Number(optOdds).toFixed(2)}x`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.binaryChoiceRow}>
+            <TouchableOpacity
+              style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
+              activeOpacity={0.8}
+              disabled={isYesLocked}
+              onPress={() => handleOpenTradeModal(market, yesOption)}
+            >
+              <Text style={styles.binaryOptionLabelYes}>YES</Text>
+              <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
+              activeOpacity={0.8}
+              disabled={isNoLocked}
+              onPress={() => handleOpenTradeModal(market, noOption)}
+            >
+              <Text style={styles.binaryOptionLabelNo}>NO</Text>
+              <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.cardFooterRow}>
+          <View>
+            <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
+            <Text style={styles.cardPoolValue}>
+              ₦{(market.poolAmount || 2500000).toLocaleString()}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() =>
+              handleOpenTradeModal(
+                market,
+                isMultiChoice ? market.options?.[0] : (isYesLocked && !isNoLocked ? noOption : yesOption)
+              )
+            }
+            style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
+            activeOpacity={0.8}
+            disabled={isAllLocked}
+          >
+            <Text style={styles.quickTradePillText}>
+              {isAllLocked ? 'Locked' : isMultiChoice ? 'Trade Option' : 'Trade YES / NO'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <LinearGradient
@@ -838,6 +995,45 @@ export default function HomeScreen() {
               </View>
             )}
 
+          {/* SECTION: ⚽ Sports & Outright Predictions */}
+          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'FOOTBALL') &&
+            filteredSportsPredictions.length > 0 && (
+              <View style={styles.categorySection}>
+                <View style={styles.categoryHeaderRow}>
+                  <View style={styles.categoryTitleBox}>
+                    <Text style={styles.categorySectionEmoji}>⚽</Text>
+                    <Text style={styles.categorySectionTitle}>Football &amp; Sports Predictions</Text>
+                    <View style={styles.categoryCountBadge}>
+                      <Text style={styles.categoryCountText}>{filteredSportsPredictions.length}</Text>
+                    </View>
+                  </View>
+                  {filteredSportsPredictions.length > CARDS_PER_CATEGORY && !searchText.trim() && (
+                    <TouchableOpacity
+                      onPress={() => setExpandedSportsPredictions(!expandedSportsPredictions)}
+                      style={styles.viewAllBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.viewAllBtnText}>
+                        {expandedSportsPredictions ? 'Show Less' : `View All (${filteredSportsPredictions.length})`}
+                      </Text>
+                      {expandedSportsPredictions ? (
+                        <ChevronUp size={14} color="#00D285" />
+                      ) : (
+                        <ChevronDown size={14} color="#00D285" />
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View style={styles.cardsGrid}>
+                  {(expandedSportsPredictions || searchText.trim()
+                    ? filteredSportsPredictions
+                    : filteredSportsPredictions.slice(0, CARDS_PER_CATEGORY)
+                  ).map(renderMarketPredictionCard)}
+                </View>
+              </View>
+            )}
+
           {/* SECTION: 🏛️ Politics & Policy Contracts */}
           {(activeCategoryTab === 'ALL' || activeCategoryTab === 'POLITICS') &&
             filteredPolitics.length > 0 && (
@@ -873,91 +1069,7 @@ export default function HomeScreen() {
                   {(expandedPolitics || searchText.trim()
                     ? filteredPolitics
                     : filteredPolitics.slice(0, CARDS_PER_CATEGORY)
-                  ).map((market) => {
-                    const yesOption = market.options?.find(
-                      (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
-                    ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
-                    const noOption = market.options?.find(
-                      (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
-                    ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
-                    const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
-                    const noOdds = market.noOdds || noOption?.odds || 1.95;
-                    const isYesLocked = isContractLocked(market, 'YES', yesOdds);
-                    const isNoLocked = isContractLocked(market, 'NO', noOdds);
-                    const isAllLocked = isYesLocked && isNoLocked;
-                    return (
-                      <View key={market._id} style={styles.richMarketCard}>
-                        <View style={styles.cardTopRow}>
-                          <View style={styles.cardCategoryGroup}>
-                            <Text style={styles.cardCategoryBadge}>
-                              {(market.subcategory || 'POLICY & GOVERNANCE').toUpperCase()}
-                            </Text>
-                            <TouchableOpacity
-                              onPress={() => setSelectedInfoContract(getContractDetailInfo(market, false))}
-                              style={styles.infoIconButton}
-                              activeOpacity={0.7}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Info size={13} color="#00D285" />
-                            </TouchableOpacity>
-                          </View>
-                          {isAllLocked ? (
-                            <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
-                              <Lock size={11} color="#EF4444" />
-                              <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
-                            </View>
-                          ) : (
-                            <View style={styles.closingBadge}>
-                              <Clock size={11} color="#64748B" />
-                              <Text style={styles.closingBadgeText}>Closes Soon</Text>
-                            </View>
-                          )}
-                        </View>
-
-                        <Text style={styles.marketTitleText}>{market.title}</Text>
-
-                        {/* Outcomes & Trade Buttons */}
-                        <View style={styles.binaryChoiceRow}>
-                          <TouchableOpacity
-                            style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isYesLocked}
-                            onPress={() => handleOpenTradeModal(market, yesOption)}
-                          >
-                            <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                            <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isNoLocked}
-                            onPress={() => handleOpenTradeModal(market, noOption)}
-                          >
-                            <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                            <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.cardFooterRow}>
-                          <View>
-                            <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
-                            <Text style={styles.cardPoolValue}>
-                              ₦{(market.poolAmount || 2500000).toLocaleString()}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => handleOpenTradeModal(market, isYesLocked && !isNoLocked ? noOption : yesOption)}
-                            style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isAllLocked}
-                          >
-                            <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade YES / NO'}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  })}
+                  ).map(renderMarketPredictionCard)}
                 </View>
               </View>
             )}
@@ -997,91 +1109,7 @@ export default function HomeScreen() {
                   {(expandedLiveEvent || searchText.trim()
                     ? filteredLiveEvents
                     : filteredLiveEvents.slice(0, CARDS_PER_CATEGORY)
-                  ).map((market) => {
-                    const yesOption = market.options?.find(
-                      (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
-                    ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
-                    const noOption = market.options?.find(
-                      (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
-                    ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
-                    const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
-                    const noOdds = market.noOdds || noOption?.odds || 1.95;
-                    const isYesLocked = isContractLocked(market, 'YES', yesOdds);
-                    const isNoLocked = isContractLocked(market, 'NO', noOdds);
-                    const isAllLocked = isYesLocked && isNoLocked;
-                    return (
-                      <View key={market._id} style={styles.richMarketCard}>
-                        <View style={styles.cardTopRow}>
-                          <View style={styles.cardCategoryGroup}>
-                            <Text style={styles.cardCategoryBadge}>
-                              {(market.subcategory || 'REAL LIFE EVENTS').toUpperCase()}
-                            </Text>
-                            <TouchableOpacity
-                              onPress={() => setSelectedInfoContract(getContractDetailInfo(market, false))}
-                              style={styles.infoIconButton}
-                              activeOpacity={0.7}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Info size={13} color="#00D285" />
-                            </TouchableOpacity>
-                          </View>
-                          {isAllLocked ? (
-                            <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
-                              <Lock size={11} color="#EF4444" />
-                              <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
-                            </View>
-                          ) : (
-                            <View style={styles.closingBadge}>
-                              <Clock size={11} color="#64748B" />
-                              <Text style={styles.closingBadgeText}>Closes Soon</Text>
-                            </View>
-                          )}
-                        </View>
-
-                        <Text style={styles.marketTitleText}>{market.title}</Text>
-
-                        {/* Outcomes & Trade Buttons */}
-                        <View style={styles.binaryChoiceRow}>
-                          <TouchableOpacity
-                            style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isYesLocked}
-                            onPress={() => handleOpenTradeModal(market, yesOption)}
-                          >
-                            <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                            <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isNoLocked}
-                            onPress={() => handleOpenTradeModal(market, noOption)}
-                          >
-                            <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                            <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.cardFooterRow}>
-                          <View>
-                            <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
-                            <Text style={styles.cardPoolValue}>
-                              ₦{(market.poolAmount || 2500000).toLocaleString()}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => handleOpenTradeModal(market, isYesLocked && !isNoLocked ? noOption : yesOption)}
-                            style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isAllLocked}
-                          >
-                            <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade YES / NO'}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  })}
+                  ).map(renderMarketPredictionCard)}
                 </View>
               </View>
             )}
@@ -1613,93 +1641,48 @@ export default function HomeScreen() {
                   {(expandedEntertainment || searchText.trim()
                     ? filteredEntertainment
                     : filteredEntertainment.slice(0, CARDS_PER_CATEGORY)
-                  ).map((market) => {
-                    const yesOption = market.options?.find(
-                      (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
-                    ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
-                    const noOption = market.options?.find(
-                      (o: any) => o.id?.toLowerCase() === 'no' || o.label?.toLowerCase() === 'no'
-                    ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
-                    const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
-                    const noOdds = market.noOdds || noOption?.odds || 1.95;
-                    const isYesLocked = isContractLocked(market, 'YES', yesOdds);
-                    const isNoLocked = isContractLocked(market, 'NO', noOdds);
-                    const isAllLocked = isYesLocked && isNoLocked;
-                    return (
-                      <View key={market._id} style={styles.richMarketCard}>
-                        <View style={styles.cardTopRow}>
-                          <View style={styles.cardCategoryGroup}>
-                            <Text style={styles.cardCategoryBadge}>
-                              {(market.subcategory || 'MUSIC & CULTURE').toUpperCase()}
-                            </Text>
-                            <TouchableOpacity
-                              onPress={() => setSelectedInfoContract(getContractDetailInfo(market, false))}
-                              style={styles.infoIconButton}
-                              activeOpacity={0.7}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Info size={13} color="#00D285" />
-                            </TouchableOpacity>
-                          </View>
-                          {isAllLocked ? (
-                            <View style={[styles.closingBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
-                              <Lock size={11} color="#EF4444" />
-                              <Text style={[styles.closingBadgeText, { color: '#EF4444' }]}>Locked</Text>
-                            </View>
-                          ) : (
-                            <View style={styles.closingBadge}>
-                              <Sparkles size={11} color="#8B5CF6" />
-                              <Text style={[styles.closingBadgeText, { color: '#8B5CF6' }]}>Trending</Text>
-                            </View>
-                          )}
-                        </View>
-
-                        <Text style={styles.marketTitleText}>{market.title}</Text>
-
-                        <View style={styles.binaryChoiceRow}>
-                          <TouchableOpacity
-                            style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isYesLocked}
-                            onPress={() => handleOpenTradeModal(market, yesOption)}
-                          >
-                            <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                            <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isNoLocked}
-                            onPress={() => handleOpenTradeModal(market, noOption)}
-                          >
-                            <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                            <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                          </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.cardFooterRow}>
-                          <View>
-                            <Text style={styles.cardPoolLabel}>MARKET VOLUME</Text>
-                            <Text style={styles.cardPoolValue}>
-                              ₦{(market.poolAmount || 1950000).toLocaleString()}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => handleOpenTradeModal(market, isYesLocked && !isNoLocked ? noOption : yesOption)}
-                            style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
-                            activeOpacity={0.8}
-                            disabled={isAllLocked}
-                          >
-                            <Text style={styles.quickTradePillText}>{isAllLocked ? 'Locked' : 'Trade YES / NO'}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  })}
+                  ).map(renderMarketPredictionCard)}
                 </View>
               </View>
             )}
+
+          {/* SECTION: 🌐 Special & Other Prediction Markets */}
+          {activeCategoryTab === 'ALL' && filteredOtherPredictions.length > 0 && (
+            <View style={styles.categorySection}>
+              <View style={styles.categoryHeaderRow}>
+                <View style={styles.categoryTitleBox}>
+                  <Text style={styles.categorySectionEmoji}>🌐</Text>
+                  <Text style={styles.categorySectionTitle}>Special &amp; Custom Markets</Text>
+                  <View style={styles.categoryCountBadge}>
+                    <Text style={styles.categoryCountText}>{filteredOtherPredictions.length}</Text>
+                  </View>
+                </View>
+                {filteredOtherPredictions.length > CARDS_PER_CATEGORY && !searchText.trim() && (
+                  <TouchableOpacity
+                    onPress={() => setExpandedOtherPredictions(!expandedOtherPredictions)}
+                    style={styles.viewAllBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.viewAllBtnText}>
+                      {expandedOtherPredictions ? 'Show Less' : `View All (${filteredOtherPredictions.length})`}
+                    </Text>
+                    {expandedOtherPredictions ? (
+                      <ChevronUp size={14} color="#00D285" />
+                    ) : (
+                      <ChevronDown size={14} color="#00D285" />
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.cardsGrid}>
+                {(expandedOtherPredictions || searchText.trim()
+                  ? filteredOtherPredictions
+                  : filteredOtherPredictions.slice(0, CARDS_PER_CATEGORY)
+                ).map(renderMarketPredictionCard)}
+              </View>
+            </View>
+          )}
 
           {/* Empty State when no visible cards exist */}
           {!hasAnyVisibleCards && (
@@ -2238,6 +2221,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginBottom: 10,
+  },
+  multiChoiceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  multiChoiceCard: {
+    width: '48%',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  multiChoiceLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    flex: 1,
+    marginRight: 4,
+  },
+  multiChoiceOdds: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#00D285',
   },
   binaryOptionBtn: {
     flex: 1,
