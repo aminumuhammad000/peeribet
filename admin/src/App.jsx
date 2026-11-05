@@ -5361,10 +5361,10 @@ export default function App() {
                           <span style={{ fontSize: 18 }}>⚽</span>
                           <div>
                             <label className="settings-label" style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: 'var(--text-white)' }}>
-                              API-Football (<a href="https://www.api-football.com/" target="_blank" rel="noopener noreferrer" style={{ color: '#00D285', textDecoration: 'underline' }}>https://www.api-football.com/</a>)
+                              Football & Sports API (<a href="https://highlightly.net/football-api/documentation/" target="_blank" rel="noopener noreferrer" style={{ color: '#00D285', textDecoration: 'underline' }}>Highlightly</a> / <a href="https://www.api-football.com/" target="_blank" rel="noopener noreferrer" style={{ color: '#00D285', textDecoration: 'underline' }}>API-Football</a>)
                             </label>
                             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                              API-Sports Direct Endpoint: <code>https://v3.football.api-sports.io</code> (header: <code>x-apisports-key</code>)
+                              Supported: Highlightly (<code>soccer.highlightly.net</code>) | API-Sports (<code>v3.football.api-sports.io</code>) | RapidAPI
                             </span>
                           </div>
                         </div>
@@ -5391,7 +5391,7 @@ export default function App() {
                           type={showApiKeys ? 'text' : 'password'}
                           className="vault-input"
                           style={{ flex: '1 1 300px' }}
-                          placeholder={hasEnvFootballApiKey ? `Leave blank to use .env fallback (${envFootballApiKeyMasked}) or enter custom key...` : "Enter your API key from https://www.api-football.com/..."}
+                          placeholder={hasEnvFootballApiKey ? `Leave blank to use .env fallback (${envFootballApiKeyMasked}) or enter custom key...` : "Enter your API key from Highlightly (UUID) or API-Football..."}
                           value={footballApiKey}
                           onChange={(e) => {
                             setFootballApiKey(e.target.value);

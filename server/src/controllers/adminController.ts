@@ -452,7 +452,7 @@ export const testFootballApi = async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         source,
-        message: 'The value entered appears to be a URL instead of an API Key. Please copy only your 32-character key from the API-Football Dashboard (https://dashboard.api-football.com/) or your RapidAPI key.'
+        message: 'The value entered appears to be a URL instead of an API Key. Please enter your API key from Highlightly (https://highlightly.net/football-api/documentation/), API-Football, or RapidAPI.'
       });
     }
 
@@ -463,35 +463,62 @@ export const testFootballApi = async (req: Request, res: Response) => {
     let providerName = 'API-Sports Direct (v3.football.api-sports.io)';
     let failureReasons: string[] = [];
 
-    // Attempt 1: Direct API-Sports endpoint (Used by https://dashboard.api-football.com/)
+    // Attempt 0: Highlightly Football API (https://soccer.highlightly.net)
+    const isHighlightlyFormat = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(keyToTest);
     try {
-      const response = await axios.get('https://v3.football.api-sports.io/status', {
+      const hResponse = await axios.get('https://soccer.highlightly.net/leagues?limit=1', {
         headers: {
-          'x-apisports-key': keyToTest,
+          'x-rapidapi-key': keyToTest,
         },
         timeout: 10000,
       });
 
-      const data = response.data;
-      if (data.errors && Object.keys(data.errors).length > 0) {
-        const errorMsg = typeof data.errors === 'string' ? data.errors : Object.values(data.errors).join(', ');
-        failureReasons.push(`API-Sports Direct: ${errorMsg}`);
-      } else if (data.response && (data.response.account || data.response.subscription)) {
+      const hData = hResponse.data;
+      if (hData && (hData.plan || Array.isArray(hData.data))) {
         testSuccess = true;
-        verifiedAccount = data.response.account;
-        verifiedSub = data.response.subscription;
-        verifiedReq = data.response.requests;
-        providerName = 'API-Sports Direct (v3.football.api-sports.io)';
+        verifiedAccount = { firstname: 'Highlightly', lastname: 'Subscriber', email: 'verified' };
+        verifiedSub = { plan: hData.plan?.tier || 'Basic', active: true };
+        verifiedReq = { current: 'Active', limit_day: hData.plan?.message || 'Standard Quota' };
+        providerName = 'Highlightly Football API (soccer.highlightly.net)';
       }
-    } catch (err: any) {
-      const errDetails = err.response?.data?.errors
-        ? (typeof err.response.data.errors === 'string' ? err.response.data.errors : Object.values(err.response.data.errors).join(', '))
-        : err.response?.data?.message || err.message;
-      failureReasons.push(`API-Sports Direct: ${errDetails}`);
+    } catch (hErr: any) {
+      if (isHighlightlyFormat) {
+        const hErrDetails = hErr.response?.data?.message || hErr.message;
+        failureReasons.push(`Highlightly: ${hErrDetails}`);
+      }
+    }
+
+    // Attempt 1: Direct API-Sports endpoint (Used by https://dashboard.api-football.com/)
+    if (!testSuccess && !isHighlightlyFormat) {
+      try {
+        const response = await axios.get('https://v3.football.api-sports.io/status', {
+          headers: {
+            'x-apisports-key': keyToTest,
+          },
+          timeout: 10000,
+        });
+
+        const data = response.data;
+        if (data.errors && Object.keys(data.errors).length > 0) {
+          const errorMsg = typeof data.errors === 'string' ? data.errors : Object.values(data.errors).join(', ');
+          failureReasons.push(`API-Sports Direct: ${errorMsg}`);
+        } else if (data.response && (data.response.account || data.response.subscription)) {
+          testSuccess = true;
+          verifiedAccount = data.response.account;
+          verifiedSub = data.response.subscription;
+          verifiedReq = data.response.requests;
+          providerName = 'API-Sports Direct (v3.football.api-sports.io)';
+        }
+      } catch (err: any) {
+        const errDetails = err.response?.data?.errors
+          ? (typeof err.response.data.errors === 'string' ? err.response.data.errors : Object.values(err.response.data.errors).join(', '))
+          : err.response?.data?.message || err.message;
+        failureReasons.push(`API-Sports Direct: ${errDetails}`);
+      }
     }
 
     // Attempt 2: RapidAPI Hub endpoint (If key was subscribed via RapidAPI marketplace)
-    if (!testSuccess) {
+    if (!testSuccess && !isHighlightlyFormat) {
       try {
         const rResponse = await axios.get('https://api-football-v1.p.rapidapi.com/v3/status', {
           headers: {
@@ -524,7 +551,7 @@ export const testFootballApi = async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         source,
-        message: `API-Football verification failed: ${failureReasons.join(' | ')}. Please check that your email is verified at https://dashboard.api-football.com/ and your API key is copied correctly.`
+        message: `Football API verification failed: ${failureReasons.join(' | ') || 'Invalid API token'}. Please check that your API key is copied correctly from Highlightly or API-Sports.`
       });
     }
 
@@ -532,7 +559,7 @@ export const testFootballApi = async (req: Request, res: Response) => {
       success: true,
       source,
       provider: providerName,
-      message: `API-Football verified successfully via ${providerName}!`,
+      message: `Football API verified successfully via ${providerName}!`,
       details: {
         accountName: verifiedAccount ? `${verifiedAccount.firstname || ''} ${verifiedAccount.lastname || ''}`.trim() : 'Account verified',
         email: verifiedAccount?.email || 'N/A',
