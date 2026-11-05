@@ -343,11 +343,12 @@ export const footballApiService = {
   },
 
   // Get leagues
-  getLeagues: async (params?: { id?: number; name?: string; country?: string; season?: number }) => {
+  getLeagues: async (params?: { id?: number; name?: string; country?: string; season?: number; limit?: number; offset?: number }) => {
     try {
       const apiKey = await getFootballApiKey();
       if (isHighlightlyKey(apiKey)) {
-        const queryParams: any = { limit: 50 };
+        const queryParams: any = { limit: params?.limit || 50 };
+        if (params?.offset !== undefined) queryParams.offset = params.offset;
         if (params?.name) queryParams.leagueName = params.name;
         if (params?.season) queryParams.season = params.season;
         if (params?.country) queryParams.countryName = params.country;
