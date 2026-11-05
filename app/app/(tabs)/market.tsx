@@ -48,9 +48,12 @@ import { getSocket } from '../../services/socketService';
 
 export const CATEGORIES = [
   { id: 'Football', label: 'Football', icon: '⚽', isSports: true },
+  { id: 'Basketball', label: 'Basketball', icon: '🏀', isSports: true },
+  { id: 'Cricket', label: 'Cricket', icon: '🏏', isSports: true },
+  { id: 'Rugby', label: 'Rugby', icon: '🏉', isSports: true },
+  { id: 'Hockey', label: 'Hockey', icon: '🏒', isSports: true },
   { id: 'Boxing', label: 'Boxing', icon: '🥊', isSports: true },
   { id: 'UFC', label: 'UFC', icon: '🥋', isSports: true },
-  { id: 'Basketball', label: 'Basketball', icon: '🏀', isSports: true },
   { id: 'Politics', label: 'Politics', icon: '🏛️', isSports: false },
   { id: 'Entertainment', label: 'Entertainment', icon: '🎬', isSports: false },
   { id: 'Live Event Prediction', label: 'Live event Prediction', icon: '🌍', isSports: false },
@@ -98,8 +101,30 @@ const isBasketballMatch = (m: any) => {
   return false;
 };
 
+const isCricketMatch = (m: any) => {
+  const s = String(m?.sport || '').toLowerCase();
+  return s.includes('cricket');
+};
+
+const isRugbyMatch = (m: any) => {
+  const s = String(m?.sport || '').toLowerCase();
+  return s.includes('rugby');
+};
+
+const isHockeyMatch = (m: any) => {
+  const s = String(m?.sport || '').toLowerCase();
+  return s.includes('hockey') || s.includes('nhl');
+};
+
 const isFootballMatch = (m: any) => {
-  return !isBoxingMatch(m) && !isUFCMatch(m) && !isBasketballMatch(m);
+  return (
+    !isBoxingMatch(m) &&
+    !isUFCMatch(m) &&
+    !isBasketballMatch(m) &&
+    !isCricketMatch(m) &&
+    !isRugbyMatch(m) &&
+    !isHockeyMatch(m)
+  );
 };
 
 const STAKE_PRESETS = [500, 1000, 2500, 5000, 10000];
@@ -145,22 +170,27 @@ export default function MarketScreen() {
   // Fetch Sports Matches strictly categorized
   const fetchMatches = async (sportCategory: string) => {
     try {
-      let normalized = 'Football';
-      if (sportCategory === 'Football' || sportCategory === 'European Football') normalized = 'Football';
-      else if (sportCategory === 'Boxing') normalized = 'Boxing';
-      else if (sportCategory === 'UFC' || sportCategory === 'UFC & Boxing') normalized = 'UFC';
-      else if (sportCategory === 'Basketball' || sportCategory === 'NBA Basketball') normalized = 'Basketball';
+      if (sportCategory === 'Boxing' || sportCategory === 'UFC') {
+        setMatches([]);
+        return;
+      }
+
+      let normalized = sportCategory;
+      if (sportCategory === 'European Football') normalized = 'Football';
+      else if (sportCategory === 'NBA Basketball') normalized = 'Basketball';
 
       const data = await matchService.getMatches({ sport: normalized, limit: 50 });
       let list = data.matches || [];
 
       // Client-side categorization filter safeguard
-      if (normalized === 'Boxing') {
-        list = list.filter(isBoxingMatch);
-      } else if (normalized === 'UFC') {
-        list = list.filter(isUFCMatch);
-      } else if (normalized === 'Basketball') {
+      if (normalized === 'Basketball') {
         list = list.filter(isBasketballMatch);
+      } else if (normalized === 'Cricket') {
+        list = list.filter(isCricketMatch);
+      } else if (normalized === 'Rugby') {
+        list = list.filter(isRugbyMatch);
+      } else if (normalized === 'Hockey') {
+        list = list.filter(isHockeyMatch);
       } else if (normalized === 'Football') {
         list = list.filter(isFootballMatch);
       }
@@ -771,7 +801,25 @@ export default function MarketScreen() {
 
               {/* Sports Fixtures */}
               {isCurrentSports ? (
-                filteredMatches.length === 0 && predictionMarkets.length === 0 ? (
+                selectedCategory === 'Boxing' || selectedCategory === 'UFC' ? (
+                  <View style={styles.comingSoonCard}>
+                    <View style={styles.comingSoonIconCircle}>
+                      <Text style={{ fontSize: 32 }}>{selectedCategory === 'Boxing' ? '🥊' : '🥋'}</Text>
+                    </View>
+                    <Text style={styles.comingSoonTitle}>
+                      {selectedCategory === 'Boxing' ? 'Boxing Championship Contracts' : 'UFC & MMA Fight Contracts'}
+                    </Text>
+                    <Text style={styles.comingSoonDesc}>
+                      {selectedCategory === 'Boxing'
+                        ? 'Championship fight cards and round prediction contracts are coming soon once official feeds go live.'
+                        : 'Octagon contracts and title bout proposition markets will be enabled in the upcoming feed update.'}
+                    </Text>
+                    <View style={styles.comingSoonBadge}>
+                      <Sparkles size={14} color="#F59E0B" />
+                      <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+                    </View>
+                  </View>
+                ) : filteredMatches.length === 0 && predictionMarkets.length === 0 ? (
                   <View style={styles.emptyCard}>
                     <Flame size={28} color="#64748B" style={{ marginBottom: 8 }} />
                     <Text style={styles.emptyTitle}>No matches scheduled</Text>
@@ -1395,6 +1443,61 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     marginTop: 16,
+  },
+  comingSoonCard: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    backgroundColor: 'rgba(19, 28, 50, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginTop: 16,
+  },
+  comingSoonIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  comingSoonTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    fontFamily: 'Inter',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  comingSoonDesc: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontFamily: 'Inter',
+    lineHeight: 19,
+    textAlign: 'center',
+    marginBottom: 16,
+    maxWidth: 320,
+  },
+  comingSoonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  comingSoonBadgeText: {
+    color: '#F59E0B',
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'Inter',
   },
   emptyTitle: {
     color: '#FFFFFF',

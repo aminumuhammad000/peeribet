@@ -82,12 +82,14 @@ export const refreshMatchesFromProvider = async (targetDate?: string) => {
       { $set: { status: 'FINISHED' } }
     ).catch(() => {});
 
-    // 2. Mark demo fixtures without fixtureId as FINISHED so real matches take precedence
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    await Match.updateMany(
-      { fixtureId: null as any, startTime: { $lt: oneDayAgo } },
-      { $set: { status: 'FINISHED' } }
-    ).catch(() => {});
+    // 2. Purge fake/demo matches without fixtureId and demo Boxing/UFC matches completely
+    await Match.deleteMany({
+      $or: [
+        { fixtureId: null as any },
+        { fixtureId: { $exists: false } },
+        { sport: { $in: ['Boxing', 'UFC'] } },
+      ],
+    }).catch(() => {});
 
     // 3. Determine target dates: if targetDate specified, use that, else sync next 4 days
     const datesToSync: string[] = targetDate 
@@ -97,6 +99,15 @@ export const refreshMatchesFromProvider = async (targetDate?: string) => {
           d.setDate(d.getDate() + offset);
           return d.toISOString().split('T')[0];
         });
+
+    const ALL_ACTIVE_SPORTS: { key: any; label: string }[] = [
+      { key: 'basketball', label: 'Basketball' },
+      { key: 'cricket', label: 'Cricket' },
+      { key: 'rugby', label: 'Rugby' },
+      { key: 'hockey', label: 'Hockey' },
+      { key: 'volleyball', label: 'Volleyball' },
+      { key: 'handball', label: 'Handball' },
+    ];
 
     for (const syncDate of datesToSync) {
       // Fetch football fixtures and odds
@@ -179,45 +190,47 @@ export const refreshMatchesFromProvider = async (targetDate?: string) => {
         );
       }
 
-      // Also sync Basketball matches from Highlightly All Sports API
-      try {
-        const basketballMatches = await sportsApiService.getMatchesBySport('basketball', syncDate, { limit: 25 });
-        for (const bMatch of basketballMatches) {
-          if (!bMatch || !bMatch.fixture) continue;
-          const { fixture, league, teams } = bMatch;
-          const fixtureStartTime = new Date(fixture.date);
-          if (fixtureStartTime.getTime() < Date.now() - 3 * 60 * 60 * 1000) continue;
-          const resolvedStatus = fixtureStartTime <= new Date() ? 'LIVE' : 'UPCOMING';
+      // Sync All Other Supported Sports (Basketball, Cricket, Rugby, Hockey, Volleyball, Handball)
+      for (const sportItem of ALL_ACTIVE_SPORTS) {
+        try {
+          const sportMatches = await sportsApiService.getMatchesBySport(sportItem.key, syncDate, { limit: 25 });
+          for (const sMatch of sportMatches) {
+            if (!sMatch || !sMatch.fixture) continue;
+            const { fixture, league, teams } = sMatch;
+            const fixtureStartTime = new Date(fixture.date);
+            if (fixtureStartTime.getTime() < Date.now() - 4 * 60 * 60 * 1000) continue;
+            const resolvedStatus = fixtureStartTime <= new Date() ? 'LIVE' : 'UPCOMING';
 
-          const existingB = await Match.findOne({ fixtureId: fixture.id });
-          const bPool = existingB?.poolAmount && existingB.poolAmount > 0
-            ? existingB.poolAmount
-            : 2000000 + Math.floor(Math.random() * 2500000);
+            const existingS = await Match.findOne({ fixtureId: fixture.id });
+            const sPool = existingS?.poolAmount && existingS.poolAmount > 0
+              ? existingS.poolAmount
+              : 1800000 + Math.floor(Math.random() * 2500000);
 
-          await Match.findOneAndUpdate(
-            { fixtureId: fixture.id },
-            {
-              $set: {
-                sport: 'Basketball',
-                homeTeam: teams?.home?.name || 'Home Team',
-                awayTeam: teams?.away?.name || 'Away Team',
-                homeLogo: teams?.home?.logo || '',
-                awayLogo: teams?.away?.logo || '',
-                league: league?.name || 'Basketball League',
-                startTime: fixtureStartTime,
-                status: resolvedStatus,
-                scoreHome: bMatch.goals?.home || 0,
-                scoreAway: bMatch.goals?.away || 0,
-                odds: generateDefaultOdds(1.75, 2.05),
-                poolAmount: bPool,
-                isPromoted: true,
+            await Match.findOneAndUpdate(
+              { fixtureId: fixture.id },
+              {
+                $set: {
+                  sport: sportItem.label,
+                  homeTeam: teams?.home?.name || 'Home Team',
+                  awayTeam: teams?.away?.name || 'Away Team',
+                  homeLogo: teams?.home?.logo || '',
+                  awayLogo: teams?.away?.logo || '',
+                  league: league?.name || `${sportItem.label} League`,
+                  startTime: fixtureStartTime,
+                  status: resolvedStatus,
+                  scoreHome: sMatch.goals?.home || 0,
+                  scoreAway: sMatch.goals?.away || 0,
+                  odds: generateDefaultOdds(1.80, 2.15),
+                  poolAmount: sPool,
+                  isPromoted: true,
+                },
               },
-            },
-            { upsert: true, returnDocument: 'after' }
-          );
+              { upsert: true, returnDocument: 'after' }
+            );
+          }
+        } catch (sErr: any) {
+          // Continue if any specific sport is rate-limited or unavailable
         }
-      } catch (bErr: any) {
-        // Silently continue if basketball rate-limited
       }
     }
     
