@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import Match from '../models/Match';
-import { footballApiService } from '../services/footballApiService';
+import { footballApiService, sportsApiService } from '../services/footballApiService';
 import { resolveTargetMatchOrMarket } from '../utils/fixtureResolver';
 
 const statusMap: Record<string, 'UPCOMING' | 'LIVE' | 'FINISHED' | 'SUSPENDED'> = {
@@ -14,6 +14,21 @@ const statusMap: Record<string, 'UPCOMING' | 'LIVE' | 'FINISHED' | 'SUSPENDED'> 
   AET: 'FINISHED',
   PEN: 'FINISHED',
   SUSP: 'SUSPENDED',
+};
+
+const generateDefaultOdds = (homeSeed = 1.9, awaySeed = 2.4) => {
+  const home = parseFloat((homeSeed + (Math.random() * 0.4 - 0.2)).toFixed(2));
+  const away = parseFloat((awaySeed + (Math.random() * 0.4 - 0.2)).toFixed(2));
+  const draw = parseFloat((3.10 + (Math.random() * 0.4 - 0.2)).toFixed(2));
+  return {
+    home: Math.max(1.3, home),
+    draw: Math.max(2.6, draw),
+    away: Math.max(1.4, away),
+    over25: 1.85,
+    under25: 1.95,
+    bttsYes: 1.80,
+    bttsNo: 2.00,
+  };
 };
 
 const parseOdds = (bookmakers: any[]) => {
@@ -60,74 +75,150 @@ const parseOdds = (bookmakers: any[]) => {
 
 export const refreshMatchesFromProvider = async (targetDate?: string) => {
   try {
-    const today = targetDate || new Date().toISOString().split('T')[0];
-    
-    // Fetch fixtures and odds in parallel
-    const [fixtures, oddsResponse] = await Promise.all([
-      footballApiService.getFixturesByDate(today, 'Africa/Lagos').catch(() => []),
-      footballApiService.getOddsByDate(today).catch(() => []),
-    ]);
+    // 1. Clean up stale past matches: any matches starting > 4 hours ago still marked LIVE or UPCOMING
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    await Match.updateMany(
+      { status: { $in: ['LIVE', 'UPCOMING'] }, startTime: { $lt: fourHoursAgo } },
+      { $set: { status: 'FINISHED' } }
+    ).catch(() => {});
 
-    // Map odds by fixture ID for quick lookup
-    const oddsMap = new Map();
-    if (Array.isArray(oddsResponse)) {
-      oddsResponse.forEach((oddItem: any) => {
-        if (oddItem.fixture && oddItem.fixture.id) {
-          oddsMap.set(oddItem.fixture.id, parseOdds(oddItem.bookmakers));
+    // 2. Mark demo fixtures without fixtureId as FINISHED so real matches take precedence
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await Match.updateMany(
+      { fixtureId: null as any, startTime: { $lt: oneDayAgo } },
+      { $set: { status: 'FINISHED' } }
+    ).catch(() => {});
+
+    // 3. Determine target dates: if targetDate specified, use that, else sync next 4 days
+    const datesToSync: string[] = targetDate 
+      ? [targetDate] 
+      : [0, 1, 2, 3].map((offset) => {
+          const d = new Date();
+          d.setDate(d.getDate() + offset);
+          return d.toISOString().split('T')[0];
+        });
+
+    for (const syncDate of datesToSync) {
+      // Fetch football fixtures and odds
+      const [fixtures, oddsResponse] = await Promise.all([
+        footballApiService.getFixturesByDate(syncDate, 'Africa/Lagos').catch(() => []),
+        footballApiService.getOddsByDate(syncDate).catch(() => []),
+      ]);
+
+      const oddsMap = new Map();
+      if (Array.isArray(oddsResponse)) {
+        oddsResponse.forEach((oddItem: any) => {
+          if (oddItem.fixture && oddItem.fixture.id) {
+            oddsMap.set(oddItem.fixture.id, parseOdds(oddItem.bookmakers));
+          }
+        });
+      }
+
+      for (const item of fixtures) {
+        if (!item || !item.fixture) continue;
+        const { fixture, league, teams, goals } = item;
+        const fixtureStatus = statusMap[fixture?.status?.short] || 'UPCOMING';
+        const now = new Date();
+        const fixtureStartTime = new Date(fixture?.date || 0);
+        const shouldBeLive = fixtureStartTime <= now && fixtureStatus === 'UPCOMING';
+        const resolvedStatus = shouldBeLive ? 'LIVE' : fixtureStatus;
+
+        if (resolvedStatus === 'FINISHED') continue;
+
+        let matchOdds = oddsMap.get(fixture.id);
+        if (!matchOdds || matchOdds.home <= 1) {
+          matchOdds = generateDefaultOdds();
         }
-      });
-    }
 
-    for (const item of fixtures) {
-      if (!item || !item.fixture) continue;
-      const { fixture, league, teams, goals } = item;
-      const fixtureStatus = statusMap[fixture?.status?.short] || 'UPCOMING';
-      const now = new Date();
-      const fixtureStartTime = new Date(fixture?.date || 0);
-      const shouldBeLive = fixtureStartTime <= now && fixtureStatus === 'UPCOMING';
-      const resolvedStatus = shouldBeLive ? 'LIVE' : fixtureStatus;
+        const highProfileLeagues = [
+          'premier league',
+          'champions league',
+          'uefa champions league',
+          'la liga',
+          'serie a',
+          'bundesliga',
+          'ligue 1',
+          'world cup',
+          'fa cup',
+          'copa del rey',
+          'major league soccer',
+          'mls',
+          'eredivisie',
+          'primeira liga',
+          'copa libertadores',
+          'copa sudamericana'
+        ];
+        const leagueLower = (league?.name || '').toLowerCase();
+        const isHighProfile = highProfileLeagues.some((l) => leagueLower.includes(l));
 
-      const matchOdds = oddsMap.get(fixture.id) || parseOdds([]);
+        const existing = await Match.findOne({ fixtureId: fixture.id });
+        const poolAmount = existing?.poolAmount && existing.poolAmount > 0
+          ? existing.poolAmount
+          : 1500000 + Math.floor(Math.random() * 3500000);
 
-      const highProfileLeagues = [
-        'premier league',
-        'champions league',
-        'uefa champions league',
-        'la liga',
-        'serie a',
-        'bundesliga',
-        'ligue 1',
-        'world cup',
-        'fa cup',
-        'copa del rey',
-        'major league soccer',
-        'mls',
-        'eredivisie',
-        'primeira liga'
-      ];
-      const leagueLower = (league?.name || '').toLowerCase();
-      const isHighProfile = highProfileLeagues.some((l) => leagueLower.includes(l));
-
-      await Match.findOneAndUpdate(
-        { fixtureId: fixture.id },
-        {
-          $set: {
-            sport: 'Football',
-            homeTeam: teams?.home?.name || 'Home Team',
-            awayTeam: teams?.away?.name || 'Away Team',
-            homeLogo: teams?.home?.logo || '',
-            awayLogo: teams?.away?.logo || '',
-            league: league?.name || 'Football League',
-            startTime: new Date(fixture.date),
-            status: resolvedStatus,
-            scoreHome: goals?.home || 0,
-            scoreAway: goals?.away || 0,
-            odds: matchOdds,
-            ...(isHighProfile ? { isPromoted: true } : {}),
+        await Match.findOneAndUpdate(
+          { fixtureId: fixture.id },
+          {
+            $set: {
+              sport: 'Football',
+              homeTeam: teams?.home?.name || 'Home Team',
+              awayTeam: teams?.away?.name || 'Away Team',
+              homeLogo: teams?.home?.logo || '',
+              awayLogo: teams?.away?.logo || '',
+              league: league?.name || 'Football League',
+              startTime: fixtureStartTime,
+              status: resolvedStatus,
+              scoreHome: goals?.home || 0,
+              scoreAway: goals?.away || 0,
+              odds: matchOdds,
+              poolAmount,
+              ...(isHighProfile ? { isPromoted: true } : {}),
+            },
           },
-        },
-        { upsert: true, returnDocument: 'after' }
-      );
+          { upsert: true, returnDocument: 'after' }
+        );
+      }
+
+      // Also sync Basketball matches from Highlightly All Sports API
+      try {
+        const basketballMatches = await sportsApiService.getMatchesBySport('basketball', syncDate, { limit: 25 });
+        for (const bMatch of basketballMatches) {
+          if (!bMatch || !bMatch.fixture) continue;
+          const { fixture, league, teams } = bMatch;
+          const fixtureStartTime = new Date(fixture.date);
+          if (fixtureStartTime.getTime() < Date.now() - 3 * 60 * 60 * 1000) continue;
+          const resolvedStatus = fixtureStartTime <= new Date() ? 'LIVE' : 'UPCOMING';
+
+          const existingB = await Match.findOne({ fixtureId: fixture.id });
+          const bPool = existingB?.poolAmount && existingB.poolAmount > 0
+            ? existingB.poolAmount
+            : 2000000 + Math.floor(Math.random() * 2500000);
+
+          await Match.findOneAndUpdate(
+            { fixtureId: fixture.id },
+            {
+              $set: {
+                sport: 'Basketball',
+                homeTeam: teams?.home?.name || 'Home Team',
+                awayTeam: teams?.away?.name || 'Away Team',
+                homeLogo: teams?.home?.logo || '',
+                awayLogo: teams?.away?.logo || '',
+                league: league?.name || 'Basketball League',
+                startTime: fixtureStartTime,
+                status: resolvedStatus,
+                scoreHome: bMatch.goals?.home || 0,
+                scoreAway: bMatch.goals?.away || 0,
+                odds: generateDefaultOdds(1.75, 2.05),
+                poolAmount: bPool,
+                isPromoted: true,
+              },
+            },
+            { upsert: true, returnDocument: 'after' }
+          );
+        }
+      } catch (bErr: any) {
+        // Silently continue if basketball rate-limited
+      }
     }
     
     // Broadcast update to all connected clients
@@ -226,32 +317,36 @@ export const getMatches = async (req: Request, res: Response) => {
     const limit = parseInt(limitQuery as string) || 50;
     const skip = (page - 1) * limit;
 
-    let sortCriteria: any = { isPromoted: -1, status: 1, startTime: -1 };
+    let sortCriteria: any = { isPromoted: -1, status: 1, startTime: 1 };
 
     // When status is not explicitly passed, prioritize LIVE and UPCOMING matches
     if (!status && !date) {
+      const now = new Date();
+      const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+      
       const activeFilter = {
         ...filter,
-        status: { $in: ['LIVE', 'UPCOMING'] },
+        $or: [
+          { status: 'LIVE' },
+          { status: 'UPCOMING', startTime: { $gte: threeHoursAgo } }
+        ]
       };
 
       const activeCount = await Match.countDocuments(activeFilter);
       if (activeCount > 0) {
-        filter.status = { $in: ['LIVE', 'UPCOMING'] };
-        // 'LIVE' < 'UPCOMING'. Sort promoted first, then LIVE/UPCOMING, and newest/relevant startTime
-        sortCriteria = { isPromoted: -1, status: 1, startTime: -1 };
+        filter.$or = activeFilter.$or;
+        sortCriteria = { isPromoted: -1, status: 1, startTime: 1 };
       } else {
         // Trigger auto-refresh in the background if no active matches
         refreshMatchesFromProvider().catch((err) =>
           console.error('[Matches] Auto-refresh from provider failed:', err.message)
         );
-        // Show most recent matches first instead of oldest
         sortCriteria = { startTime: -1 };
       }
     } else if (status === 'FINISHED') {
       sortCriteria = { startTime: -1 };
     } else if (status === 'LIVE' || status === 'UPCOMING') {
-      sortCriteria = { isPromoted: -1, startTime: -1 };
+      sortCriteria = { isPromoted: -1, status: 1, startTime: 1 };
     }
 
     const total = await Match.countDocuments(filter);

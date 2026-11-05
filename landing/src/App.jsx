@@ -263,8 +263,84 @@ const faqs = [
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null);
+  const [liveMatches, setLiveMatches] = useState(matchesData);
   const [selectedMatchId, setSelectedMatchId] = useState('barca-rm');
-  const selectedMatch = matchesData.find((m) => m.id === selectedMatchId) || matchesData[0];
+  const selectedMatch = liveMatches.find((m) => m.id === selectedMatchId) || liveMatches[0] || matchesData[0];
+
+  useEffect(() => {
+    // Dynamically fetch real live & upcoming matches from Peeritrade API
+    fetch('https://api.peeritrade.com/api/matches?limit=4')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.matches && Array.isArray(data.matches) && data.matches.length > 0) {
+          const formatted = data.matches.slice(0, 4).map((m) => {
+            const matchDate = m.startTime ? new Date(m.startTime) : new Date();
+            const timeStr = m.status === 'LIVE'
+              ? '● LIVE MATCH'
+              : `Starts ${matchDate.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            const poolAmountNum = m.poolAmount || 2500000;
+            const poolStr = `₦${(poolAmountNum / 1000000).toFixed(1)}M`;
+            const homeShares = `${Math.floor((poolAmountNum * 0.45) / 1000).toLocaleString()} Shares`;
+            const awayShares = `${Math.floor((poolAmountNum * 0.35) / 1000).toLocaleString()} Shares`;
+            const drawShares = `${Math.floor((poolAmountNum * 0.20) / 1000).toLocaleString()} Shares`;
+
+            return {
+              id: m._id || String(m.fixtureId),
+              league: m.league || 'Football League',
+              match: `${m.homeTeam} vs ${m.awayTeam}`,
+              homeTeam: m.homeTeam,
+              awayTeam: m.awayTeam,
+              time: timeStr,
+              poolAmount: `₦${poolAmountNum.toLocaleString()}`,
+              outcomeContracts: [
+                {
+                  id: `${m._id}-home`,
+                  name: m.homeTeam,
+                  sub: `${m.homeTeam} to Win`,
+                  shares: homeShares,
+                  yesLabel: 'YES',
+                  noLabel: 'NO',
+                },
+                {
+                  id: `${m._id}-away`,
+                  name: m.awayTeam,
+                  sub: `${m.awayTeam} to Win`,
+                  shares: awayShares,
+                  yesLabel: 'YES',
+                  noLabel: 'NO',
+                },
+                {
+                  id: `${m._id}-draw`,
+                  name: 'Draw',
+                  sub: 'Draw outcome contract',
+                  shares: drawShares,
+                  yesLabel: 'YES',
+                  noLabel: 'NO',
+                },
+              ],
+              overUnder: {
+                title: 'Over/Under 2.5',
+                sub: 'Total Match Goals',
+                totalPool: poolStr,
+                yesLabel: 'YES',
+                noLabel: 'NO',
+              },
+              btts: {
+                title: 'Both Teams to Score',
+                sub: 'Both teams score in 90 mins',
+                totalPool: poolStr,
+                yesLabel: 'YES',
+                noLabel: 'NO',
+              },
+            };
+          });
+
+          setLiveMatches(formatted);
+          setSelectedMatchId(formatted[0].id);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -663,14 +739,14 @@ export default function App() {
 
           {/* Match Switcher Tabs */}
           <div className="match-tabs-bar">
-            {matchesData.map((m) => (
+            {liveMatches.map((m) => (
               <button
                 key={m.id}
                 type="button"
                 className={`match-tab-pill ${selectedMatch.id === m.id ? 'active' : ''}`}
                 onClick={() => setSelectedMatchId(m.id)}
               >
-                <span className="tab-league-hint">{m.league.split('•')[0].trim()}</span>
+                <span className="tab-league-hint">{(m.league || '').split('•')[0].trim()}</span>
                 <span className="tab-match-title">{m.match}</span>
               </button>
             ))}

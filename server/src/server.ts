@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { startLiveSettlementScheduler } from './services/settlementService';
 import { startBridgeScheduler } from './services/bridgeProtocol';
 import { initSocket } from './services/socketService';
+import { refreshMatchesFromProvider } from './controllers/matchController';
 
 dotenv.config();
 
@@ -17,6 +18,16 @@ const server = app.listen(PORT, async () => {
   initSocket(server);
   startLiveSettlementScheduler();
   startBridgeScheduler();
+
+  // Initial match sync with Highlightly API & recurring periodic sync every 15 minutes
+  refreshMatchesFromProvider().catch((err) =>
+    console.warn('[Sync] Initial match refresh failed:', err.message)
+  );
+  setInterval(() => {
+    refreshMatchesFromProvider().catch((err) =>
+      console.warn('[Sync] Periodic match refresh failed:', err.message)
+    );
+  }, 15 * 60 * 1000);
 });
 
 // Handle unhandled promise rejections
