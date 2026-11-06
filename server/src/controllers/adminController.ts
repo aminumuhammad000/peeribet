@@ -899,15 +899,23 @@ export const toggleMatchLock = async (req: Request, res: Response) => {
     // Specific contract lock / unlock (e.g. 'HOME', 'DRAW', 'AWAY', 'OVER_25', 'UNDER_25', 'BTTS_YES', 'BTTS_NO')
     if (contract) {
       const normContract = String(contract).trim().toUpperCase();
-      const currentlyLocked = match.lockedContracts.some((c: string) => c.toUpperCase() === normContract);
+      const aliases = 
+        normContract === 'HOME' || normContract === 'YES' || normContract === '1' ? ['HOME', 'YES', '1'] :
+        normContract === 'AWAY' || normContract === 'NO' || normContract === '2' ? ['AWAY', 'NO', '2'] :
+        normContract === 'DRAW' || normContract === 'X' ? ['DRAW', 'X'] :
+        [normContract];
+
+      const currentlyLocked = match.lockedContracts.some((c: string) => aliases.includes(c.toUpperCase()));
       const newLockState = typeof isLocked === 'boolean' ? isLocked : !currentlyLocked;
 
       if (newLockState) {
-        if (!match.lockedContracts.some((c: string) => c.toUpperCase() === normContract)) {
-          match.lockedContracts.push(normContract);
-        }
+        aliases.forEach(a => {
+          if (!match.lockedContracts!.some((c: string) => c.toUpperCase() === a)) {
+            match.lockedContracts!.push(a);
+          }
+        });
       } else {
-        match.lockedContracts = match.lockedContracts.filter((c: string) => c.toUpperCase() !== normContract);
+        match.lockedContracts = match.lockedContracts.filter((c: string) => !aliases.includes(c.toUpperCase()));
       }
 
       await match.save();

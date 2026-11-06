@@ -21,6 +21,25 @@ export const placeBet = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Market for this match is closed' });
     }
 
+    const selNorm = String(selection).trim().toUpperCase();
+    const isContractLocked = match.lockedContracts && match.lockedContracts.some((c: string) => {
+      const cNorm = String(c).trim().toUpperCase();
+      return (
+        cNorm === selNorm ||
+        (cNorm === 'HOME' && (selNorm === '1' || selNorm === 'HOME')) ||
+        (cNorm === 'AWAY' && (selNorm === '2' || selNorm === 'AWAY')) ||
+        (cNorm === 'DRAW' && (selNorm === 'X' || selNorm === 'DRAW')) ||
+        (cNorm === 'OVER_25' && selNorm === 'OVER_25') ||
+        (cNorm === 'UNDER_25' && selNorm === 'UNDER_25') ||
+        (cNorm === 'BTTS_YES' && selNorm === 'BTTS_YES') ||
+        (cNorm === 'BTTS_NO' && selNorm === 'BTTS_NO')
+      );
+    });
+
+    if (isContractLocked || (match.isLocked && (!match.lockedContracts || match.lockedContracts.length === 0))) {
+      return res.status(400).json({ message: `Contract "${selection}" is locked by admin safeguards.` });
+    }
+
     const parsedAmount = Number(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       return res.status(400).json({ message: 'A valid positive stake is required' });

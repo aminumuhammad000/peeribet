@@ -3415,41 +3415,43 @@ export default function App() {
                                   </div>
                                 </td>
                                 <td>
-                                  {mkt.marketType === 'YES_NO' || (!mkt.marketType && mkt.options?.length === 2) ? (
-                                    <div style={{ display: 'flex', gap: 5 }}>
-                                      {mkt.options?.map((opt, optIdx) => (
-                                        <span
+                                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                    {mkt.options?.map((opt, optIdx) => {
+                                      const isOptLocked = Boolean(
+                                        opt.isLocked ||
+                                        mkt.lockedContracts?.some(c => c.toUpperCase() === String(opt.label).toUpperCase() || c.toUpperCase() === String(opt.id).toUpperCase())
+                                      );
+                                      return (
+                                        <button
                                           key={opt._id || `${opt.id || 'opt'}_${optIdx}`}
-                                          className={`market-odds-pill ${(opt.id || opt.label || '').toLowerCase() === 'yes' ? 'yes' : 'no'}`}
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleToggleMarketLock(mkt.id || mkt._id, isOptLocked, opt.id || opt.label);
+                                          }}
+                                          title={isOptLocked ? `Click to unlock contract "${opt.label}"` : `Click to lock contract "${opt.label}"`}
+                                          style={{
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                            padding: '3px 8px',
+                                            borderRadius: 6,
+                                            fontSize: 11,
+                                            fontWeight: 600,
+                                            border: isOptLocked ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(255, 255, 255, 0.12)',
+                                            background: isOptLocked ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                                            color: isOptLocked ? '#EF4444' : '#CBD5E1',
+                                            transition: 'all 0.15s ease',
+                                          }}
                                         >
-                                          {opt.label}: {Number(opt.odds || 1.9).toFixed(2)}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div
-                                      title={mkt.options?.map(o => `${o.label} (${Number(o.odds || 2).toFixed(2)})`).join(', ')}
-                                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'help' }}
-                                    >
-                                      <span style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: 4,
-                                        padding: '3px 8px',
-                                        borderRadius: 6,
-                                        background: 'rgba(59, 130, 246, 0.12)',
-                                        color: '#60A5FA',
-                                        fontSize: 11,
-                                        border: '1px solid rgba(59, 130, 246, 0.25)',
-                                      }}>
-                                        <Sparkles size={11} />
-                                        <span>{mkt.options?.length || 0} Options</span>
-                                      </span>
-                                      <span style={{ fontSize: 11, color: '#94A3B8' }}>
-                                        {mkt.options?.slice(0, 2).map(o => o.label).join(', ')}{mkt.options?.length > 2 ? '...' : ''}
-                                      </span>
-                                    </div>
-                                  )}
+                                          {isOptLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#64748B" />}
+                                          <span>{opt.label}: {Number(opt.odds || 1.9).toFixed(2)}</span>
+                                          {isOptLocked && <span style={{ fontSize: 9, color: '#EF4444', fontWeight: 800 }}>LOCKED</span>}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </td>
                                 <td style={{ fontWeight: '500', color: '#00D285', fontSize: 12 }}>
                                   ₦{(mkt.poolAmount || 0).toLocaleString()}
@@ -6121,42 +6123,43 @@ export default function App() {
 
                             {/* Odds & Outcomes */}
                             <td>
-                              {mkt.marketType === 'YES_NO' || (!mkt.marketType && mkt.options?.length === 2) ? (
-                                <div style={{ display: 'flex', gap: 5 }}>
-                                  {mkt.options?.map((opt, optIdx) => (
-                                    <span
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                {mkt.options?.map((opt, optIdx) => {
+                                  const isOptLocked = Boolean(
+                                    opt.isLocked ||
+                                    mkt.lockedContracts?.some(c => c.toUpperCase() === String(opt.label).toUpperCase() || c.toUpperCase() === String(opt.id).toUpperCase())
+                                  );
+                                  return (
+                                    <button
                                       key={opt._id || `${opt.id || 'opt'}_${optIdx}`}
-                                      className={`market-odds-pill ${(opt.id || opt.label || '').toLowerCase() === 'yes' ? 'yes' : 'no'}`}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleMarketLock(mkt.id || mkt._id, isOptLocked, opt.id || opt.label);
+                                      }}
+                                      title={isOptLocked ? `Click to unlock contract "${opt.label}"` : `Click to lock contract "${opt.label}"`}
+                                      style={{
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        padding: '3px 8px',
+                                        borderRadius: 6,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        border: isOptLocked ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(255, 255, 255, 0.12)',
+                                        background: isOptLocked ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                                        color: isOptLocked ? '#EF4444' : '#CBD5E1',
+                                        transition: 'all 0.15s ease',
+                                      }}
                                     >
-                                      {opt.label}: {Number(opt.odds || 1.9).toFixed(2)}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div
-                                  title={mkt.options?.map(o => `${o.label} (${Number(o.odds || 2).toFixed(2)})`).join(', ')}
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'help' }}
-                                >
-                                  <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 4,
-                                    padding: '3px 8px',
-                                    borderRadius: 6,
-                                    fontSize: 11,
-                                    fontWeight: 500,
-                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                    color: '#3B82F6',
-                                    border: '1px solid rgba(59, 130, 246, 0.25)'
-                                  }}>
-                                    <Layers size={11} />
-                                    <span>{mkt.options?.length || 0} Choices</span>
-                                  </span>
-                                  <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {mkt.options?.slice(0, 2).map(o => o.label).join(', ')}{mkt.options?.length > 2 ? '...' : ''}
-                                  </span>
-                                </div>
-                              )}
+                                      {isOptLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#64748B" />}
+                                      <span>{opt.label}: {Number(opt.odds || 1.9).toFixed(2)}</span>
+                                      {isOptLocked && <span style={{ fontSize: 9, color: '#EF4444', fontWeight: 800 }}>LOCKED</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </td>
 
                             {/* Pool Volume */}
@@ -6316,10 +6319,47 @@ export default function App() {
                               <div style={{ fontWeight: '500', color: 'var(--text-white)', fontSize: 13 }}>
                                 {match.homeTeam} vs {match.awayTeam}
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                                  1: <strong style={{ color: 'var(--text-white)' }}>{match.odds?.home || 1.85}</strong> &bull; X: <strong style={{ color: 'var(--text-white)' }}>{match.odds?.draw || 3.10}</strong> &bull; 2: <strong style={{ color: 'var(--text-white)' }}>{match.odds?.away || 2.40}</strong>
-                                </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                                {[
+                                  { key: 'HOME', label: `1 (${match.odds?.home || 1.85})` },
+                                  { key: 'DRAW', label: `X (${match.odds?.draw || 3.10})` },
+                                  { key: 'AWAY', label: `2 (${match.odds?.away || 2.40})` },
+                                  { key: 'OVER_25', label: `O2.5 (${match.odds?.over25 || 1.95})` },
+                                  { key: 'UNDER_25', label: `U2.5 (${match.odds?.under25 || 1.85})` },
+                                ].map((c) => {
+                                  const isContractLocked = Boolean(
+                                    match.lockedContracts?.some((lc) => lc.toUpperCase() === c.key || (c.key === 'HOME' && lc.toUpperCase() === '1') || (c.key === 'AWAY' && lc.toUpperCase() === '2') || (c.key === 'DRAW' && lc.toUpperCase() === 'X'))
+                                  );
+                                  return (
+                                    <button
+                                      key={c.key}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleMatchLock(match._id || match.id, isContractLocked, c.key);
+                                      }}
+                                      title={isContractLocked ? `Click to unlock contract "${c.label}"` : `Click to lock contract "${c.label}"`}
+                                      style={{
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 3,
+                                        padding: '2px 6px',
+                                        borderRadius: 4,
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                        border: isContractLocked ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(255, 255, 255, 0.1)',
+                                        background: isContractLocked ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                                        color: isContractLocked ? '#EF4444' : '#94A3B8',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                    >
+                                      {isContractLocked ? <Lock size={9} color="#EF4444" /> : <Unlock size={9} color="#64748B" />}
+                                      <span>{c.label}</span>
+                                      {isContractLocked && <span style={{ fontSize: 8, color: '#EF4444', fontWeight: 800 }}>LOCKED</span>}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </td>
                             <td>

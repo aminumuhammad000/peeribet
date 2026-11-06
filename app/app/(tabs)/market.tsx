@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Landmark,
   Lock,
+  Unlock,
   Flame,
   Sparkles,
   Search,
@@ -49,15 +50,18 @@ import { getSocket } from '../../services/socketService';
 export const CATEGORIES = [
   { id: 'Football', label: 'Football', icon: '⚽', isSports: true },
   { id: 'Basketball', label: 'Basketball', icon: '🏀', isSports: true },
+  { id: 'Live Event Prediction', label: 'Live event Prediction', icon: '🌍', isSports: false },
+  { id: 'Politics', label: 'Politics', icon: '🏛️', isSports: false },
+  { id: 'Entertainment', label: 'Entertainment', icon: '🎬', isSports: false },
   { id: 'Cricket', label: 'Cricket', icon: '🏏', isSports: true },
   { id: 'Rugby', label: 'Rugby', icon: '🏉', isSports: true },
   { id: 'Hockey', label: 'Hockey', icon: '🏒', isSports: true },
   { id: 'Boxing', label: 'Boxing', icon: '🥊', isSports: true },
   { id: 'UFC', label: 'UFC', icon: '🥋', isSports: true },
-  { id: 'Politics', label: 'Politics', icon: '🏛️', isSports: false },
-  { id: 'Entertainment', label: 'Entertainment', icon: '🎬', isSports: false },
-  { id: 'Live Event Prediction', label: 'Live event Prediction', icon: '🌍', isSports: false },
 ];
+
+export const isComingSoonCategory = (cat: string) =>
+  ['Cricket', 'Rugby', 'Hockey', 'Boxing', 'UFC'].includes(cat);
 
 const SUBCATEGORIES: Record<string, string[]> = {
   Politics: ['All', 'Policy & Economy', 'Elections', 'Global Affairs', 'World Leaders'],
@@ -137,12 +141,41 @@ export interface ContractInfoDetail {
   example: string;
 }
 
+const isContractLocked = (item: any, contractLabel: string, odds?: number) => {
+  if (!item) return false;
+  const norm = String(contractLabel).trim().toUpperCase();
+  const isOddsOverpowered = odds !== undefined && odds > 0 && odds <= 1.43;
+  const isWholeLocked = Boolean(item.isLocked && (!item.lockedContracts || item.lockedContracts.length === 0));
+
+  const inLockedContracts = Boolean(item.lockedContracts?.some((c: string) => {
+    const cNorm = String(c).trim().toUpperCase();
+    return (
+      cNorm === norm ||
+      (norm === 'YES' && (cNorm === 'HOME' || cNorm === '1')) ||
+      (norm === 'NO' && (cNorm === 'AWAY' || cNorm === '2')) ||
+      (norm === 'HOME' && (cNorm === '1' || cNorm === 'YES')) ||
+      (norm === 'AWAY' && (cNorm === '2' || cNorm === 'NO')) ||
+      (norm === 'DRAW' && cNorm === 'X')
+    );
+  }));
+
+  const inOptions = Boolean(item.options?.some((opt: any) => {
+    return (
+      (String(opt.label).toUpperCase() === norm || String(opt.id).toUpperCase() === norm) &&
+      opt.isLocked
+    );
+  }));
+
+  return isOddsOverpowered || isWholeLocked || inLockedContracts || inOptions;
+};
+
 export default function MarketScreen() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<string>('Football');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedInfoContract, setSelectedInfoContract] = useState<ContractInfoDetail | null>(null);
+  const [selectedOptionsMarket, setSelectedOptionsMarket] = useState<any | null>(null);
 
   // Sports & Prediction data
   const [matches, setMatches] = useState<any[]>([]);
@@ -170,7 +203,7 @@ export default function MarketScreen() {
   // Fetch Sports Matches strictly categorized
   const fetchMatches = async (sportCategory: string) => {
     try {
-      if (sportCategory === 'Boxing' || sportCategory === 'UFC') {
+      if (isComingSoonCategory(sportCategory)) {
         setMatches([]);
         return;
       }
@@ -205,6 +238,10 @@ export default function MarketScreen() {
   // Fetch Prediction Markets
   const fetchPredictionMarkets = async (category: string, subcategory?: string, search?: string) => {
     try {
+      if (isComingSoonCategory(category)) {
+        setPredictionMarkets([]);
+        return;
+      }
       const params: any = { category, status: 'ACTIVE' };
       if (subcategory && subcategory !== 'All') params.subcategory = subcategory;
       if (search && search.trim()) params.search = search.trim();
@@ -264,20 +301,20 @@ export default function MarketScreen() {
     setRefreshing(false);
   };
 
-  const handleToggleAdminMarketLock = async (marketId: string, currentLocked: boolean) => {
+  const handleToggleAdminMarketLock = async (marketId: string, currentLocked: boolean, contract?: string) => {
     try {
-      await adminService.toggleMarketLock(marketId, !currentLocked);
-      showToast(`Market ${!currentLocked ? 'LOCKED (Overpowered)' : 'UNLOCKED'} successfully`, 'success');
+      await adminService.toggleMarketLock(marketId, !currentLocked, undefined, contract);
+      showToast(`Market ${contract ? `"${contract}"` : ''} ${!currentLocked ? 'LOCKED' : 'UNLOCKED'} successfully`, 'success');
       loadData();
     } catch (err: any) {
       showToast(err.message || 'Failed to toggle market lock', 'error');
     }
   };
 
-  const handleToggleAdminMatchLock = async (matchId: string, currentLocked: boolean) => {
+  const handleToggleAdminMatchLock = async (matchId: string, currentLocked: boolean, contract?: string) => {
     try {
-      await adminService.toggleMatchLock(matchId, !currentLocked);
-      showToast(`Match ${!currentLocked ? 'LOCKED (Overpowered)' : 'UNLOCKED'} successfully`, 'success');
+      await adminService.toggleMatchLock(matchId, !currentLocked, undefined, contract);
+      showToast(`Match ${contract ? `"${contract}"` : ''} ${!currentLocked ? 'LOCKED' : 'UNLOCKED'} successfully`, 'success');
       loadData();
     } catch (err: any) {
       showToast(err.message || 'Failed to toggle match lock', 'error');
@@ -285,7 +322,14 @@ export default function MarketScreen() {
   };
 
   // Open Trading Screen for a Prediction Option (Same UI as 1.jpeg and 2.jpeg)
-  const handleOpenTrade = (market: any, option: any) => {
+  const handleOpenTrade = (market: any, option?: any) => {
+    const isMultiChoice =
+      market.marketType === 'MULTIPLE_CHOICE' ||
+      (market.options && market.options.length > 2) ||
+      (market.options &&
+        market.options.length >= 2 &&
+        !market.options.some((o: any) => o.label?.toUpperCase() === 'YES'));
+
     const yesOption = market.options?.find(
       (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
     ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
@@ -294,8 +338,8 @@ export default function MarketScreen() {
     ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
     const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
     const noOdds = market.noOdds || noOption?.odds || 1.95;
-    const selectedOutcome = (option?.label || 'YES').toUpperCase();
-    const selectedOdds = option?.odds || (selectedOutcome === 'NO' ? noOdds : yesOdds);
+    const selectedOutcome = (option?.label || option?.id || (isMultiChoice ? market.options?.[0]?.label : 'YES') || 'YES').toUpperCase();
+    const selectedOdds = option?.odds || (selectedOutcome === 'NO' ? noOdds : (isMultiChoice ? (market.options?.[0]?.odds || 2.0) : yesOdds));
 
     router.push({
       pathname: '/enter-amount',
@@ -309,6 +353,9 @@ export default function MarketScreen() {
         noOdds,
         isPrediction: 'true',
         poolAmount: market.poolAmount || 0,
+        options: JSON.stringify(market.options || []),
+        marketType: isMultiChoice ? 'MULTIPLE_CHOICE' : (market.marketType || 'YES_NO'),
+        lockedContracts: JSON.stringify(market.lockedContracts || []),
         startTime: market.closingDate
           ? new Date(market.closingDate).toLocaleDateString([], { month: 'short', day: 'numeric' })
           : 'Active',
@@ -359,10 +406,53 @@ export default function MarketScreen() {
         {/* Admin Lock / Unlock Control Strip */}
         {user?.role === 'admin' && (
           <View style={styles.adminControlStrip}>
-            <ShieldAlert size={14} color={isAllLocked ? '#EF4444' : '#00D285'} />
-            <Text style={styles.adminControlText}>
-              Admin: {isAllLocked ? 'All Contracts Locked' : market.lockedContracts?.length > 0 ? `Locked: ${market.lockedContracts.join(', ')}` : 'Active Market'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+              <ShieldAlert size={14} color={isAllLocked ? '#EF4444' : '#00D285'} />
+              <Text style={styles.adminControlText}>
+                Admin Lock:
+              </Text>
+              {isMultiChoice ? (
+                (market.options || []).map((opt: any) => {
+                  const optLocked = isContractLocked(market, opt.label, opt.odds);
+                  return (
+                    <TouchableOpacity
+                      key={opt.id || opt.label}
+                      onPress={() => handleToggleAdminMarketLock(market._id, optLocked, opt.id || opt.label)}
+                      style={[styles.adminContractToggleBtn, optLocked && styles.adminContractToggleBtnLocked]}
+                      activeOpacity={0.7}
+                    >
+                      {optLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#00D285" />}
+                      <Text style={[styles.adminContractToggleText, optLocked && { color: '#EF4444' }]}>
+                        {opt.label} {optLocked ? '(Locked)' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <>
+                  <TouchableOpacity
+                    onPress={() => handleToggleAdminMarketLock(market._id, isYesLocked, 'YES')}
+                    style={[styles.adminContractToggleBtn, isYesLocked && styles.adminContractToggleBtnLocked]}
+                    activeOpacity={0.7}
+                  >
+                    {isYesLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#00D285" />}
+                    <Text style={[styles.adminContractToggleText, isYesLocked && { color: '#EF4444' }]}>
+                      YES {isYesLocked ? '(Locked)' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleToggleAdminMarketLock(market._id, isNoLocked, 'NO')}
+                    style={[styles.adminContractToggleBtn, isNoLocked && styles.adminContractToggleBtnLocked]}
+                    activeOpacity={0.7}
+                  >
+                    {isNoLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#00D285" />}
+                    <Text style={[styles.adminContractToggleText, isNoLocked && { color: '#EF4444' }]}>
+                      NO {isNoLocked ? '(Locked)' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
             <TouchableOpacity
               onPress={() => handleToggleAdminMarketLock(market._id, isMarketAdminLocked)}
               style={[styles.adminLockBtnSmall, isMarketAdminLocked ? styles.adminUnlockBtnSmall : styles.adminLockBtnActive]}
@@ -411,7 +501,16 @@ export default function MarketScreen() {
         </View>
 
         {/* Question Title with compact sleek styling */}
-        <Text style={styles.marketTitleText}>{market.title}</Text>
+        <TouchableOpacity
+          activeOpacity={isMultiChoice ? 0.7 : 1}
+          onPress={() => {
+            if (isMultiChoice) {
+              setSelectedOptionsMarket(market);
+            }
+          }}
+        >
+          <Text style={styles.marketTitleText}>{market.title}</Text>
+        </TouchableOpacity>
 
         {/* Outcomes & Trade Buttons */}
         {isMultiChoice ? (
@@ -467,13 +566,19 @@ export default function MarketScreen() {
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => handleOpenTrade(market, isMultiChoice ? market.options?.[0] : (isYesLocked && !isNoLocked ? noOption : yesOption))}
+            onPress={() => {
+              if (isMultiChoice) {
+                setSelectedOptionsMarket(market);
+              } else {
+                handleOpenTrade(market, isYesLocked && !isNoLocked ? noOption : yesOption);
+              }
+            }}
             style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
             activeOpacity={0.8}
             disabled={isAllLocked}
           >
             <Text style={styles.quickTradePillText}>
-              {isAllLocked ? 'Locked' : isMultiChoice ? 'Trade Option' : 'Trade YES / NO'}
+              {isAllLocked ? 'Locked' : isMultiChoice ? `Choose Option (${market.options?.length || 0})` : 'Trade YES / NO'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -666,11 +771,15 @@ export default function MarketScreen() {
                   >
                     {cat.label}
                   </Text>
-                  {!cat.isSports && (
+                  {isComingSoonCategory(cat.id) ? (
+                    <View style={styles.comingSoonBadgeDot}>
+                      <Text style={styles.comingSoonBadgeDotText}>SOON</Text>
+                    </View>
+                  ) : !cat.isSports ? (
                     <View style={styles.marketBadgeDot}>
                       <Text style={styles.marketBadgeDotText}>PRO</Text>
                     </View>
-                  )}
+                  ) : null}
                 </TouchableOpacity>
               );
             })}
@@ -799,27 +908,57 @@ export default function MarketScreen() {
                 </View>
               )}
 
-              {/* Sports Fixtures */}
-              {isCurrentSports ? (
-                selectedCategory === 'Boxing' || selectedCategory === 'UFC' ? (
-                  <View style={styles.comingSoonCard}>
-                    <View style={styles.comingSoonIconCircle}>
-                      <Text style={{ fontSize: 32 }}>{selectedCategory === 'Boxing' ? '🥊' : '🥋'}</Text>
-                    </View>
-                    <Text style={styles.comingSoonTitle}>
-                      {selectedCategory === 'Boxing' ? 'Boxing Championship Contracts' : 'UFC & MMA Fight Contracts'}
-                    </Text>
-                    <Text style={styles.comingSoonDesc}>
+              {/* Coming Soon Category View */}
+              {isComingSoonCategory(selectedCategory) ? (
+                <View style={styles.comingSoonCard}>
+                  <View style={styles.comingSoonIconCircle}>
+                    <Text style={{ fontSize: 32 }}>
                       {selectedCategory === 'Boxing'
-                        ? 'Championship fight cards and round prediction contracts are coming soon once official feeds go live.'
-                        : 'Octagon contracts and title bout proposition markets will be enabled in the upcoming feed update.'}
+                        ? '🥊'
+                        : selectedCategory === 'UFC'
+                        ? '🥋'
+                        : selectedCategory === 'Cricket'
+                        ? '🏏'
+                        : selectedCategory === 'Rugby'
+                        ? '🏉'
+                        : selectedCategory === 'Hockey'
+                        ? '🏒'
+                        : '⏳'}
                     </Text>
-                    <View style={styles.comingSoonBadge}>
-                      <Sparkles size={14} color="#F59E0B" />
-                      <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
-                    </View>
                   </View>
-                ) : filteredMatches.length === 0 && predictionMarkets.length === 0 ? (
+                  <Text style={styles.comingSoonTitle}>
+                    {selectedCategory === 'Boxing'
+                      ? 'Boxing Championship Contracts'
+                      : selectedCategory === 'UFC'
+                      ? 'UFC & MMA Fight Contracts'
+                      : selectedCategory === 'Cricket'
+                      ? 'Cricket Contracts'
+                      : selectedCategory === 'Rugby'
+                      ? 'Rugby Contracts'
+                      : selectedCategory === 'Hockey'
+                      ? 'Hockey Contracts'
+                      : `${selectedCategory} Contracts`}
+                  </Text>
+                  <Text style={styles.comingSoonDesc}>
+                    {selectedCategory === 'Boxing'
+                      ? 'Championship fight cards and round prediction contracts are coming soon once official feeds go live.'
+                      : selectedCategory === 'UFC'
+                      ? 'Octagon contracts and title bout proposition markets will be enabled in the upcoming feed update.'
+                      : selectedCategory === 'Cricket'
+                      ? 'International Test series, IPL, and T20 World Cup peer-to-peer prediction markets are launching soon.'
+                      : selectedCategory === 'Rugby'
+                      ? 'Six Nations, Rugby Championship, and World Cup tournament escrow contracts will be enabled in an upcoming release.'
+                      : selectedCategory === 'Hockey'
+                      ? 'NHL Stanley Cup playoffs and international ice hockey prediction markets will be available in the upcoming feed update.'
+                      : `${selectedCategory} prediction markets and contracts are coming soon in the next release.`}
+                  </Text>
+                  <View style={styles.comingSoonBadge}>
+                    <Sparkles size={14} color="#F59E0B" />
+                    <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+                  </View>
+                </View>
+              ) : isCurrentSports ? (
+                filteredMatches.length === 0 && predictionMarkets.length === 0 ? (
                   <View style={styles.emptyCard}>
                     <Flame size={28} color="#64748B" style={{ marginBottom: 8 }} />
                     <Text style={styles.emptyTitle}>No matches scheduled</Text>
@@ -877,17 +1016,39 @@ export default function MarketScreen() {
                     {/* Admin Lock / Unlock Control Strip */}
                     {user?.role === 'admin' && (
                       <View style={styles.adminControlStrip}>
-                        <ShieldAlert size={14} color={isMatchAdminLocked ? '#EF4444' : '#00D285'} />
-                        <Text style={styles.adminControlText}>
-                          Admin: {isMatchAdminLocked ? 'Locked (Overpowered)' : 'Active Fixture'}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+                          <ShieldAlert size={14} color={isMatchAdminLocked ? '#EF4444' : '#00D285'} />
+                          <Text style={styles.adminControlText}>
+                            Admin Lock:
+                          </Text>
+                          {[
+                            { key: 'HOME', label: `${(match.homeTeam || 'Home').slice(0, 10)} (1)` },
+                            { key: 'DRAW', label: 'Draw (X)' },
+                            { key: 'AWAY', label: `${(match.awayTeam || 'Away').slice(0, 10)} (2)` },
+                          ].map((c) => {
+                            const isCLocked = isContractLocked(match, c.key);
+                            return (
+                              <TouchableOpacity
+                                key={c.key}
+                                onPress={() => handleToggleAdminMatchLock(match._id, isCLocked, c.key)}
+                                style={[styles.adminContractToggleBtn, isCLocked && styles.adminContractToggleBtnLocked]}
+                                activeOpacity={0.7}
+                              >
+                                {isCLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#00D285" />}
+                                <Text style={[styles.adminContractToggleText, isCLocked && { color: '#EF4444' }]}>
+                                  {c.label} {isCLocked ? '(Locked)' : ''}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
                         <TouchableOpacity
                           onPress={() => handleToggleAdminMatchLock(match._id, isMatchAdminLocked)}
                           style={[styles.adminLockBtnSmall, isMatchAdminLocked ? styles.adminUnlockBtnSmall : styles.adminLockBtnActive]}
                           activeOpacity={0.8}
                         >
                           <Text style={styles.adminLockBtnText}>
-                            {isMatchAdminLocked ? 'Unlock Match' : 'Lock (Overpowered)'}
+                            {isMatchAdminLocked ? 'Unlock Match' : 'Lock Match'}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -1212,6 +1373,115 @@ export default function MarketScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Multi-Choice Options Selector Modal */}
+        <Modal
+          visible={!!selectedOptionsMarket}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setSelectedOptionsMarket(null)}
+        >
+          <View style={styles.infoModalOverlay}>
+            <View style={[styles.infoModalCard, { maxHeight: '80%' }]}>
+              <View style={styles.infoModalHeader}>
+                <View style={styles.infoModalTitleCol}>
+                  <View style={styles.infoModalBadgeRow}>
+                    <Text style={styles.infoModalTag}>
+                      {(selectedOptionsMarket?.subcategory || selectedOptionsMarket?.category || 'OPTIONS').toUpperCase()}
+                    </Text>
+                    <Text style={[styles.infoModalTag, { backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#38BDF8' }]}>
+                      {selectedOptionsMarket?.options?.length || 0} CHOICES
+                    </Text>
+                  </View>
+                  <Text style={styles.infoModalTitle} numberOfLines={2}>
+                    {selectedOptionsMarket?.title}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setSelectedOptionsMarket(null)}
+                  style={styles.infoModalCloseBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 14, paddingHorizontal: 4 }}>
+                Select an option to trade on this market:
+              </Text>
+
+              <ScrollView
+                style={styles.infoModalBody}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={{ gap: 10, paddingBottom: 16 }}>
+                  {(selectedOptionsMarket?.options || []).map((opt: any, optIdx: number) => {
+                    const optOdds = opt.odds || 2.0;
+                    const optLocked = Boolean(
+                      selectedOptionsMarket?.isLocked ||
+                      selectedOptionsMarket?.status === 'SUSPENDED' ||
+                      opt.isLocked ||
+                      (optOdds && optOdds <= 1.43) ||
+                      selectedOptionsMarket?.lockedContracts?.some((c: string) => c.toUpperCase() === String(opt.label || opt.id).toUpperCase())
+                    );
+                    return (
+                      <TouchableOpacity
+                        key={opt.id || `${opt.label}_${optIdx}`}
+                        onPress={() => {
+                          const m = selectedOptionsMarket;
+                          setSelectedOptionsMarket(null);
+                          handleOpenTrade(m, opt);
+                        }}
+                        disabled={optLocked}
+                        activeOpacity={0.7}
+                        style={{
+                          backgroundColor: '#131B2E',
+                          borderRadius: 14,
+                          padding: 14,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          borderWidth: 1,
+                          borderColor: optLocked ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.08)',
+                          opacity: optLocked ? 0.6 : 1,
+                        }}
+                      >
+                        <View style={{ flex: 1, marginRight: 12 }}>
+                          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700', marginBottom: 2 }}>
+                            {opt.label}
+                          </Text>
+                          <Text style={{ color: '#64748B', fontSize: 12 }}>
+                            {optLocked ? 'Safeguard locked' : '₦1,000 / Share'}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                          <View
+                            style={{
+                              backgroundColor: optLocked ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 210, 133, 0.15)',
+                              paddingHorizontal: 10,
+                              paddingVertical: 5,
+                              borderRadius: 8,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: optLocked ? '#EF4444' : '#00D285',
+                                fontWeight: '800',
+                                fontSize: 13,
+                              }}
+                            >
+                              {optLocked ? 'Locked' : `${Number(optOdds).toFixed(2)}x`}
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -1308,6 +1578,19 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     color: '#60A5FA',
+    fontFamily: 'Inter',
+  },
+  comingSoonBadgeDot: {
+    marginLeft: 6,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  comingSoonBadgeDotText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#F59E0B',
     fontFamily: 'Inter',
   },
 
@@ -2434,6 +2717,27 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 210, 133, 0.2)',
     borderWidth: 1,
     borderColor: '#00D285',
+  },
+  adminContractToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  adminContractToggleBtnLocked: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+  },
+  adminContractToggleText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#00D285',
+    fontFamily: 'Inter',
   },
   adminLockBtnText: {
     color: '#FFFFFF',

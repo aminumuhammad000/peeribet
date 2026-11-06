@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -27,10 +27,11 @@ import {
   Sparkles,
   Info,
   ShieldCheck,
+  Lock,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
-import { authService, p2pService, poolService, showToast } from '../services/apiService';
+import { authService, p2pService, poolService, predictionMarketService, showToast } from '../services/apiService';
 
 export default function EnterAmountScreen() {
   const router = useRouter();
@@ -44,14 +45,64 @@ export default function EnterAmountScreen() {
   const matchTitle = (params.matchTitle as string) || (params.title as string) || 'Match Detail';
   const startTime = (params.startTime as string) || 'Upcoming';
   const marketName = (params.marketName as string) || (isPrediction ? 'Prediction Contract' : 'Match Outcome');
-  const outcomeParam = ((params.outcome as string) || 'YES').toUpperCase();
+  const outcomeParam = ((params.outcome as string) || '').toUpperCase();
   const initialOdds = parseFloat(params.odds as string) || 1.95;
   const passedYesOdds = parseFloat(params.yesOdds as string) || (outcomeParam === 'NO' ? 1.85 : initialOdds);
   const passedNoOdds = parseFloat(params.noOdds as string) || (outcomeParam === 'NO' ? initialOdds : 1.95);
 
-  // User-selectable outcome state (allows switching between YES and NO)
-  const [outcome, setOutcome] = useState<'YES' | 'NO'>(outcomeParam === 'NO' ? 'NO' : 'YES');
-  const odds = outcome === 'YES' ? passedYesOdds : passedNoOdds;
+  const [marketData, setMarketData] = useState<any>(null);
+
+  const parsedOptions: any[] = useMemo(() => {
+    try {
+      if (params.options) {
+        const parsed = JSON.parse(params.options as string);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  }, [params.options]);
+
+  const parsedLockedContracts: string[] = useMemo(() => {
+    try {
+      if (params.lockedContracts) {
+        const parsed = JSON.parse(params.lockedContracts as string);
+        if (Array.isArray(parsed)) return parsed.map((c: string) => String(c).toUpperCase());
+      }
+    } catch (e) {}
+    return [];
+  }, [params.lockedContracts]);
+
+  // All options for this market
+  const allOptions: any[] = useMemo(() => {
+    if (parsedOptions.length > 0) return parsedOptions;
+    if (marketData?.options && marketData.options.length > 0) return marketData.options;
+    return [];
+  }, [parsedOptions, marketData]);
+
+  const isMultiChoice =
+    params.marketType === 'MULTIPLE_CHOICE' ||
+    allOptions.length > 2 ||
+    (allOptions.length >= 2 && !allOptions.some((o: any) => o.label?.toUpperCase() === 'YES'));
+
+  // User-selectable outcome state (supports option labels like candidates, or YES/NO)
+  const [outcome, setOutcome] = useState<string>(() => {
+    if (outcomeParam) return outcomeParam;
+    if (isMultiChoice && allOptions[0]?.label) return String(allOptions[0].label).toUpperCase();
+    return 'YES';
+  });
+
+  const odds = useMemo(() => {
+    if (isMultiChoice && allOptions.length > 0) {
+      const matchOpt = allOptions.find(
+        (o: any) =>
+          String(o.label || '').toUpperCase() === outcome.toUpperCase() ||
+          String(o.id || '').toUpperCase() === outcome.toUpperCase()
+      );
+      if (matchOpt?.odds) return Number(matchOpt.odds);
+    }
+    if (outcome === 'NO') return passedNoOdds;
+    return passedYesOdds;
+  }, [outcome, isMultiChoice, allOptions, passedYesOdds, passedNoOdds]);
   const homeTeamParam = (params.homeTeam as string) || '';
   const awayTeamParam = (params.awayTeam as string) || '';
   const initialPoolAmount = Number.isFinite(parseFloat(params.poolAmount as string))
@@ -176,6 +227,18 @@ export default function EnterAmountScreen() {
       if (user) setUserBalance(user.balance || 0);
       if (bookData?.orderBook) setOrderBook(bookData.orderBook);
       if (poolData) setPoolDetails(poolData);
+
+      if (isPrediction && targetId && parsedOptions.length === 0) {
+        try {
+          const m = await predictionMarketService.getMarketById(targetId);
+          if (m) {
+            setMarketData(m);
+            if (!outcomeParam && m.options && m.options[0]?.label) {
+              setOutcome(String(m.options[0].label).toUpperCase());
+            }
+          }
+        } catch (e) {}
+      }
     } catch (err) {
       console.error('Error fetching enter-amount data:', err);
     }
@@ -262,8 +325,19 @@ export default function EnterAmountScreen() {
   const isCrowdOverpowered = crowdRatio >= 0.70;
   const isOddsOverpowered = odds <= 1.43; // Implied probability >= 70%
 
-  const currentSelNorm = String(currentSelection || params.selection || '').trim().toUpperCase();
+  const currentSelNorm = String(currentSelection || params.selection || outcome || '').trim().toUpperCase();
   const isContractLocked = Boolean(
+    (parsedLockedContracts.length > 0 && parsedLockedContracts.some((c: string) => {
+      const cNorm = String(c).trim().toUpperCase();
+      return (
+        cNorm === currentSelNorm ||
+        (cNorm === 'HOME' && (currentSelNorm === '1' || currentSelNorm === 'HOME')) ||
+        (cNorm === 'AWAY' && (currentSelNorm === '2' || currentSelNorm === 'AWAY')) ||
+        (cNorm === 'DRAW' && (currentSelNorm === 'X' || currentSelNorm === 'DRAW')) ||
+        (cNorm === 'YES' && currentSelNorm === 'YES') ||
+        (cNorm === 'NO' && currentSelNorm === 'NO')
+      );
+    })) ||
     (poolDetails?.lockedContracts && poolDetails.lockedContracts.some((c: string) => {
       const cNorm = String(c).trim().toUpperCase();
       return (
@@ -275,8 +349,11 @@ export default function EnterAmountScreen() {
         (cNorm === 'NO' && currentSelNorm === 'NO')
       );
     })) ||
+    (allOptions.length > 0 && allOptions.some((opt: any) => 
+      (String(opt.id || '').toUpperCase() === currentSelNorm || String(opt.label || '').toUpperCase() === currentSelNorm) && opt.isLocked
+    )) ||
     (poolDetails?.options && poolDetails.options.some((opt: any) => 
-      (String(opt.id).toUpperCase() === currentSelNorm || String(opt.label).toUpperCase() === currentSelNorm) && opt.isLocked
+      (String(opt.id || '').toUpperCase() === currentSelNorm || String(opt.label || '').toUpperCase() === currentSelNorm) && opt.isLocked
     ))
   );
 
@@ -418,78 +495,158 @@ export default function EnterAmountScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Binary Outcome Selector (YES / NO) */}
-            <View style={styles.outcomeSelectorCard}>
-              <View style={styles.outcomeSelectorHeader}>
-                <Text style={styles.outcomeSelectorLabel}>SELECT OUTCOME</Text>
-                <View style={[styles.outcomeSelectedPill, outcome === 'YES' ? styles.outcomePillYes : styles.outcomePillNo]}>
-                  <Text style={[styles.outcomeSelectedPillText, outcome === 'YES' ? styles.outcomePillTextYes : styles.outcomePillTextNo]}>
-                    Selected: {outcome}
-                  </Text>
+            {/* Outcome Selector */}
+            {isMultiChoice && allOptions.length > 0 ? (
+              <View style={styles.outcomeSelectorCard}>
+                <View style={styles.outcomeSelectorHeader}>
+                  <Text style={styles.outcomeSelectorLabel}>SELECT CONTRACT OPTION</Text>
+                  <View style={[styles.outcomeSelectedPill, { backgroundColor: 'rgba(0, 210, 133, 0.15)', borderColor: 'rgba(0, 210, 133, 0.4)' }]}>
+                    <Text style={[styles.outcomeSelectedPillText, { color: '#00D285' }]}>
+                      Selected: {outcome}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={{ gap: 8, marginTop: 4 }}>
+                  {allOptions.map((opt: any, optIdx: number) => {
+                    const optLabel = String(opt.label || opt.id || `Option ${optIdx + 1}`);
+                    const isSelected = outcome.toUpperCase() === optLabel.toUpperCase() || outcome.toUpperCase() === String(opt.id || '').toUpperCase();
+                    const optOdds = opt.odds || 2.0;
+                    const optLocked = Boolean(
+                      opt.isLocked ||
+                      (optOdds && optOdds <= 1.43) ||
+                      (parsedLockedContracts.length > 0 && parsedLockedContracts.some((c: string) => c.toUpperCase() === optLabel.toUpperCase() || (opt.id && c.toUpperCase() === String(opt.id).toUpperCase())))
+                    );
+
+                    return (
+                      <TouchableOpacity
+                        key={opt.id || `${optLabel}_${optIdx}`}
+                        style={[
+                          styles.multiOptionChoiceRow,
+                          isSelected && styles.multiOptionChoiceRowActive,
+                          optLocked && { opacity: 0.5 },
+                        ]}
+                        onPress={() => {
+                          setOutcome(optLabel.toUpperCase());
+                          setError('');
+                        }}
+                        disabled={optLocked}
+                        activeOpacity={0.8}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                          <View
+                            style={[
+                              styles.multiOptionRadio,
+                              isSelected && styles.multiOptionRadioActive,
+                            ]}
+                          >
+                            {isSelected && <View style={styles.multiOptionRadioInner} />}
+                          </View>
+                          <Text
+                            style={[
+                              styles.multiOptionLabel,
+                              isSelected && styles.multiOptionLabelActive,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {optLabel}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          {optLocked ? (
+                            <View style={styles.multiOptionLockedBadge}>
+                              <Lock size={10} color="#EF4444" />
+                              <Text style={styles.multiOptionLockedText}>Locked</Text>
+                            </View>
+                          ) : (
+                            <Text
+                              style={[
+                                styles.multiOptionOdds,
+                                isSelected && styles.multiOptionOddsActive,
+                              ]}
+                            >
+                              {Number(optOdds).toFixed(2)}x
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
-              <View style={styles.outcomeChoiceRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.outcomeChoiceBtn,
-                    styles.outcomeChoiceBtnYes,
-                    outcome === 'YES' && styles.outcomeChoiceBtnYesActive,
-                  ]}
-                  onPress={() => {
-                    setOutcome('YES');
-                    setError('');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text
+            ) : (
+              <View style={styles.outcomeSelectorCard}>
+                <View style={styles.outcomeSelectorHeader}>
+                  <Text style={styles.outcomeSelectorLabel}>SELECT OUTCOME</Text>
+                  <View style={[styles.outcomeSelectedPill, outcome === 'YES' ? styles.outcomePillYes : styles.outcomePillNo]}>
+                    <Text style={[styles.outcomeSelectedPillText, outcome === 'YES' ? styles.outcomePillTextYes : styles.outcomePillTextNo]}>
+                      Selected: {outcome}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.outcomeChoiceRow}>
+                  <TouchableOpacity
                     style={[
-                      styles.outcomeChoiceLabelYes,
-                      outcome === 'YES' && styles.outcomeChoiceLabelYesActive,
+                      styles.outcomeChoiceBtn,
+                      styles.outcomeChoiceBtnYes,
+                      outcome === 'YES' && styles.outcomeChoiceBtnYesActive,
                     ]}
+                    onPress={() => {
+                      setOutcome('YES');
+                      setError('');
+                    }}
+                    activeOpacity={0.8}
                   >
-                    YES
-                  </Text>
-                  <Text
-                    style={[
-                      styles.outcomeChoiceOdds,
-                      outcome === 'YES' && styles.outcomeChoiceOddsActive,
-                    ]}
-                  >
-                    ₦1,000 / Share
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.outcomeChoiceLabelYes,
+                        outcome === 'YES' && styles.outcomeChoiceLabelYesActive,
+                      ]}
+                    >
+                      YES
+                    </Text>
+                    <Text
+                      style={[
+                        styles.outcomeChoiceOdds,
+                        outcome === 'YES' && styles.outcomeChoiceOddsActive,
+                      ]}
+                    >
+                      ₦1,000 / Share
+                    </Text>
+                  </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[
-                    styles.outcomeChoiceBtn,
-                    styles.outcomeChoiceBtnNo,
-                    outcome === 'NO' && styles.outcomeChoiceBtnNoActive,
-                  ]}
-                  onPress={() => {
-                    setOutcome('NO');
-                    setError('');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text
+                  <TouchableOpacity
                     style={[
-                      styles.outcomeChoiceLabelNo,
-                      outcome === 'NO' && styles.outcomeChoiceLabelNoActive,
+                      styles.outcomeChoiceBtn,
+                      styles.outcomeChoiceBtnNo,
+                      outcome === 'NO' && styles.outcomeChoiceBtnNoActive,
                     ]}
+                    onPress={() => {
+                      setOutcome('NO');
+                      setError('');
+                    }}
+                    activeOpacity={0.8}
                   >
-                    NO
-                  </Text>
-                  <Text
-                    style={[
-                      styles.outcomeChoiceOdds,
-                      outcome === 'NO' && styles.outcomeChoiceOddsActive,
-                    ]}
-                  >
-                    ₦1,000 / Share
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.outcomeChoiceLabelNo,
+                        outcome === 'NO' && styles.outcomeChoiceLabelNoActive,
+                      ]}
+                    >
+                      NO
+                    </Text>
+                    <Text
+                      style={[
+                        styles.outcomeChoiceOdds,
+                        outcome === 'NO' && styles.outcomeChoiceOddsActive,
+                      ]}
+                    >
+                      ₦1,000 / Share
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            )}
 
             {/* ─── P2P MODE UI ─── */}
             {tradingMode === 'P2P' ? (
@@ -890,6 +1047,76 @@ const styles = StyleSheet.create({
   outcomeChoiceOddsActive: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  multiOptionChoiceRow: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  multiOptionChoiceRowActive: {
+    backgroundColor: 'rgba(0, 210, 133, 0.12)',
+    borderColor: '#00D285',
+  },
+  multiOptionRadio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#64748B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  multiOptionRadioActive: {
+    borderColor: '#00D285',
+  },
+  multiOptionRadioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#00D285',
+  },
+  multiOptionLabel: {
+    color: '#94A3B8',
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+    flex: 1,
+  },
+  multiOptionLabelActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  multiOptionOdds: {
+    color: '#00D285',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  multiOptionOddsActive: {
+    color: '#00D285',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  multiOptionLockedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  multiOptionLockedText: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'Inter',
   },
   cardContainer: {
     width: '100%',

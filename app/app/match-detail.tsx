@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, CheckCircle, Zap, Shield, ShieldAlert, TrendingUp, Layers, HelpCircle, Activity, Info, ChevronDown, ChevronUp, ArrowRight, X, ShieldCheck } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, Zap, Shield, ShieldAlert, TrendingUp, Layers, HelpCircle, Activity, Info, ChevronDown, ChevronUp, ArrowRight, X, ShieldCheck, Lock, Unlock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../constants/Colors';
 import { matchService, p2pService, adminService, authService, showToast } from '../services/apiService';
@@ -88,8 +88,51 @@ export default function MatchDetailScreen() {
     }
   };
 
-  const isOutcomeOverpowered = (oddsVal: number | undefined | null) => {
+  const handleToggleAdminContractLock = async (contractKey: string, currentLocked: boolean) => {
+    const targetId = match?._id || matchId;
+    if (!targetId) return;
+    setTogglingLock(true);
+    try {
+      const res = await adminService.toggleMatchLock(targetId, !currentLocked, undefined, contractKey);
+      showToast(`Contract "${contractKey}" ${!currentLocked ? 'LOCKED' : 'UNLOCKED'} successfully`, 'success');
+      if (res.match) {
+        setMatch(res.match);
+      } else {
+        setMatch((prev: any) => {
+          const currentList = prev?.lockedContracts || [];
+          const norm = contractKey.toUpperCase();
+          const nextList = !currentLocked
+            ? [...currentList, norm]
+            : currentList.filter((c: string) => c.toUpperCase() !== norm);
+          return { ...prev, lockedContracts: nextList };
+        });
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to toggle contract lock', 'error');
+    } finally {
+      setTogglingLock(false);
+    }
+  };
+
+  const isOutcomeOverpowered = (oddsVal: number | undefined | null, contractKey?: string) => {
     if (isMatchAdminLocked) return true;
+    if (contractKey) {
+      const norm = String(contractKey).trim().toUpperCase();
+      const inLocked = Boolean(match?.lockedContracts?.some((c: string) => {
+        const cNorm = String(c).trim().toUpperCase();
+        return (
+          cNorm === norm ||
+          (norm === 'HOME' && (cNorm === '1' || cNorm === 'YES')) ||
+          (norm === 'AWAY' && (cNorm === '2' || cNorm === 'NO')) ||
+          (norm === 'DRAW' && cNorm === 'X') ||
+          (norm === 'OVER_25' && cNorm === 'OVER_25') ||
+          (norm === 'UNDER_25' && cNorm === 'UNDER_25') ||
+          (norm === 'BTTS_YES' && cNorm === 'BTTS_YES') ||
+          (norm === 'BTTS_NO' && cNorm === 'BTTS_NO')
+        );
+      }));
+      if (inLocked) return true;
+    }
     if (typeof oddsVal === 'number' && oddsVal <= 1.43) return true;
     return false;
   };
@@ -628,10 +671,35 @@ export default function MatchDetailScreen() {
           {/* Admin Overpower Lock Control Strip */}
           {user?.role === 'admin' && (
             <View style={styles.adminControlStrip}>
-              <ShieldAlert size={16} color={isMatchAdminLocked ? '#EF4444' : '#00D285'} />
-              <Text style={styles.adminControlText}>
-                Admin: {isMatchAdminLocked ? 'Locked (Overpowered)' : 'Active Fixture'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+                <ShieldAlert size={16} color={isMatchAdminLocked ? '#EF4444' : '#00D285'} />
+                <Text style={styles.adminControlText}>
+                  Admin Lock:
+                </Text>
+                {[
+                  { key: 'HOME', label: `${(match?.homeTeam || 'Home').slice(0, 8)} (1)` },
+                  { key: 'DRAW', label: 'Draw (X)' },
+                  { key: 'AWAY', label: `${(match?.awayTeam || 'Away').slice(0, 8)} (2)` },
+                  { key: 'OVER_25', label: 'O2.5' },
+                  { key: 'UNDER_25', label: 'U2.5' },
+                ].map((c) => {
+                  const isCLocked = isOutcomeOverpowered(undefined, c.key);
+                  return (
+                    <TouchableOpacity
+                      key={c.key}
+                      onPress={() => handleToggleAdminContractLock(c.key, isCLocked)}
+                      style={[styles.adminContractToggleBtn, isCLocked && styles.adminContractToggleBtnLocked]}
+                      activeOpacity={0.7}
+                      disabled={togglingLock}
+                    >
+                      {isCLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#00D285" />}
+                      <Text style={[styles.adminContractToggleText, isCLocked && { color: '#EF4444' }]}>
+                        {c.label} {isCLocked ? '(Locked)' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
               <TouchableOpacity
                 onPress={handleToggleAdminMatchLock}
                 disabled={togglingLock}
@@ -642,7 +710,7 @@ export default function MatchDetailScreen() {
                 activeOpacity={0.8}
               >
                 <Text style={styles.adminLockBtnText}>
-                  {togglingLock ? 'Updating...' : isMatchAdminLocked ? 'Unlock Match' : 'Lock (Overpowered)'}
+                  {togglingLock ? 'Updating...' : isMatchAdminLocked ? 'Unlock Match' : 'Lock Match'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1346,22 +1414,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(homeOdds) && { opacity: 0.5 }]}
+                        style={[styles.actionBtnYes, isOutcomeOverpowered(homeOdds, 'HOME') && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'Yes', homeOdds)}
-                        disabled={isOutcomeOverpowered(homeOdds)}
+                        disabled={isOutcomeOverpowered(homeOdds, 'HOME')}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(homeOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(homeOdds, 'HOME') ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(homeOdds) && { opacity: 0.5 }]}
+                        style={[styles.actionBtnNo, isOutcomeOverpowered(homeOdds, 'HOME') && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${homeTeam} to Win`, 'No', calcNoOdds(homeOdds, 2.10))}
-                        disabled={isOutcomeOverpowered(homeOdds)}
+                        disabled={isOutcomeOverpowered(homeOdds, 'HOME')}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(homeOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(homeOdds, 'HOME') ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1373,22 +1441,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(drawOdds) && { opacity: 0.5 }]}
+                        style={[styles.actionBtnYes, isOutcomeOverpowered(drawOdds, 'DRAW') && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Match Draw', 'Yes', drawOdds)}
-                        disabled={isOutcomeOverpowered(drawOdds)}
+                        disabled={isOutcomeOverpowered(drawOdds, 'DRAW')}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(drawOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(drawOdds, 'DRAW') ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(drawOdds) && { opacity: 0.5 }]}
+                        style={[styles.actionBtnNo, isOutcomeOverpowered(drawOdds, 'DRAW') && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome('Match Draw', 'No', calcNoOdds(drawOdds, 1.35))}
-                        disabled={isOutcomeOverpowered(drawOdds)}
+                        disabled={isOutcomeOverpowered(drawOdds, 'DRAW')}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(drawOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(drawOdds, 'DRAW') ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1400,22 +1468,22 @@ export default function MatchDetailScreen() {
                     </View>
                     <View style={styles.outcomeActionBtns}>
                       <TouchableOpacity
-                        style={[styles.actionBtnYes, isOutcomeOverpowered(awayOdds) && { opacity: 0.5 }]}
+                        style={[styles.actionBtnYes, isOutcomeOverpowered(awayOdds, 'AWAY') && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'Yes', awayOdds)}
-                        disabled={isOutcomeOverpowered(awayOdds)}
+                        disabled={isOutcomeOverpowered(awayOdds, 'AWAY')}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnYesText}>YES</Text>
-                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(awayOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                        <Text style={styles.actionBtnSubYes}>{isOutcomeOverpowered(awayOdds, 'AWAY') ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.actionBtnNo, isOutcomeOverpowered(awayOdds) && { opacity: 0.5 }]}
+                        style={[styles.actionBtnNo, isOutcomeOverpowered(awayOdds, 'AWAY') && { opacity: 0.5 }]}
                         onPress={() => handleSelectOutcome(`${awayTeam} to Win`, 'No', calcNoOdds(awayOdds, 1.65))}
-                        disabled={isOutcomeOverpowered(awayOdds)}
+                        disabled={isOutcomeOverpowered(awayOdds, 'AWAY')}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.actionBtnNoText}>NO</Text>
-                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(awayOdds) ? 'Locked' : '₦1k / Sh'}</Text>
+                        <Text style={styles.actionBtnSubNo}>{isOutcomeOverpowered(awayOdds, 'AWAY') ? 'Locked' : '₦1k / Sh'}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -2684,6 +2752,27 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 210, 133, 0.2)',
     borderWidth: 1,
     borderColor: '#00D285',
+  },
+  adminContractToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  adminContractToggleBtnLocked: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+  },
+  adminContractToggleText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#00D285',
+    fontFamily: 'Inter',
   },
   adminLockBtnText: {
     color: '#FFFFFF',

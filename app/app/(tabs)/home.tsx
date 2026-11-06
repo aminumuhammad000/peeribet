@@ -30,6 +30,8 @@ import {
   AlertCircle,
   HelpCircle,
   Lock,
+  Unlock,
+  ShieldAlert,
   Info,
   Zap,
 } from 'lucide-react-native';
@@ -40,6 +42,7 @@ import {
   matchService,
   predictionMarketService,
   notificationService,
+  adminService,
   showToast,
 } from '../../services/apiService';
 import { getSocket } from '../../services/socketService';
@@ -110,14 +113,14 @@ const CATEGORY_TABS = [
   { id: 'ALL', label: 'All Markets', icon: '🔥' },
   { id: 'FOOTBALL', label: 'Football', icon: '⚽' },
   { id: 'BASKETBALL', label: 'Basketball', icon: '🏀' },
+  { id: 'LIVE_EVENT', label: 'Live Prediction', icon: '🌍' },
+  { id: 'POLITICS', label: 'Politics', icon: '🏛️' },
+  { id: 'ENTERTAINMENT', label: 'Entertainment', icon: '🎬' },
   { id: 'CRICKET', label: 'Cricket', icon: '🏏' },
   { id: 'RUGBY', label: 'Rugby', icon: '🏉' },
   { id: 'HOCKEY', label: 'Hockey', icon: '🏒' },
   { id: 'BOXING', label: 'Boxing', icon: '🥊' },
   { id: 'UFC', label: 'UFC', icon: '🥋' },
-  { id: 'POLITICS', label: 'Politics', icon: '🏛️' },
-  { id: 'ENTERTAINMENT', label: 'Entertainment', icon: '🎬' },
-  { id: 'LIVE_EVENT', label: 'Live event Prediction', icon: '🌍' },
 ];
 
 const STAKE_PRESETS = [500, 1000, 2500, 5000, 10000];
@@ -138,6 +141,7 @@ export default function HomeScreen() {
   const [searchText, setSearchText] = useState('');
   const [activeCategoryTab, setActiveCategoryTab] = useState('ALL');
   const [selectedInfoContract, setSelectedInfoContract] = useState<ContractInfoDetail | null>(null);
+  const [selectedOptionsMarket, setSelectedOptionsMarket] = useState<any | null>(null);
 
   // Markets by Category
   const [sportsMatches, setSportsMatches] = useState<any[]>([]);
@@ -296,6 +300,26 @@ export default function HomeScreen() {
     return isOddsOverpowered || isWholeLocked || inLockedContracts || inOptions;
   };
 
+  const handleToggleAdminMarketLock = async (marketId: string, currentLocked: boolean, contract?: string) => {
+    try {
+      await adminService.toggleMarketLock(marketId, !currentLocked, undefined, contract);
+      showToast(`Market ${contract ? `"${contract}"` : ''} ${!currentLocked ? 'LOCKED' : 'UNLOCKED'} successfully`, 'success');
+      fetchData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to toggle market lock', 'error');
+    }
+  };
+
+  const handleToggleAdminMatchLock = async (matchId: string, currentLocked: boolean, contract?: string) => {
+    try {
+      await adminService.toggleMatchLock(matchId, !currentLocked, undefined, contract);
+      showToast(`Match ${contract ? `"${contract}"` : ''} ${!currentLocked ? 'LOCKED' : 'UNLOCKED'} successfully`, 'success');
+      fetchData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to toggle match lock', 'error');
+    }
+  };
+
   const getContractDetailInfo = (item: any, isMatch = false): ContractInfoDetail => {
     if (isMatch) {
       const sport = (item?.sport || 'Football').toUpperCase();
@@ -398,7 +422,14 @@ export default function HomeScreen() {
     });
   };
 
-  const handleOpenTradeModal = (market: any, option: any) => {
+  const handleOpenTradeModal = (market: any, option?: any) => {
+    const isMultiChoice =
+      market.marketType === 'MULTIPLE_CHOICE' ||
+      (market.options && market.options.length > 2) ||
+      (market.options &&
+        market.options.length >= 2 &&
+        !market.options.some((o: any) => o.label?.toUpperCase() === 'YES'));
+
     const yesOption = market.options?.find(
       (o: any) => o.id?.toLowerCase() === 'yes' || o.label?.toLowerCase() === 'yes'
     ) || { label: 'YES', odds: market.yesOdds || market.options?.[0]?.odds || 1.85 };
@@ -407,13 +438,13 @@ export default function HomeScreen() {
     ) || { label: 'NO', odds: market.noOdds || market.options?.[1]?.odds || 1.95 };
     const yesOdds = market.yesOdds || yesOption?.odds || 1.85;
     const noOdds = market.noOdds || noOption?.odds || 1.95;
-    const selectedOutcome = (option?.label || 'YES').toUpperCase();
-    const selectedOdds = option?.odds || (selectedOutcome === 'NO' ? noOdds : yesOdds);
+    const selectedOutcome = (option?.label || option?.id || (isMultiChoice ? market.options?.[0]?.label : 'YES') || 'YES').toUpperCase();
+    const selectedOdds = option?.odds || (selectedOutcome === 'NO' ? noOdds : (isMultiChoice ? (market.options?.[0]?.odds || 2.0) : yesOdds));
 
     router.push({
       pathname: '/enter-amount',
       params: {
-        marketId: market._id,
+        marketId: market._id || market.id,
         matchTitle: market.title,
         marketName: market.subcategory || market.category || 'Prediction Contract',
         outcome: selectedOutcome,
@@ -422,6 +453,9 @@ export default function HomeScreen() {
         noOdds,
         isPrediction: 'true',
         poolAmount: market.poolAmount || 0,
+        options: JSON.stringify(market.options || []),
+        marketType: isMultiChoice ? 'MULTIPLE_CHOICE' : (market.marketType || 'YES_NO'),
+        lockedContracts: JSON.stringify(market.lockedContracts || []),
         startTime: market.closingDate
           ? new Date(market.closingDate).toLocaleDateString([], { month: 'short', day: 'numeric' })
           : 'Active',
@@ -471,16 +505,15 @@ export default function HomeScreen() {
 
   const hasAnyVisibleCards =
     ((activeCategoryTab === 'ALL' || activeCategoryTab === 'FOOTBALL') && (filteredSports.length > 0 || filteredSportsPredictions.length > 0)) ||
-    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'POLITICS') && filteredPolitics.length > 0) ||
-    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'LIVE_EVENT') && filteredLiveEvents.length > 0) ||
-    (activeCategoryTab === 'BOXING') ||
-    (activeCategoryTab === 'UFC') ||
     ((activeCategoryTab === 'ALL' || activeCategoryTab === 'BASKETBALL') && filteredBasketball.length > 0) ||
-    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'CRICKET') && filteredCricket.length > 0) ||
-    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'RUGBY') && filteredRugby.length > 0) ||
-    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'HOCKEY') && filteredHockey.length > 0) ||
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'LIVE_EVENT') && filteredLiveEvents.length > 0) ||
+    ((activeCategoryTab === 'ALL' || activeCategoryTab === 'POLITICS') && filteredPolitics.length > 0) ||
     ((activeCategoryTab === 'ALL' || activeCategoryTab === 'ENTERTAINMENT') && filteredEntertainment.length > 0) ||
-    (activeCategoryTab === 'ALL' && filteredOtherPredictions.length > 0);
+    activeCategoryTab === 'CRICKET' ||
+    activeCategoryTab === 'RUGBY' ||
+    activeCategoryTab === 'HOCKEY' ||
+    activeCategoryTab === 'BOXING' ||
+    activeCategoryTab === 'UFC';
 
   const renderMarketPredictionCard = (market: any) => {
     const isMultiChoice =
@@ -506,6 +539,65 @@ export default function HomeScreen() {
 
     return (
       <View key={market._id || market.id} style={styles.richMarketCard}>
+        {/* Admin Lock / Unlock Control Strip */}
+        {user?.role === 'admin' && (
+          <View style={styles.adminControlStrip}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+              <ShieldAlert size={14} color={isAllLocked ? '#EF4444' : '#00D285'} />
+              <Text style={styles.adminControlText}>Admin Lock:</Text>
+              {isMultiChoice ? (
+                (market.options || []).map((opt: any) => {
+                  const optLocked = isContractLocked(market, opt.label, opt.odds);
+                  return (
+                    <TouchableOpacity
+                      key={opt.id || opt.label}
+                      onPress={() => handleToggleAdminMarketLock(market._id, optLocked, opt.id || opt.label)}
+                      style={[styles.adminContractToggleBtn, optLocked && styles.adminContractToggleBtnLocked]}
+                      activeOpacity={0.7}
+                    >
+                      {optLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#00D285" />}
+                      <Text style={[styles.adminContractToggleText, optLocked && { color: '#EF4444' }]}>
+                        {opt.label} {optLocked ? '(Locked)' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <>
+                  <TouchableOpacity
+                    onPress={() => handleToggleAdminMarketLock(market._id, isYesLocked, 'YES')}
+                    style={[styles.adminContractToggleBtn, isYesLocked && styles.adminContractToggleBtnLocked]}
+                    activeOpacity={0.7}
+                  >
+                    {isYesLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#00D285" />}
+                    <Text style={[styles.adminContractToggleText, isYesLocked && { color: '#EF4444' }]}>
+                      YES {isYesLocked ? '(Locked)' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleToggleAdminMarketLock(market._id, isNoLocked, 'NO')}
+                    style={[styles.adminContractToggleBtn, isNoLocked && styles.adminContractToggleBtnLocked]}
+                    activeOpacity={0.7}
+                  >
+                    {isNoLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#00D285" />}
+                    <Text style={[styles.adminContractToggleText, isNoLocked && { color: '#EF4444' }]}>
+                      NO {isNoLocked ? '(Locked)' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+            <TouchableOpacity
+              onPress={() => handleToggleAdminMarketLock(market._id, isAllLocked)}
+              style={[styles.adminLockBtnSmall, isAllLocked ? styles.adminUnlockBtnSmall : styles.adminLockBtnActive]}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.adminLockBtnText}>
+                {isAllLocked ? 'Unlock All' : 'Lock All'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <View style={styles.cardTopRow}>
           <View style={styles.cardCategoryGroup}>
             <Text style={styles.cardCategoryBadge}>
@@ -537,7 +629,16 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <Text style={styles.marketTitleText}>{market.title}</Text>
+        <TouchableOpacity
+          activeOpacity={isMultiChoice ? 0.7 : 1}
+          onPress={() => {
+            if (isMultiChoice) {
+              setSelectedOptionsMarket(market);
+            }
+          }}
+        >
+          <Text style={styles.marketTitleText}>{market.title}</Text>
+        </TouchableOpacity>
 
         {/* Outcomes & Trade Buttons */}
         {isMultiChoice ? (
@@ -595,18 +696,22 @@ export default function HomeScreen() {
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() =>
-              handleOpenTradeModal(
-                market,
-                isMultiChoice ? market.options?.[0] : (isYesLocked && !isNoLocked ? noOption : yesOption)
-              )
-            }
+            onPress={() => {
+              if (isMultiChoice) {
+                setSelectedOptionsMarket(market);
+              } else {
+                handleOpenTradeModal(
+                  market,
+                  isYesLocked && !isNoLocked ? noOption : yesOption
+                );
+              }
+            }}
             style={[styles.quickTradePill, isAllLocked && { opacity: 0.5 }]}
             activeOpacity={0.8}
             disabled={isAllLocked}
           >
             <Text style={styles.quickTradePillText}>
-              {isAllLocked ? 'Locked' : isMultiChoice ? 'Trade Option' : 'Trade YES / NO'}
+              {isAllLocked ? 'Locked' : isMultiChoice ? `Choose Option (${market.options?.length || 0})` : 'Trade YES / NO'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -672,7 +777,7 @@ export default function HomeScreen() {
           <View style={styles.searchContainer}>
             <Search size={18} color="#64748B" />
             <TextInput
-              placeholder="Search sports, politics, or entertainment..."
+              placeholder="Search football, basketball, politics, live prediction..."
               placeholderTextColor="#64748B"
               style={styles.searchInput}
               value={searchText}
@@ -700,6 +805,7 @@ export default function HomeScreen() {
             >
               {CATEGORY_TABS.map((tab) => {
                 const isSelected = activeCategoryTab === tab.id;
+                const isComingSoonTab = ['CRICKET', 'RUGBY', 'HOCKEY', 'BOXING', 'UFC'].includes(tab.id);
                 return (
                   <TouchableOpacity
                     key={tab.id}
@@ -711,6 +817,11 @@ export default function HomeScreen() {
                     <Text style={[styles.categoryPillText, isSelected && styles.categoryPillTextActive]}>
                       {tab.label}
                     </Text>
+                    {isComingSoonTab && (
+                      <View style={styles.tabSoonBadge}>
+                        <Text style={styles.tabSoonBadgeText}>SOON</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -905,6 +1016,44 @@ export default function HomeScreen() {
                       key={match._id}
                       style={styles.richMarketCard}
                     >
+                      {/* Admin Lock / Unlock Control Strip */}
+                      {user?.role === 'admin' && (
+                        <View style={styles.adminControlStrip}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+                            <ShieldAlert size={14} color={match.isLocked ? '#EF4444' : '#00D285'} />
+                            <Text style={styles.adminControlText}>Admin Lock:</Text>
+                            {[
+                              { key: 'HOME', label: `${(match.homeTeam || 'Home').slice(0, 10)} (1)` },
+                              { key: 'DRAW', label: 'Draw (X)' },
+                              { key: 'AWAY', label: `${(match.awayTeam || 'Away').slice(0, 10)} (2)` },
+                            ].map((c) => {
+                              const isCLocked = isContractLocked(match, c.key);
+                              return (
+                                <TouchableOpacity
+                                  key={c.key}
+                                  onPress={() => handleToggleAdminMatchLock(match._id, isCLocked, c.key)}
+                                  style={[styles.adminContractToggleBtn, isCLocked && styles.adminContractToggleBtnLocked]}
+                                  activeOpacity={0.7}
+                                >
+                                  {isCLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#00D285" />}
+                                  <Text style={[styles.adminContractToggleText, isCLocked && { color: '#EF4444' }]}>
+                                    {c.label} {isCLocked ? '(Locked)' : ''}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleToggleAdminMatchLock(match._id, Boolean(match.isLocked))}
+                            style={[styles.adminLockBtnSmall, match.isLocked ? styles.adminUnlockBtnSmall : styles.adminLockBtnActive]}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.adminLockBtnText}>
+                              {match.isLocked ? 'Unlock Match' : 'Lock Match'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                       {/* Card Top: League & Status */}
                       <View style={styles.cardTopRow}>
                         <View style={styles.cardCategoryGroup}>
@@ -1185,6 +1334,43 @@ export default function HomeScreen() {
                     : filteredBasketball.slice(0, CARDS_PER_CATEGORY)
                   ).map((match) => (
                     <View key={match._id} style={styles.richMarketCard}>
+                      {/* Admin Lock / Unlock Control Strip */}
+                      {user?.role === 'admin' && (
+                        <View style={styles.adminControlStrip}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+                            <ShieldAlert size={14} color={match.isLocked ? '#EF4444' : '#00D285'} />
+                            <Text style={styles.adminControlText}>Admin Lock:</Text>
+                            {[
+                              { key: 'HOME', label: `${(match.homeTeam || 'Home').slice(0, 10)} (1)` },
+                              { key: 'AWAY', label: `${(match.awayTeam || 'Away').slice(0, 10)} (2)` },
+                            ].map((c) => {
+                              const isCLocked = isContractLocked(match, c.key);
+                              return (
+                                <TouchableOpacity
+                                  key={c.key}
+                                  onPress={() => handleToggleAdminMatchLock(match._id, isCLocked, c.key)}
+                                  style={[styles.adminContractToggleBtn, isCLocked && styles.adminContractToggleBtnLocked]}
+                                  activeOpacity={0.7}
+                                >
+                                  {isCLocked ? <Lock size={10} color="#EF4444" /> : <Unlock size={10} color="#00D285" />}
+                                  <Text style={[styles.adminContractToggleText, isCLocked && { color: '#EF4444' }]}>
+                                    {c.label} {isCLocked ? '(Locked)' : ''}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleToggleAdminMatchLock(match._id, Boolean(match.isLocked))}
+                            style={[styles.adminLockBtnSmall, match.isLocked ? styles.adminUnlockBtnSmall : styles.adminLockBtnActive]}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.adminLockBtnText}>
+                              {match.isLocked ? 'Unlock Match' : 'Lock Match'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                       <View style={styles.cardTopRow}>
                         <View style={styles.cardCategoryGroup}>
                           <Text style={styles.cardLeagueText} numberOfLines={1}>
@@ -1305,481 +1491,13 @@ export default function HomeScreen() {
               </View>
             )}
 
-          {/* SECTION: 🏏 Cricket Contracts */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'CRICKET') &&
-            filteredCricket.length > 0 && (
-              <View style={styles.categorySection}>
-                <View style={styles.categoryHeaderRow}>
-                  <View style={styles.categoryTitleBox}>
-                    <Text style={styles.categorySectionEmoji}>🏏</Text>
-                    <Text style={styles.categorySectionTitle}>Cricket Contracts</Text>
-                    <View style={styles.categoryCountBadge}>
-                      <Text style={styles.categoryCountText}>{filteredCricket.length}</Text>
-                    </View>
-                  </View>
-                  {filteredCricket.length > CARDS_PER_CATEGORY && !searchText.trim() && (
-                    <TouchableOpacity
-                      onPress={() => setExpandedCricket(!expandedCricket)}
-                      style={styles.viewAllBtn}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.viewAllBtnText}>
-                        {expandedCricket ? 'Show Less' : `View All (${filteredCricket.length})`}
-                      </Text>
-                      {expandedCricket ? (
-                        <ChevronUp size={14} color="#00D285" />
-                      ) : (
-                        <ChevronDown size={14} color="#00D285" />
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <View style={styles.cardsGrid}>
-                  {(expandedCricket || searchText.trim()
-                    ? filteredCricket
-                    : filteredCricket.slice(0, CARDS_PER_CATEGORY)
-                  ).map((match) => (
-                    <View key={match._id} style={styles.richMarketCard}>
-                      <View style={styles.cardTopRow}>
-                        <View style={styles.cardCategoryGroup}>
-                          <Text style={styles.cardLeagueText} numberOfLines={1}>
-                            {(match.leagueName || match.league || 'CRICKET').toUpperCase()}
-                          </Text>
-                          <TouchableOpacity
-                            onPress={() => setSelectedInfoContract(getContractDetailInfo(match, true))}
-                            style={styles.infoIconButton}
-                            activeOpacity={0.7}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          >
-                            <Info size={13} color="#00D285" />
-                          </TouchableOpacity>
-                        </View>
-                        <View
-                          style={[
-                            styles.statusPill,
-                            match.status === 'LIVE' ? styles.statusPillLive : styles.statusPillUpcoming,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.statusPillText,
-                              match.status === 'LIVE' ? styles.statusTextLive : styles.statusTextUpcoming,
-                            ]}
-                          >
-                            {match.status === 'LIVE' ? '● LIVE' : formatMatchTime(match.startTime)}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.matchupRow}>
-                        <View style={styles.teamSide}>
-                          <View style={[styles.smallTeamBadge, { borderColor: '#10B981' }]}>
-                            <Text style={[styles.smallTeamBadgeText, { color: '#10B981' }]}>
-                              {(match.homeTeam || 'H').slice(0, 2).toUpperCase()}
-                            </Text>
-                          </View>
-                          <Text style={styles.teamNameMain} numberOfLines={1}>
-                            {match.homeTeam}
-                          </Text>
-                        </View>
-
-                        <View style={styles.vsBadgeSmall}>
-                          <Text style={styles.vsBadgeSmallText}>VS</Text>
-                        </View>
-
-                        <View style={styles.teamSideRight}>
-                          <Text style={[styles.teamNameMain, { textAlign: 'right' }]} numberOfLines={1}>
-                            {match.awayTeam}
-                          </Text>
-                          <View style={[styles.smallTeamBadge, { borderColor: '#F59E0B' }]}>
-                            <Text style={[styles.smallTeamBadgeText, { color: '#F59E0B' }]}>
-                              {(match.awayTeam || 'A').slice(0, 2).toUpperCase()}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {(() => {
-                        const homeOdds = match.odds?.home || 1.85;
-                        const noHomeOdds = calcNoOdds(homeOdds, 2.10);
-                        const isYesLocked = isContractLocked(match, 'Yes', homeOdds);
-                        const isNoLocked = isContractLocked(match, 'No', noHomeOdds);
-                        return (
-                          <View style={styles.binaryChoiceRow}>
-                            <TouchableOpacity
-                              style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
-                              activeOpacity={0.8}
-                              disabled={isYesLocked}
-                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)}
-                            >
-                              <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                              <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
-                              activeOpacity={0.8}
-                              disabled={isNoLocked}
-                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)}
-                            >
-                              <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                              <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })()}
-
-                      <View style={styles.cardFooterRow}>
-                        <View>
-                          <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
-                          <Text style={styles.cardPoolValue}>
-                            ₦{(match.poolAmount || 2500000).toLocaleString()}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.quickTradePill}
-                          onPress={() =>
-                            router.push({
-                              pathname: '/match-detail',
-                              params: {
-                                id: match._id,
-                                homeTeam: match.homeTeam,
-                                awayTeam: match.awayTeam,
-                                sport: 'Cricket',
-                                league: match.leagueName || match.league || '',
-                              },
-                            })
-                          }
-                        >
-                          <Text style={styles.quickTradePillText}>All Contracts</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-          {/* SECTION: 🏉 Rugby Contracts */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'RUGBY') &&
-            filteredRugby.length > 0 && (
-              <View style={styles.categorySection}>
-                <View style={styles.categoryHeaderRow}>
-                  <View style={styles.categoryTitleBox}>
-                    <Text style={styles.categorySectionEmoji}>🏉</Text>
-                    <Text style={styles.categorySectionTitle}>Rugby Contracts</Text>
-                    <View style={styles.categoryCountBadge}>
-                      <Text style={styles.categoryCountText}>{filteredRugby.length}</Text>
-                    </View>
-                  </View>
-                  {filteredRugby.length > CARDS_PER_CATEGORY && !searchText.trim() && (
-                    <TouchableOpacity
-                      onPress={() => setExpandedRugby(!expandedRugby)}
-                      style={styles.viewAllBtn}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.viewAllBtnText}>
-                        {expandedRugby ? 'Show Less' : `View All (${filteredRugby.length})`}
-                      </Text>
-                      {expandedRugby ? (
-                        <ChevronUp size={14} color="#00D285" />
-                      ) : (
-                        <ChevronDown size={14} color="#00D285" />
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <View style={styles.cardsGrid}>
-                  {(expandedRugby || searchText.trim()
-                    ? filteredRugby
-                    : filteredRugby.slice(0, CARDS_PER_CATEGORY)
-                  ).map((match) => (
-                    <View key={match._id} style={styles.richMarketCard}>
-                      <View style={styles.cardTopRow}>
-                        <View style={styles.cardCategoryGroup}>
-                          <Text style={styles.cardLeagueText} numberOfLines={1}>
-                            {(match.leagueName || match.league || 'RUGBY').toUpperCase()}
-                          </Text>
-                          <TouchableOpacity
-                            onPress={() => setSelectedInfoContract(getContractDetailInfo(match, true))}
-                            style={styles.infoIconButton}
-                            activeOpacity={0.7}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          >
-                            <Info size={13} color="#00D285" />
-                          </TouchableOpacity>
-                        </View>
-                        <View
-                          style={[
-                            styles.statusPill,
-                            match.status === 'LIVE' ? styles.statusPillLive : styles.statusPillUpcoming,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.statusPillText,
-                              match.status === 'LIVE' ? styles.statusTextLive : styles.statusTextUpcoming,
-                            ]}
-                          >
-                            {match.status === 'LIVE' ? '● LIVE' : formatMatchTime(match.startTime)}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.matchupRow}>
-                        <View style={styles.teamSide}>
-                          <View style={[styles.smallTeamBadge, { borderColor: '#EC4899' }]}>
-                            <Text style={[styles.smallTeamBadgeText, { color: '#EC4899' }]}>
-                              {(match.homeTeam || 'H').slice(0, 2).toUpperCase()}
-                            </Text>
-                          </View>
-                          <Text style={styles.teamNameMain} numberOfLines={1}>
-                            {match.homeTeam}
-                          </Text>
-                        </View>
-
-                        <View style={styles.vsBadgeSmall}>
-                          <Text style={styles.vsBadgeSmallText}>VS</Text>
-                        </View>
-
-                        <View style={styles.teamSideRight}>
-                          <Text style={[styles.teamNameMain, { textAlign: 'right' }]} numberOfLines={1}>
-                            {match.awayTeam}
-                          </Text>
-                          <View style={[styles.smallTeamBadge, { borderColor: '#3B82F6' }]}>
-                            <Text style={[styles.smallTeamBadgeText, { color: '#3B82F6' }]}>
-                              {(match.awayTeam || 'A').slice(0, 2).toUpperCase()}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {(() => {
-                        const homeOdds = match.odds?.home || 1.85;
-                        const noHomeOdds = calcNoOdds(homeOdds, 2.10);
-                        const isYesLocked = isContractLocked(match, 'Yes', homeOdds);
-                        const isNoLocked = isContractLocked(match, 'No', noHomeOdds);
-                        return (
-                          <View style={styles.binaryChoiceRow}>
-                            <TouchableOpacity
-                              style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
-                              activeOpacity={0.8}
-                              disabled={isYesLocked}
-                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)}
-                            >
-                              <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                              <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
-                              activeOpacity={0.8}
-                              disabled={isNoLocked}
-                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)}
-                            >
-                              <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                              <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })()}
-
-                      <View style={styles.cardFooterRow}>
-                        <View>
-                          <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
-                          <Text style={styles.cardPoolValue}>
-                            ₦{(match.poolAmount || 2100000).toLocaleString()}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.quickTradePill}
-                          onPress={() =>
-                            router.push({
-                              pathname: '/match-detail',
-                              params: {
-                                id: match._id,
-                                homeTeam: match.homeTeam,
-                                awayTeam: match.awayTeam,
-                                sport: 'Rugby',
-                                league: match.leagueName || match.league || '',
-                              },
-                            })
-                          }
-                        >
-                          <Text style={styles.quickTradePillText}>All Contracts</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-          {/* SECTION: 🏒 Hockey Contracts */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'HOCKEY') &&
-            filteredHockey.length > 0 && (
-              <View style={styles.categorySection}>
-                <View style={styles.categoryHeaderRow}>
-                  <View style={styles.categoryTitleBox}>
-                    <Text style={styles.categorySectionEmoji}>🏒</Text>
-                    <Text style={styles.categorySectionTitle}>Hockey Contracts</Text>
-                    <View style={styles.categoryCountBadge}>
-                      <Text style={styles.categoryCountText}>{filteredHockey.length}</Text>
-                    </View>
-                  </View>
-                  {filteredHockey.length > CARDS_PER_CATEGORY && !searchText.trim() && (
-                    <TouchableOpacity
-                      onPress={() => setExpandedHockey(!expandedHockey)}
-                      style={styles.viewAllBtn}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.viewAllBtnText}>
-                        {expandedHockey ? 'Show Less' : `View All (${filteredHockey.length})`}
-                      </Text>
-                      {expandedHockey ? (
-                        <ChevronUp size={14} color="#00D285" />
-                      ) : (
-                        <ChevronDown size={14} color="#00D285" />
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <View style={styles.cardsGrid}>
-                  {(expandedHockey || searchText.trim()
-                    ? filteredHockey
-                    : filteredHockey.slice(0, CARDS_PER_CATEGORY)
-                  ).map((match) => (
-                    <View key={match._id} style={styles.richMarketCard}>
-                      <View style={styles.cardTopRow}>
-                        <View style={styles.cardCategoryGroup}>
-                          <Text style={styles.cardLeagueText} numberOfLines={1}>
-                            {(match.leagueName || match.league || 'HOCKEY').toUpperCase()}
-                          </Text>
-                          <TouchableOpacity
-                            onPress={() => setSelectedInfoContract(getContractDetailInfo(match, true))}
-                            style={styles.infoIconButton}
-                            activeOpacity={0.7}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          >
-                            <Info size={13} color="#00D285" />
-                          </TouchableOpacity>
-                        </View>
-                        <View
-                          style={[
-                            styles.statusPill,
-                            match.status === 'LIVE' ? styles.statusPillLive : styles.statusPillUpcoming,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.statusPillText,
-                              match.status === 'LIVE' ? styles.statusTextLive : styles.statusTextUpcoming,
-                            ]}
-                          >
-                            {match.status === 'LIVE' ? '● LIVE' : formatMatchTime(match.startTime)}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.matchupRow}>
-                        <View style={styles.teamSide}>
-                          <View style={[styles.smallTeamBadge, { borderColor: '#06B6D4' }]}>
-                            <Text style={[styles.smallTeamBadgeText, { color: '#06B6D4' }]}>
-                              {(match.homeTeam || 'H').slice(0, 2).toUpperCase()}
-                            </Text>
-                          </View>
-                          <Text style={styles.teamNameMain} numberOfLines={1}>
-                            {match.homeTeam}
-                          </Text>
-                        </View>
-
-                        <View style={styles.vsBadgeSmall}>
-                          <Text style={styles.vsBadgeSmallText}>VS</Text>
-                        </View>
-
-                        <View style={styles.teamSideRight}>
-                          <Text style={[styles.teamNameMain, { textAlign: 'right' }]} numberOfLines={1}>
-                            {match.awayTeam}
-                          </Text>
-                          <View style={[styles.smallTeamBadge, { borderColor: '#8B5CF6' }]}>
-                            <Text style={[styles.smallTeamBadgeText, { color: '#8B5CF6' }]}>
-                              {(match.awayTeam || 'A').slice(0, 2).toUpperCase()}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {(() => {
-                        const homeOdds = match.odds?.home || 1.85;
-                        const noHomeOdds = calcNoOdds(homeOdds, 2.10);
-                        const isYesLocked = isContractLocked(match, 'Yes', homeOdds);
-                        const isNoLocked = isContractLocked(match, 'No', noHomeOdds);
-                        return (
-                          <View style={styles.binaryChoiceRow}>
-                            <TouchableOpacity
-                              style={[styles.binaryOptionBtn, styles.binaryOptionYes, isYesLocked && { opacity: 0.5 }]}
-                              activeOpacity={0.8}
-                              disabled={isYesLocked}
-                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'Yes', homeOdds)}
-                            >
-                              <Text style={styles.binaryOptionLabelYes}>YES</Text>
-                              <Text style={styles.binaryOptionOdds}>{isYesLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={[styles.binaryOptionBtn, styles.binaryOptionNo, isNoLocked && { opacity: 0.5 }]}
-                              activeOpacity={0.8}
-                              disabled={isNoLocked}
-                              onPress={() => handleTradeSportOutcome(match, `${match.homeTeam} to Win`, 'No', noHomeOdds)}
-                            >
-                              <Text style={styles.binaryOptionLabelNo}>NO</Text>
-                              <Text style={styles.binaryOptionOdds}>{isNoLocked ? 'Locked' : '₦1,000 / Share'}</Text>
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })()}
-
-                      <View style={styles.cardFooterRow}>
-                        <View>
-                          <Text style={styles.cardPoolLabel}>TOTAL VOLUME</Text>
-                          <Text style={styles.cardPoolValue}>
-                            ₦{(match.poolAmount || 2200000).toLocaleString()}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          style={styles.quickTradePill}
-                          onPress={() =>
-                            router.push({
-                              pathname: '/match-detail',
-                              params: {
-                                id: match._id,
-                                homeTeam: match.homeTeam,
-                                awayTeam: match.awayTeam,
-                                sport: 'Hockey',
-                                league: match.leagueName || match.league || '',
-                              },
-                            })
-                          }
-                        >
-                          <Text style={styles.quickTradePillText}>All Contracts</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-          {/* SECTION: 🥊 Boxing Coming Soon */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'BOXING') && (
+          {/* SECTION: 🏏 Cricket Coming Soon */}
+          {activeCategoryTab === 'CRICKET' && (
             <View style={styles.categorySection}>
               <View style={styles.categoryHeaderRow}>
                 <View style={styles.categoryTitleBox}>
-                  <Text style={styles.categorySectionEmoji}>🥊</Text>
-                  <Text style={styles.categorySectionTitle}>Boxing Championship Contracts</Text>
+                  <Text style={styles.categorySectionEmoji}>🏏</Text>
+                  <Text style={styles.categorySectionTitle}>Cricket Contracts</Text>
                   <View style={[styles.categoryCountBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
                     <Text style={[styles.categoryCountText, { color: '#F59E0B' }]}>COMING SOON</Text>
                   </View>
@@ -1787,45 +1505,74 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.comingSoonCard}>
-                <View style={styles.comingSoonIconCircle}>
-                  <Text style={{ fontSize: 28 }}>🥊</Text>
+                <View style={[styles.comingSoonIconCircle, { borderColor: 'rgba(16, 185, 129, 0.3)' }]}>
+                  <Text style={{ fontSize: 28 }}>🏏</Text>
                 </View>
-                <Text style={styles.comingSoonTitle}>Boxing Ring Contracts Coming Soon</Text>
+                <Text style={styles.comingSoonTitle}>Cricket Contracts Coming Soon</Text>
                 <Text style={styles.comingSoonDesc}>
-                  Live championship fight cards and round-by-round prediction markets will be available once the official sanctioning feeds go live.
+                  International Test series, IPL, and T20 World Cup peer-to-peer prediction markets are launching soon.
                 </Text>
-                <View style={styles.comingSoonBadge}>
-                  <Sparkles size={14} color="#F59E0B" />
-                  <Text style={styles.comingSoonBadgeText}>Next Major Fight Night</Text>
+                <View style={[styles.comingSoonBadge, { borderColor: 'rgba(16, 185, 129, 0.3)' }]}>
+                  <Sparkles size={14} color="#10B981" />
+                  <Text style={[styles.comingSoonBadgeText, { color: '#10B981' }]}>Next Major Tournament</Text>
                 </View>
               </View>
             </View>
           )}
 
-          {/* SECTION: 🥋 UFC Coming Soon */}
-          {(activeCategoryTab === 'ALL' || activeCategoryTab === 'UFC') && (
+          {/* SECTION: 🏉 Rugby Coming Soon */}
+          {activeCategoryTab === 'RUGBY' && (
             <View style={styles.categorySection}>
               <View style={styles.categoryHeaderRow}>
                 <View style={styles.categoryTitleBox}>
-                  <Text style={styles.categorySectionEmoji}>🥋</Text>
-                  <Text style={styles.categorySectionTitle}>UFC & MMA Fight Contracts</Text>
-                  <View style={[styles.categoryCountBadge, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                    <Text style={[styles.categoryCountText, { color: '#10B981' }]}>COMING SOON</Text>
+                  <Text style={styles.categorySectionEmoji}>🏉</Text>
+                  <Text style={styles.categorySectionTitle}>Rugby Contracts</Text>
+                  <View style={[styles.categoryCountBadge, { backgroundColor: 'rgba(236, 72, 153, 0.15)' }]}>
+                    <Text style={[styles.categoryCountText, { color: '#EC4899' }]}>COMING SOON</Text>
                   </View>
                 </View>
               </View>
 
               <View style={styles.comingSoonCard}>
-                <View style={[styles.comingSoonIconCircle, { borderColor: 'rgba(16, 185, 129, 0.3)' }]}>
-                  <Text style={{ fontSize: 28 }}>🥋</Text>
+                <View style={[styles.comingSoonIconCircle, { borderColor: 'rgba(236, 72, 153, 0.3)' }]}>
+                  <Text style={{ fontSize: 28 }}>🏉</Text>
                 </View>
-                <Text style={styles.comingSoonTitle}>UFC Octagon Contracts Coming Soon</Text>
+                <Text style={styles.comingSoonTitle}>Rugby Contracts Coming Soon</Text>
                 <Text style={styles.comingSoonDesc}>
-                  Main cards, submission props, and championship title contracts are launching in the next platform release.
+                  Six Nations, Rugby Championship, and World Cup tournament escrow contracts will be enabled in an upcoming release.
                 </Text>
-                <View style={[styles.comingSoonBadge, { borderColor: 'rgba(16, 185, 129, 0.3)' }]}>
-                  <Sparkles size={14} color="#10B981" />
-                  <Text style={[styles.comingSoonBadgeText, { color: '#10B981' }]}>UFC Pay-Per-View Integration</Text>
+                <View style={[styles.comingSoonBadge, { borderColor: 'rgba(236, 72, 153, 0.3)' }]}>
+                  <Sparkles size={14} color="#EC4899" />
+                  <Text style={[styles.comingSoonBadgeText, { color: '#EC4899' }]}>Tournament Integration</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* SECTION: 🏒 Hockey Coming Soon */}
+          {activeCategoryTab === 'HOCKEY' && (
+            <View style={styles.categorySection}>
+              <View style={styles.categoryHeaderRow}>
+                <View style={styles.categoryTitleBox}>
+                  <Text style={styles.categorySectionEmoji}>🏒</Text>
+                  <Text style={styles.categorySectionTitle}>Hockey Contracts</Text>
+                  <View style={[styles.categoryCountBadge, { backgroundColor: 'rgba(6, 182, 212, 0.15)' }]}>
+                    <Text style={[styles.categoryCountText, { color: '#06B6D4' }]}>COMING SOON</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.comingSoonCard}>
+                <View style={[styles.comingSoonIconCircle, { borderColor: 'rgba(6, 182, 212, 0.3)' }]}>
+                  <Text style={{ fontSize: 28 }}>🏒</Text>
+                </View>
+                <Text style={styles.comingSoonTitle}>Hockey Contracts Coming Soon</Text>
+                <Text style={styles.comingSoonDesc}>
+                  NHL Stanley Cup playoffs and international ice hockey prediction markets will be available in the upcoming feed update.
+                </Text>
+                <View style={[styles.comingSoonBadge, { borderColor: 'rgba(6, 182, 212, 0.3)' }]}>
+                  <Sparkles size={14} color="#06B6D4" />
+                  <Text style={[styles.comingSoonBadgeText, { color: '#06B6D4' }]}>NHL Feeds Integration</Text>
                 </View>
               </View>
             </View>
@@ -1871,40 +1618,60 @@ export default function HomeScreen() {
               </View>
             )}
 
-          {/* SECTION: 🌐 Special & Other Prediction Markets */}
-          {activeCategoryTab === 'ALL' && filteredOtherPredictions.length > 0 && (
+          {/* SECTION: 🥊 Boxing Coming Soon */}
+          {activeCategoryTab === 'BOXING' && (
             <View style={styles.categorySection}>
               <View style={styles.categoryHeaderRow}>
                 <View style={styles.categoryTitleBox}>
-                  <Text style={styles.categorySectionEmoji}>🌐</Text>
-                  <Text style={styles.categorySectionTitle}>Special &amp; Custom Markets</Text>
-                  <View style={styles.categoryCountBadge}>
-                    <Text style={styles.categoryCountText}>{filteredOtherPredictions.length}</Text>
+                  <Text style={styles.categorySectionEmoji}>🥊</Text>
+                  <Text style={styles.categorySectionTitle}>Boxing Championship Contracts</Text>
+                  <View style={[styles.categoryCountBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                    <Text style={[styles.categoryCountText, { color: '#F59E0B' }]}>COMING SOON</Text>
                   </View>
                 </View>
-                {filteredOtherPredictions.length > CARDS_PER_CATEGORY && !searchText.trim() && (
-                  <TouchableOpacity
-                    onPress={() => setExpandedOtherPredictions(!expandedOtherPredictions)}
-                    style={styles.viewAllBtn}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.viewAllBtnText}>
-                      {expandedOtherPredictions ? 'Show Less' : `View All (${filteredOtherPredictions.length})`}
-                    </Text>
-                    {expandedOtherPredictions ? (
-                      <ChevronUp size={14} color="#00D285" />
-                    ) : (
-                      <ChevronDown size={14} color="#00D285" />
-                    )}
-                  </TouchableOpacity>
-                )}
               </View>
 
-              <View style={styles.cardsGrid}>
-                {(expandedOtherPredictions || searchText.trim()
-                  ? filteredOtherPredictions
-                  : filteredOtherPredictions.slice(0, CARDS_PER_CATEGORY)
-                ).map(renderMarketPredictionCard)}
+              <View style={styles.comingSoonCard}>
+                <View style={styles.comingSoonIconCircle}>
+                  <Text style={{ fontSize: 28 }}>🥊</Text>
+                </View>
+                <Text style={styles.comingSoonTitle}>Boxing Ring Contracts Coming Soon</Text>
+                <Text style={styles.comingSoonDesc}>
+                  Live championship fight cards and round-by-round prediction markets will be available once the official sanctioning feeds go live.
+                </Text>
+                <View style={styles.comingSoonBadge}>
+                  <Sparkles size={14} color="#F59E0B" />
+                  <Text style={styles.comingSoonBadgeText}>Next Major Fight Night</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* SECTION: 🥋 UFC Coming Soon */}
+          {activeCategoryTab === 'UFC' && (
+            <View style={styles.categorySection}>
+              <View style={styles.categoryHeaderRow}>
+                <View style={styles.categoryTitleBox}>
+                  <Text style={styles.categorySectionEmoji}>🥋</Text>
+                  <Text style={styles.categorySectionTitle}>UFC & MMA Fight Contracts</Text>
+                  <View style={[styles.categoryCountBadge, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                    <Text style={[styles.categoryCountText, { color: '#10B981' }]}>COMING SOON</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.comingSoonCard}>
+                <View style={[styles.comingSoonIconCircle, { borderColor: 'rgba(16, 185, 129, 0.3)' }]}>
+                  <Text style={{ fontSize: 28 }}>🥋</Text>
+                </View>
+                <Text style={styles.comingSoonTitle}>UFC Octagon Contracts Coming Soon</Text>
+                <Text style={styles.comingSoonDesc}>
+                  Main cards, submission props, and championship title contracts are launching in the next platform release.
+                </Text>
+                <View style={[styles.comingSoonBadge, { borderColor: 'rgba(16, 185, 129, 0.3)' }]}>
+                  <Sparkles size={14} color="#10B981" />
+                  <Text style={[styles.comingSoonBadgeText, { color: '#10B981' }]}>UFC Pay-Per-View Integration</Text>
+                </View>
               </View>
             </View>
           )}
@@ -1996,6 +1763,109 @@ export default function HomeScreen() {
               >
                 <Text style={styles.infoModalDismissText}>Got It</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Multi-Choice Options Selector Modal */}
+        <Modal
+          visible={!!selectedOptionsMarket}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setSelectedOptionsMarket(null)}
+        >
+          <View style={styles.infoModalOverlay}>
+            <View style={[styles.infoModalCard, { maxHeight: '80%' }]}>
+              <View style={styles.infoModalHeader}>
+                <View style={styles.infoModalTitleCol}>
+                  <View style={styles.infoModalBadgeRow}>
+                    <Text style={styles.infoModalTag}>
+                      {(selectedOptionsMarket?.subcategory || selectedOptionsMarket?.category || 'OPTIONS').toUpperCase()}
+                    </Text>
+                    <Text style={[styles.infoModalTag, { backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#38BDF8' }]}>
+                      {selectedOptionsMarket?.options?.length || 0} CHOICES
+                    </Text>
+                  </View>
+                  <Text style={styles.infoModalTitle} numberOfLines={2}>
+                    {selectedOptionsMarket?.title}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setSelectedOptionsMarket(null)}
+                  style={styles.infoModalCloseBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={18} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={{ color: '#94A3B8', fontSize: 13, marginBottom: 14, paddingHorizontal: 4 }}>
+                Select an option to trade on this market:
+              </Text>
+
+              <ScrollView
+                style={styles.infoModalBody}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={{ gap: 10, paddingBottom: 16 }}>
+                  {(selectedOptionsMarket?.options || []).map((opt: any, optIdx: number) => {
+                    const optOdds = opt.odds || 2.0;
+                    const optLocked = isContractLocked(selectedOptionsMarket, opt.label, optOdds);
+                    return (
+                      <TouchableOpacity
+                        key={opt.id || `${opt.label}_${optIdx}`}
+                        onPress={() => {
+                          const m = selectedOptionsMarket;
+                          setSelectedOptionsMarket(null);
+                          handleOpenTradeModal(m, opt);
+                        }}
+                        disabled={optLocked}
+                        activeOpacity={0.7}
+                        style={{
+                          backgroundColor: '#131B2E',
+                          borderRadius: 14,
+                          padding: 14,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          borderWidth: 1,
+                          borderColor: optLocked ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255, 255, 255, 0.08)',
+                          opacity: optLocked ? 0.6 : 1,
+                        }}
+                      >
+                        <View style={{ flex: 1, marginRight: 12 }}>
+                          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700', marginBottom: 2 }}>
+                            {opt.label}
+                          </Text>
+                          <Text style={{ color: '#64748B', fontSize: 12 }}>
+                            {optLocked ? 'Safeguard locked' : '₦1,000 / Share'}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                          <View
+                            style={{
+                              backgroundColor: optLocked ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 210, 133, 0.15)',
+                              paddingHorizontal: 10,
+                              paddingVertical: 5,
+                              borderRadius: 8,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: optLocked ? '#EF4444' : '#00D285',
+                                fontWeight: '800',
+                                fontSize: 13,
+                              }}
+                            >
+                              {optLocked ? 'Locked' : `${Number(optOdds).toFixed(2)}x`}
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -2120,6 +1990,80 @@ const styles = StyleSheet.create({
   categoryPillTextActive: {
     color: '#00D285',
     fontWeight: '700',
+  },
+  tabSoonBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 6,
+    marginLeft: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  tabSoonBadgeText: {
+    color: '#F59E0B',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  adminControlStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 10,
+    gap: 6,
+  },
+  adminControlText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  adminContractToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  adminContractToggleBtnLocked: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+  },
+  adminContractToggleText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#00D285',
+    fontFamily: 'Inter',
+  },
+  adminLockBtnSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  adminLockBtnActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  adminUnlockBtnSmall: {
+    backgroundColor: 'rgba(0, 210, 133, 0.2)',
+    borderWidth: 1,
+    borderColor: '#00D285',
+  },
+  adminLockBtnText: {
+    color: '#FFFFFF',
+    fontSize: 10.5,
+    fontWeight: '700',
+    fontFamily: 'Inter',
   },
   featuredSection: {
     paddingHorizontal: 20,
