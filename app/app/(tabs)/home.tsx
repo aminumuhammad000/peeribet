@@ -125,6 +125,64 @@ const CATEGORY_TABS = [
 
 const STAKE_PRESETS = [500, 1000, 2500, 5000, 10000];
 
+export const HOME_SUBCATEGORIES: Record<string, string[]> = {
+  FOOTBALL: ['All', 'Premier League', 'Serie A', 'La Liga', 'Champions League', 'Bundesliga', 'Ligue 1'],
+  BASKETBALL: ['All', 'NBA', 'EuroLeague', 'NCAA', 'WNBA'],
+  POLITICS: ['All', 'Policy & Economy', 'Elections', 'Global Affairs', 'World Leaders'],
+  ENTERTAINMENT: ['All', 'Spotify & Music', 'Movies & Box Office', 'Awards & Grammys'],
+  LIVE_EVENT: ['All', 'Space & Tech', 'AI & Computing', 'Climate & Science', 'Pop Culture'],
+};
+
+export const isMatchInSubcategory = (m: any, sub: string) => {
+  if (!sub || sub === 'All') return true;
+  const subLower = sub.toLowerCase().trim();
+  const league = String(m?.league || m?.leagueName || '').toLowerCase();
+  const home = String(m?.homeTeam || '').toLowerCase();
+  const away = String(m?.awayTeam || '').toLowerCase();
+  const title = String(m?.title || '').toLowerCase();
+  const subcat = String(m?.subcategory || m?.category || '').toLowerCase();
+
+  if (subLower === 'premier league' || subLower.includes('premier')) {
+    return league.includes('premier') || league.includes('epl') || league.includes('english') || title.includes('premier');
+  }
+  if (subLower === 'serie a' || subLower.includes('serie') || subLower.includes('seria')) {
+    return (
+      league.includes('serie a') ||
+      league.includes('serie-a') ||
+      league.includes('seria') ||
+      league.includes('italian') ||
+      league.includes('italy') ||
+      title.includes('serie') ||
+      title.includes('seria')
+    );
+  }
+  if (subLower === 'la liga' || subLower.includes('liga')) {
+    return league.includes('la liga') || league.includes('laliga') || league.includes('spanish') || league.includes('spain') || title.includes('liga');
+  }
+  if (subLower === 'champions league' || subLower.includes('champions')) {
+    return league.includes('champions') || league.includes('ucl') || league.includes('uefa') || title.includes('champions');
+  }
+  if (subLower === 'bundesliga') {
+    return league.includes('bundesliga') || league.includes('german') || league.includes('germany') || title.includes('bundesliga');
+  }
+  if (subLower === 'ligue 1' || subLower.includes('ligue')) {
+    return league.includes('ligue 1') || league.includes('ligue-1') || league.includes('french') || league.includes('france') || title.includes('ligue');
+  }
+  if (subLower === 'nba') {
+    return league.includes('nba') || title.includes('nba');
+  }
+  if (subLower === 'euroleague') {
+    return league.includes('euroleague') || league.includes('euro') || title.includes('euroleague');
+  }
+  if (subLower === 'ncaa') {
+    return league.includes('ncaa') || league.includes('college') || title.includes('ncaa');
+  }
+  if (subLower === 'wnba') {
+    return league.includes('wnba') || title.includes('wnba');
+  }
+  return league.includes(subLower) || home.includes(subLower) || away.includes(subLower) || title.includes(subLower) || subcat.includes(subLower);
+};
+
 export interface ContractInfoDetail {
   title: string;
   tag: string;
@@ -140,6 +198,7 @@ export default function HomeScreen() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [searchText, setSearchText] = useState('');
   const [activeCategoryTab, setActiveCategoryTab] = useState('ALL');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('All');
   const [selectedInfoContract, setSelectedInfoContract] = useState<ContractInfoDetail | null>(null);
   const [selectedOptionsMarket, setSelectedOptionsMarket] = useState<any | null>(null);
 
@@ -463,18 +522,15 @@ export default function HomeScreen() {
     });
   };
 
-  // Featured Match
-  const featuredMatch =
-    sportsMatches.find((m) => m.isPromoted && (m.status === 'LIVE' || m.status === 'UPCOMING')) ||
-    sportsMatches.find((m) => m.status === 'LIVE') ||
-    sportsMatches[0] ||
-    null;
-
-  // Filtered by Search
+  // Filtered by Search & Subcategory
   const filterBySearch = (items: any[], isMatch = false) => {
-    if (!searchText.trim()) return items;
+    let list = items;
+    if (activeCategoryTab !== 'ALL' && selectedSubcategory !== 'All') {
+      list = list.filter((item) => isMatchInSubcategory(item, selectedSubcategory));
+    }
+    if (!searchText.trim()) return list;
     const q = searchText.trim().toLowerCase();
-    return items.filter((item) => {
+    return list.filter((item) => {
       if (isMatch) {
         return (
           (item.homeTeam || '').toLowerCase().includes(q) ||
@@ -500,6 +556,13 @@ export default function HomeScreen() {
   const filteredEntertainment = filterBySearch(entertainmentMarkets, false);
   const filteredSportsPredictions = filterBySearch(sportsPredictionMarkets, false);
   const filteredOtherPredictions = filterBySearch(otherPredictionMarkets, false);
+
+  // Featured Match
+  const featuredMatch =
+    filteredSports.find((m) => m.isPromoted && (m.status === 'LIVE' || m.status === 'UPCOMING')) ||
+    filteredSports.find((m) => m.status === 'LIVE') ||
+    filteredSports[0] ||
+    null;
 
   const CARDS_PER_CATEGORY = 6;
 
@@ -809,7 +872,10 @@ export default function HomeScreen() {
                 return (
                   <TouchableOpacity
                     key={tab.id}
-                    onPress={() => setActiveCategoryTab(tab.id)}
+                    onPress={() => {
+                      setActiveCategoryTab(tab.id);
+                      setSelectedSubcategory('All');
+                    }}
                     activeOpacity={0.8}
                     style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
                   >
@@ -826,6 +892,33 @@ export default function HomeScreen() {
                 );
               })}
             </ScrollView>
+          )}
+
+          {/* Subcategory Filter Pills (Leagues & Topics) */}
+          {!searchText.trim() && activeCategoryTab !== 'ALL' && HOME_SUBCATEGORIES[activeCategoryTab] && (
+            <View style={styles.subcategoriesWrapper}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.subcategoriesScroll}
+              >
+                {HOME_SUBCATEGORIES[activeCategoryTab].map((sub) => {
+                  const isSubSelected = selectedSubcategory === sub;
+                  return (
+                    <TouchableOpacity
+                      key={sub}
+                      onPress={() => setSelectedSubcategory(sub)}
+                      activeOpacity={0.8}
+                      style={[styles.subPill, isSubSelected && styles.subPillActive]}
+                    >
+                      <Text style={[styles.subPillText, isSubSelected && styles.subPillTextActive]}>
+                        {sub}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
           )}
 
           {/* Hero / Featured Live Card (When ALL or SPORTS tab selected) */}
@@ -2004,6 +2097,36 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
     fontSize: 9,
     fontWeight: '800',
+  },
+  subcategoriesWrapper: {
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  subcategoriesScroll: {
+    paddingHorizontal: 20,
+    gap: 6,
+  },
+  subPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  subPillActive: {
+    backgroundColor: 'rgba(0, 210, 133, 0.16)',
+    borderColor: '#00D285',
+  },
+  subPillText: {
+    fontSize: 11,
+    color: '#8FA2C7',
+    fontWeight: '600',
+    fontFamily: 'Inter',
+  },
+  subPillTextActive: {
+    color: '#00D285',
+    fontWeight: '700',
   },
   adminControlStrip: {
     flexDirection: 'row',

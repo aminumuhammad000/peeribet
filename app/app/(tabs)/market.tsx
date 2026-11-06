@@ -64,9 +64,61 @@ export const isComingSoonCategory = (cat: string) =>
   ['Cricket', 'Rugby', 'Hockey', 'Boxing', 'UFC'].includes(cat);
 
 const SUBCATEGORIES: Record<string, string[]> = {
+  Football: ['All', 'Premier League', 'Serie A', 'La Liga', 'Champions League', 'Bundesliga', 'Ligue 1'],
+  Basketball: ['All', 'NBA', 'EuroLeague', 'NCAA', 'WNBA'],
   Politics: ['All', 'Policy & Economy', 'Elections', 'Global Affairs', 'World Leaders'],
   Entertainment: ['All', 'Spotify & Music', 'Movies & Box Office', 'Awards & Grammys'],
   'Live Event Prediction': ['All', 'Space & Tech', 'AI & Computing', 'Climate & Science', 'Pop Culture'],
+};
+
+export const isMatchInSubcategory = (m: any, sub: string) => {
+  if (!sub || sub === 'All') return true;
+  const subLower = sub.toLowerCase().trim();
+  const league = String(m?.league || m?.leagueName || '').toLowerCase();
+  const home = String(m?.homeTeam || '').toLowerCase();
+  const away = String(m?.awayTeam || '').toLowerCase();
+  const title = String(m?.title || '').toLowerCase();
+  const subcat = String(m?.subcategory || m?.category || '').toLowerCase();
+
+  if (subLower === 'premier league' || subLower.includes('premier')) {
+    return league.includes('premier') || league.includes('epl') || league.includes('english') || title.includes('premier');
+  }
+  if (subLower === 'serie a' || subLower.includes('serie') || subLower.includes('seria')) {
+    return (
+      league.includes('serie a') ||
+      league.includes('serie-a') ||
+      league.includes('seria') ||
+      league.includes('italian') ||
+      league.includes('italy') ||
+      title.includes('serie') ||
+      title.includes('seria')
+    );
+  }
+  if (subLower === 'la liga' || subLower.includes('liga')) {
+    return league.includes('la liga') || league.includes('laliga') || league.includes('spanish') || league.includes('spain') || title.includes('liga');
+  }
+  if (subLower === 'champions league' || subLower.includes('champions')) {
+    return league.includes('champions') || league.includes('ucl') || league.includes('uefa') || title.includes('champions');
+  }
+  if (subLower === 'bundesliga') {
+    return league.includes('bundesliga') || league.includes('german') || league.includes('germany') || title.includes('bundesliga');
+  }
+  if (subLower === 'ligue 1' || subLower.includes('ligue')) {
+    return league.includes('ligue 1') || league.includes('ligue-1') || league.includes('french') || league.includes('france') || title.includes('ligue');
+  }
+  if (subLower === 'nba') {
+    return league.includes('nba') || title.includes('nba');
+  }
+  if (subLower === 'euroleague') {
+    return league.includes('euroleague') || league.includes('euro') || title.includes('euroleague');
+  }
+  if (subLower === 'ncaa') {
+    return league.includes('ncaa') || league.includes('college') || title.includes('ncaa');
+  }
+  if (subLower === 'wnba') {
+    return league.includes('wnba') || title.includes('wnba');
+  }
+  return league.includes(subLower) || home.includes(subLower) || away.includes(subLower) || title.includes(subLower) || subcat.includes(subLower);
 };
 
 const isBoxingMatch = (m: any) => {
@@ -586,8 +638,9 @@ export default function MarketScreen() {
     );
   };
 
-  // Filter Sports Matches by Search
+  // Filter Sports Matches by Search & Subcategory
   const filteredMatches = matches.filter((m) => {
+    if (!isMatchInSubcategory(m, selectedSubcategory)) return false;
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     const home = (m.homeTeam || '').toLowerCase();
@@ -597,6 +650,19 @@ export default function MarketScreen() {
   });
 
   const availableSubcategories = SUBCATEGORIES[selectedCategory] || ['All'];
+
+  // Filter Prediction Markets by Subcategory
+  const filteredPredictionMarkets = predictionMarkets.filter((pm) => {
+    if (selectedSubcategory && selectedSubcategory !== 'All') {
+      const subLower = selectedSubcategory.toLowerCase();
+      const title = (pm.title || '').toLowerCase();
+      const subcat = (pm.subcategory || '').toLowerCase();
+      if (!title.includes(subLower) && !subcat.includes(subLower) && !isMatchInSubcategory(pm, selectedSubcategory)) {
+        return false;
+      }
+    }
+    return true;
+  });
 
 
   const formatOdds = (val: number | undefined | null, fallback = 1.90) => {
@@ -758,7 +824,10 @@ export default function MarketScreen() {
               return (
                 <TouchableOpacity
                   key={cat.id}
-                  onPress={() => setSelectedCategory(cat.id)}
+                  onPress={() => {
+                    setSelectedCategory(cat.id);
+                    setSelectedSubcategory('All');
+                  }}
                   activeOpacity={0.8}
                   style={[styles.categoryPill, isSelected && styles.categoryPillActive]}
                 >
@@ -786,8 +855,8 @@ export default function MarketScreen() {
           </ScrollView>
         </View>
 
-        {/* Subcategories (for Prediction Markets) */}
-        {!isCurrentSports && (
+        {/* Subcategories (Leagues for Sports & Topics for Predictions) */}
+        {availableSubcategories.length > 1 && (
           <View style={styles.subcategoriesWrapper}>
             <ScrollView
               horizontal
@@ -897,14 +966,14 @@ export default function MarketScreen() {
           ) : (
             <>
               {/* Backdoor & Outright Prediction Markets in this Category */}
-              {predictionMarkets.length > 0 && (
+              {filteredPredictionMarkets.length > 0 && (
                 <View style={{ marginBottom: isCurrentSports ? 16 : 0 }}>
                   {isCurrentSports && (
                     <View style={styles.sportsSectionHeader}>
-                      <Text style={styles.sportsSectionTitle}>🏆 Outrights &amp; Prediction Markets ({predictionMarkets.length})</Text>
+                      <Text style={styles.sportsSectionTitle}>🏆 Outrights &amp; Prediction Markets ({filteredPredictionMarkets.length})</Text>
                     </View>
                   )}
-                  {predictionMarkets.map(renderPredictionMarketCard)}
+                  {filteredPredictionMarkets.map(renderPredictionMarketCard)}
                 </View>
               )}
 

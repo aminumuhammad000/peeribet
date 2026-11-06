@@ -249,11 +249,14 @@ export const refreshMatchesFromProvider = async (targetDate?: string) => {
 // @access Private
 export const getMatches = async (req: Request, res: Response) => {
   try {
-    const { status, isPromoted, sport, date, page: pageQuery, limit: limitQuery } = req.query;
+    const { status, isPromoted, sport, date, league, page: pageQuery, limit: limitQuery } = req.query;
     const filter: any = {};
     
     if (status) filter.status = status;
     if (isPromoted) filter.isPromoted = isPromoted === 'true';
+    if (league && String(league).toLowerCase() !== 'all') {
+      filter.league = { $regex: new RegExp(String(league).trim(), 'i') };
+    }
     if (sport) {
       const normalizedSport = String(sport).trim().toLowerCase();
       if (normalizedSport.includes('football') || normalizedSport.includes('soccer')) {
